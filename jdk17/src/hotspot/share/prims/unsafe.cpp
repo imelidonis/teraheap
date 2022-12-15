@@ -259,7 +259,6 @@ public:
   }
 };
 
-
 // These functions allow a null base pointer with an arbitrary address.
 // But if the base pointer is non-null, the offset should make some sense.
 // That is, it should be in the range [0, MAX_OBJECT_SIZE].
@@ -295,7 +294,6 @@ UNSAFE_ENTRY(jobject, Unsafe_GetUncompressedObject(JNIEnv *env, jobject unsafe, 
   oop v = *(oop*) (address) addr;
   return JNIHandles::make_local(THREAD, v);
 } UNSAFE_END
-
 
 #define DEFINE_GETSETOOP(java_type, Type) \
  \
@@ -416,8 +414,6 @@ UNSAFE_ENTRY(void, Unsafe_CopyMemory0(JNIEnv *env, jobject unsafe, jobject srcOb
     }
   }
 } UNSAFE_END
-
-
 
 // This function is a leaf since if the source and destination are both in native memory
 // the copy may potentially be very large, and we don't want to disable GC if we can avoid it.
@@ -940,9 +936,12 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
 
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},
 
+
+    /*-------TERA HEAP----------*/
     {CC "h2TagAndMoveRoot", CC "(" OBJ "JJ)V",  FN_PTR(Unsafe_h2TagAndMoveRoot)},
     {CC "h2TagRoot",           CC "(" OBJ "JJ)V",               FN_PTR(Unsafe_h2TagRoot)},
     {CC "h2Move",              CC "(J)V",                     FN_PTR(Unsafe_h2Move)},
+
 
     DECLARE_GETPUTOOP(Boolean, Z),
     DECLARE_GETPUTOOP(Byte, B),

@@ -176,6 +176,7 @@ public:
   void do_cld(ClassLoaderData* cld);
 };
 
+
 // Closure for iterating over object fields during concurrent marking
 class G1CMOopClosure : public MetadataVisitingOopIterateClosure {
   G1CollectedHeap*   _g1h;
@@ -200,6 +201,7 @@ public:
 #endif
 
 };
+
 
 
 // Closure to scan the root regions during concurrent marking

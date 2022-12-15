@@ -1998,16 +1998,15 @@ static ReferenceProcessor* get_cm_oop_closure_ref_processor(G1CollectedHeap* g1h
   return result;
 }
 
-G1CMOopClosure::G1CMOopClosure(G1CollectedHeap* g1h, G1CMTask* task)
-  : MetadataVisitingOopIterateClosure(get_cm_oop_closure_ref_processor(g1h)),  _g1h(g1h), _task(task)
+G1CMOopClosure::G1CMOopClosure(G1CollectedHeap* g1h,
+                               G1CMTask* task)
+  : MetadataVisitingOopIterateClosure(get_cm_oop_closure_ref_processor(g1h)),
+    _g1h(g1h), _task(task)
 { 
 #ifdef TERA_CONC_MARKING
     _h2_flag = false;
 #endif
-
 }
-
-
 
 void G1CMTask::setup_for_region(HeapRegion* hr) {
   assert(hr != NULL,
@@ -2467,7 +2466,7 @@ bool G1ConcurrentMark::try_stealing(uint worker_id, G1TaskQueueEntry& task_entry
     the MT remark code, and the MT reference processing closures.
 
  *****************************************************************************/
-#include <iostream>
+
 void G1CMTask::do_marking_step(double time_target_ms,
                                bool do_termination,
                                bool is_serial) {
@@ -2506,7 +2505,6 @@ void G1CMTask::do_marking_step(double time_target_ms,
   set_cm_oop_closure(&cm_oop_closure);
 
   if (_cm->has_overflown()) {
-      std::cout << "The global stack has overflown ==> RESTART\n";
     // This can happen if the mark stack overflows during a GC pause
     // and this task, after a yield point, restarts. We have to abort
     // as we need to get into the overflow protocol which happens

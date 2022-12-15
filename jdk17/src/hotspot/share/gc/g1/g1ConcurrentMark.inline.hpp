@@ -40,9 +40,6 @@
 #include "gc/shared/taskqueue.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
 
-
-#include <iostream>
-
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
   return !_g1h->is_obj_ill(obj);
 }
@@ -249,6 +246,7 @@ inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
   return mr.word_size();
 }
 
+
 inline HeapWord* G1ConcurrentMark::top_at_rebuild_start(uint region) const {
   assert(region < _g1h->max_reserved_regions(), "Tried to access TARS for region %u out of bounds", region);
   return _top_at_rebuild_starts[region];
@@ -281,7 +279,6 @@ inline void G1CMTask::abort_marking_if_regular_check_fail() {
     set_has_aborted();
   }
 }
-
 
 inline bool G1CMTask::make_reference_grey(oop obj) {
 
@@ -361,7 +358,6 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   }
   return true;
 }
-
 
 
 template <class T>

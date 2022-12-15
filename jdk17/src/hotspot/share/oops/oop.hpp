@@ -34,6 +34,7 @@
 #include "utilities/macros.hpp"
 #include "memory/sharedDefines.h"
 
+
 // oopDesc is the top baseclass for objects classes. The {name}Desc classes describe
 // the format of Java objects so the fields can be accessed from C++.
 // oopDesc is abstract.
@@ -58,7 +59,6 @@ class oopDesc {
     narrowKlass _compressed_klass;
   } _metadata;
 
-
 #ifdef TERA_FLAG
   // TeraFlag word is used by the TeraCache. TeraFlag is a 64-bit word and is
   // divided in three parts:
@@ -76,10 +76,10 @@ class oopDesc {
   volatile int64_t _tera_flag;      //< MarkTeracache objects
 #endif // TERA_FLAG
 
-
  public:
   inline markWord  mark()          const;
   inline markWord* mark_addr() const;
+
 
 #ifdef TERA_FLAG
   // Mark an object with 'id' to be moved in H2. H2 allocator uses the
@@ -166,6 +166,7 @@ class oopDesc {
   }
 
 #endif // TERA_FLAG
+
 
 
   inline void set_mark(markWord m);
@@ -412,13 +413,11 @@ class oopDesc {
   static int klass_offset_in_bytes()     { return offset_of(oopDesc, _metadata._klass); }
   static int klass_gap_offset_in_bytes() {
     assert(has_klass_gap(), "only applicable to compressed klass pointers");
-
 #ifdef TERA_FLAG
 	return klass_offset_in_bytes() + sizeof(narrowKlass) + sizeof(int64_t);
 #else
 	return klass_offset_in_bytes() + sizeof(narrowKlass);
 #endif
-
   }
 
   // for error reporting

@@ -218,6 +218,7 @@ public:
 
   static uintx ct_max_alignment_constraint();
 
+
 #ifdef TERA_CARDS
   static uint64_t th_ct_max_alignment_constraint();
 #endif
@@ -245,7 +246,7 @@ public:
     th_card_size = 1 << th_card_shift,
     th_card_size_in_words = th_card_size / sizeof(HeapWord)
 #endif
-  
+
   };
 
   static CardValue clean_card_val()          { return clean_card; }

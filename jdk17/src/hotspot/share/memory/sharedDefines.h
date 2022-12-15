@@ -12,7 +12,7 @@
 #ifndef _SHARE_DEFINES_H_
 #define _SHARE_DEFINES_H_
 
-
+#include <iostream>
  /************************************
   * Source code that we need to remove after testing
   ************************************/

@@ -1,8 +1,7 @@
 /build/
 /dist/
 /.idea/
-/.vscode/
-/.jcheck/
+**/.vscode/
 /nbproject/
 nbproject/private/
 /webrev
@@ -17,5 +16,4 @@ NashornProfile.txt
 **/JTreport/**
 **/JTwork/**
 /src/utils/LogCompilation/target/
-/make/hs_err*
-/test
+

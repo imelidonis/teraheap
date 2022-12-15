@@ -775,7 +775,6 @@ public:
   // the local queue if below the finger. obj is required to be below its region's NTAMS.
   // Returns whether there has been a mark to the bitmap.
   inline bool make_reference_grey(oop obj);
-  inline bool tera_make_reference_grey(oop obj);
 
   // Grey the object (by calling make_grey_reference) if required,
   // e.g. obj is below its containing region's NTAMS.
@@ -783,7 +782,6 @@ public:
   // Returns true if the reference caused a mark to be set in the next bitmap.
   template <class T>
   inline bool deal_with_reference(T* p);
-
 
   // Scans an object and visits its children.
   inline void scan_task_entry(G1TaskQueueEntry task_entry);

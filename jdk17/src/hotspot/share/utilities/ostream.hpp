@@ -28,7 +28,6 @@
 #include "memory/allocation.hpp"
 #include "runtime/timer.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "memory/sharedDefines.h"
 
 DEBUG_ONLY(class ResourceMark;)
 

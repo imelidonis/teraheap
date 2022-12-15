@@ -98,9 +98,8 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1CMOopClosure::do_oop_work(T* p) {
-        _task->deal_with_reference(p);
+  _task->deal_with_reference(p);
 }
-
 
 template <class T>
 inline void G1RootRegionScanClosure::do_oop_work(T* p) {

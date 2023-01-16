@@ -34,7 +34,10 @@
 #include "classfile/classLoaderData.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
+
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
+
 #include "gc/shared/gcCause.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"

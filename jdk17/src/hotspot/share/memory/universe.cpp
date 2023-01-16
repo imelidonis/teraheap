@@ -80,6 +80,9 @@
 #include "utilities/ostream.hpp"
 #include "utilities/preserveException.hpp"
 
+#include "gc/teraHeap/teraHeap.hpp"
+
+
 // Known objects
 Klass* Universe::_typeArrayKlassObjs[T_LONG+1]        = { NULL /*, NULL...*/ };
 Klass* Universe::_objectArrayKlassObj                 = NULL;
@@ -151,6 +154,7 @@ OopStorage*     Universe::_vm_weak = NULL;
 OopStorage*     Universe::_vm_global = NULL;
 
 CollectedHeap*  Universe::_collectedHeap = NULL;
+TeraHeap *Universe::_teraHeap = NULL;
 
 objArrayOop Universe::the_empty_class_array ()  {
   return (objArrayOop)_the_empty_class_array.resolve();
@@ -794,6 +798,10 @@ jint universe_init() {
 jint Universe::initialize_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
   _collectedHeap = GCConfig::arguments()->create_heap();
+
+  if ( UseG1GC && EnableTeraHeap ) {
+    _teraHeap = new TeraHeap();
+  }
 
   log_info(gc)("Using %s", _collectedHeap->name());
   return _collectedHeap->initialize();

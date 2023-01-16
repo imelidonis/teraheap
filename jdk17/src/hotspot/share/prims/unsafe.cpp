@@ -874,33 +874,36 @@ UNSAFE_ENTRY(jint, Unsafe_GetLoadAverage0(JNIEnv *env, jobject unsafe, jdoubleAr
 //----------Tera Cache----------------
 
 UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject obj, jlong label, jlong partId)) {
+  
+  if (!EnableTeraHeap) return;
+  
   oop o = JNIHandles::resolve_non_null(obj);
 
   // If the object is already in TeraCache then do not mark its teraflag
-  if ( o->is_in_h2() )
-    return;
+  if (Universe::teraHeap()->is_obj_in_h2(o)) return;
 
   // Initialize object's teraflag
   o->mark_move_h2(label, partId);
-  o->set_in_h2();
 
 } UNSAFE_END
 
 
 UNSAFE_ENTRY(void, Unsafe_h2TagRoot(JNIEnv *env, jobject unsafe, jobject obj, jlong label, jlong partId)){  
+  if (!EnableTeraHeap) return;
+  
   oop o = JNIHandles::resolve_non_null(obj);
 
   // If the object is already in TeraCache then do not mark its teraflag
-  if ( o->is_in_h2() )
-    return;
+  if (Universe::teraHeap()->is_obj_in_h2(o)) return;
 
   // Initialize object's teraflag
-  o->mark_move_h2(label, partId);
+  o->mark_move_h2(Universe::teraHeap()->get_non_promote_tag(), partId);
 } UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_h2Move(JNIEnv *env, jobject unsafe, jlong label)) {    
-  // Universe::teraHeap()->set_promote_tag(label);
-  // Universe::teraHeap()->set_non_promote_tag(label+1);
+  if (!EnableTeraHeap) return;
+  Universe::teraHeap()->set_promote_tag(label);
+  Universe::teraHeap()->set_non_promote_tag(label+1);
 } UNSAFE_END
 
 

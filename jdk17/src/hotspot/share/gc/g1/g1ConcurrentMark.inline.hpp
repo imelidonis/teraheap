@@ -176,7 +176,8 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
     } else {
       oop obj = task_entry.obj();
 
-      if (obj->is_in_h2()) return;
+      //if object is in H2 then return
+      if(EnableTeraHeap && (Universe::teraHeap()->is_obj_in_h2(obj))) return;
       
       if (G1CMObjArrayProcessor::should_be_sliced(obj)) {
         
@@ -195,7 +196,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       } else {
 
           //It may be an instance object or an object array that does not need to be sliced
-          //if it's an instance push it to the local queue, without traversing it
+          //if it's an instance push its children to the local queue, without traversing them
           //If it's an object array, push every obj[i] to the local queue without traversing them 
 
 #ifdef TERA_CONC_MARKING
@@ -227,7 +228,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
 
 #ifdef TERA_CONC_MARKING
-    assert(!obj->is_in_h2(), "Object should not be in H2");
+    assert( ! (Universe::teraHeap()->is_obj_in_h2(obj)) , "Object should not be in H2");
 
     if (obj->is_marked_move_h2()) {
         _cm_oop_closure->set_h2_flag();
@@ -287,8 +288,9 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   }
 
 #ifdef TERA_CONC_MARKING
+
   //Fence: if its in H2 then return
-  if (obj->is_in_h2()) {
+  if(Universe::teraHeap()->is_obj_in_h2(obj)){
       std::cout << "\tObj is in H2 : " << obj->klass()->signature_name() << " " << (HeapWord*) obj << "\n";
       //There should be no other objects with this type, bcs they should not be traveresed
       return true;
@@ -296,10 +298,13 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 
   //if its parent object is marked to be moved in H2
   //then mark this object too (if it's not already marked)
-  if (_cm_oop_closure->is_h2_flag_set() &&
-      !(obj->is_marked_move_h2())
-      ) {
-      obj->mark_move_h2(0, 0);
+  if ( _cm_oop_closure->is_h2_flag_set() &&  !(obj->is_marked_move_h2()) ) {
+  // JACK instead has the following if statment:
+  // if ( _cm_oop_closure->is_h2_flag_set() &&  !(obj->is_marked_move_h2() || obj->is_instanceMirror() || obj->is_instanceRef()) ) {
+     
+      obj->mark_move_h2(Universe::teraHeap()->get_cur_obj_group_id(),
+                          Universe::teraHeap()->get_cur_obj_part_id());
+
       std::cout << "\tObj marked to be moved in H2 : " << obj->klass()->signature_name() << " " << (HeapWord*) obj << "\n";
       //All of the transitive closure should be marked and printed
   }
@@ -314,10 +319,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
       }
 
   }
-
-
-
-
+  
 #endif
 
 

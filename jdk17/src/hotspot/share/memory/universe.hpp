@@ -31,6 +31,7 @@
 #include "runtime/handles.hpp"
 #include "utilities/growableArray.hpp"
 
+
 // Universe is a name space holding known system classes and objects in the VM.
 //
 // Loaded classes are accessible through the SystemDictionary.
@@ -39,6 +40,7 @@
 // support is provided. Allocation by the interpreter and compiled code is done inline
 // and bails out to Scavenge::invoke_and_allocate.
 
+class TeraHeap;
 class CollectedHeap;
 class DeferredObjAllocEvent;
 class OopStorage;
@@ -141,6 +143,8 @@ class Universe: AllStatic {
 
   // The particular choice of collected heap.
   static CollectedHeap* _collectedHeap;
+
+  static TeraHeap* _teraHeap;
 
   static intptr_t _non_oop_bits;
 
@@ -299,6 +303,9 @@ class Universe: AllStatic {
 
   // The particular choice of collected heap.
   static CollectedHeap* heap() { return _collectedHeap; }
+
+  // Accessor to Teraheap
+  static TeraHeap* teraHeap() { return _teraHeap; }
 
   DEBUG_ONLY(static bool is_gc_active();)
   DEBUG_ONLY(static bool is_in_heap(const void* p);)

@@ -1,148 +1,146 @@
-// #include "gc/parallel/psVirtualspace.hpp"
-// #include "gc/shared/cardTable.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
+#include "utilities/stack.inline.hpp"
 
-// #include "memory/memRegion.hpp"
+#include "gc/parallel/psVirtualspace.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "memory/memRegion.hpp"
+#include "memory/sharedDefines.h"
+#include "oops/oop.inline.hpp"
+#include "runtime/globals.hpp"
+#include "runtime/mutexLocker.hpp"
 
-// #include "memory/sharedDefines.h"
-// #include "oops/oop.inline.hpp"
-// #include "runtime/globals.hpp"
-// #include "runtime/mutexLocker.hpp"
+char *TeraHeap::_start_addr = NULL;
+char *TeraHeap::_stop_addr = NULL;
 
-// #include "gc/teraHeap/teraHeap.hpp"
+Stack<oop *, mtGC> TeraHeap::_tc_stack;
+Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
 
+uint64_t TeraHeap::total_objects;
+uint64_t TeraHeap::total_objects_size;
+uint64_t TeraHeap::fwd_ptrs_per_fgc;
+uint64_t TeraHeap::back_ptrs_per_fgc;
+uint64_t TeraHeap::trans_per_fgc;
 
-// char *TeraHeap::_start_addr = NULL;
-// char *TeraHeap::_stop_addr = NULL;
+uint64_t TeraHeap::tc_ct_trav_time[16];
+uint64_t TeraHeap::heap_ct_trav_time[16];
 
-// Stack<oop *, mtGC> TeraHeap::_tc_stack;
-// Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
+uint64_t TeraHeap::back_ptrs_per_mgc;
 
-// uint64_t TeraHeap::total_objects;
-// uint64_t TeraHeap::total_objects_size;
-// uint64_t TeraHeap::fwd_ptrs_per_fgc;
-// uint64_t TeraHeap::back_ptrs_per_fgc;
-// uint64_t TeraHeap::trans_per_fgc;
+uint64_t TeraHeap::obj_distr_size[3];
+long int TeraHeap::cur_obj_group_id;
+long int TeraHeap::cur_obj_part_id;
 
-// uint64_t TeraHeap::tc_ct_trav_time[16];
-// uint64_t TeraHeap::heap_ct_trav_time[16];
+// Constructor of TeraHeap
+TeraHeap::TeraHeap() {
 
-// uint64_t TeraHeap::back_ptrs_per_mgc;
+  uint64_t align = CardTable::th_ct_max_alignment_constraint();
+  init(align);
 
-// uint64_t TeraHeap::obj_distr_size[3];
-// long int TeraHeap::cur_obj_group_id;
-// long int TeraHeap::cur_obj_part_id;
+  _start_addr = start_addr_mem_pool();
+  _stop_addr = stop_addr_mem_pool();
 
-// // Constructor of TeraHeap
-// TeraHeap::TeraHeap() {
+  // Initilize counters for TeraHeap
+  // These counters are used for experiments
+  total_objects = 0;
+  total_objects_size = 0;
 
-//   uint64_t align = CardTable::th_ct_max_alignment_constraint();
-//   init(align);
+  // Initialize arrays for the next minor collection
+  for (unsigned int i = 0; i < ParallelGCThreads; i++) {
+    tc_ct_trav_time[i] = 0;
+    heap_ct_trav_time[i] = 0;
+  }
 
-//   _start_addr = start_addr_mem_pool();
-//   _stop_addr = stop_addr_mem_pool();
+  back_ptrs_per_mgc = 0;
 
-//   // Initilize counters for TeraHeap
-//   // These counters are used for experiments
-//   total_objects = 0;
-//   total_objects_size = 0;
+  for (unsigned int i = 0; i < 3; i++) {
+    obj_distr_size[i] = 0;
+  }
 
-//   // Initialize arrays for the next minor collection
-//   for (unsigned int i = 0; i < ParallelGCThreads; i++) {
-//     tc_ct_trav_time[i] = 0;
-//     heap_ct_trav_time[i] = 0;
-//   }
+  cur_obj_group_id = 0;
 
-//   back_ptrs_per_mgc = 0;
+  obj_h1_addr = NULL;
+  obj_h2_addr = NULL;
 
-//   for (unsigned int i = 0; i < 3; i++) {
-//     obj_distr_size[i] = 0;
-//   }
+  non_promote_tag = 0;
+  promote_tag = -1;
+  direct_promotion = false;
 
-//   cur_obj_group_id = 0;
+#if defined(HINT_HIGH_LOW_WATERMARK) || defined(NOHINT_HIGH_LOW_WATERMARK)
+	total_marked_obj_for_h2 = 0;
+#endif
+}
 
-//   obj_h1_addr = NULL;
-//   obj_h2_addr = NULL;
+// Return H2 start address
+char* TeraHeap::h2_start_addr(void) {
+	assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
+	return _start_addr;
+}
 
-//   non_promote_tag = 0;
-//   promote_tag = -1;
-//   direct_promotion = false;
+// Return H2 stop address
+char* TeraHeap::h2_end_addr(void) {
+	assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
+	assert((char *)(_stop_addr) != NULL, "H2 allocator is not initialized");
+	return _stop_addr;
+}
 
-// #if defined(HINT_HIGH_LOW_WATERMARK) || defined(NOHINT_HIGH_LOW_WATERMARK)
-// 	total_marked_obj_for_h2 = 0;
-// #endif
-// }
+// Get the top allocated address of the H2. This address depicts the
+// end address of the last allocated object in the last region of
+// H2.
+char* TeraHeap::h2_top_addr(void) {
+	return cur_alloc_ptr();
+}
 
-// // Return H2 start address
-// char* TeraHeap::h2_start_addr(void) {
-// 	assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
-// 	return _start_addr;
-// }
+// Check if the TeraHeap is empty. If yes, return 'true', 'false' otherwise
+bool TeraHeap::h2_is_empty() {
+	return r_is_empty();
+}
 
-// // Return H2 stop address
-// char* TeraHeap::h2_end_addr(void) {
-// 	assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
-// 	assert((char *)(_stop_addr) != NULL, "H2 allocator is not initialized");
-// 	return _stop_addr;
-// }
+// Check if an object `ptr` belongs to the TeraHeap. If the object belongs
+// then the function returns true, either it returns false.
+bool TeraHeap::is_obj_in_h2(oop ptr) {
+	return ((HeapWord *)ptr >= (HeapWord *) _start_addr)     // if greater than start address
+			&& ((HeapWord *) ptr < (HeapWord *)_stop_addr);  // if smaller than stop address
+}
 
-// // Get the top allocated address of the H2. This address depicts the
-// // end address of the last allocated object in the last region of
-// // H2.
-// char* TeraHeap::h2_top_addr(void) {
-// 	return cur_alloc_ptr();
-// }
+// Check if an object `p` belongs to TeraHeap. If the object bolongs to
+// TeraHeap then the function returns true, either it returns false.
+bool TeraHeap::is_field_in_h2(void *p) {
+	char* const cp = (char *)p;
+	return cp >= _start_addr && cp < _stop_addr;
+}
 
-// // Check if the TeraHeap is empty. If yes, return 'true', 'false' otherwise
-// bool TeraHeap::h2_is_empty() {
-// 	return r_is_empty();
-// }
-
-// // Check if an object `ptr` belongs to the TeraHeap. If the object belongs
-// // then the function returns true, either it returns false.
-// bool TeraHeap::is_obj_in_h2(oop ptr) {
-// 	return ((HeapWord *)ptr >= (HeapWord *) _start_addr)     // if greater than start address
-// 			&& ((HeapWord *) ptr < (HeapWord *)_stop_addr);  // if smaller than stop address
-// }
-
-// // Check if an object `p` belongs to TeraHeap. If the object bolongs to
-// // TeraHeap then the function returns true, either it returns false.
-// bool TeraHeap::is_field_in_h2(void *p) {
-// 	char* const cp = (char *)p;
-// 	return cp >= _start_addr && cp < _stop_addr;
-// }
-
-// void TeraHeap::h2_clear_back_ref_stacks() {
-// 	if (TeraHeapStatistics)
-// 		back_ptrs_per_mgc = 0;
+void TeraHeap::h2_clear_back_ref_stacks() {
+	if (TeraHeapStatistics)
+		back_ptrs_per_mgc = 0;
 		
-// 	_tc_adjust_stack.clear(true);
-// 	_tc_stack.clear(true);
-// }
+	_tc_adjust_stack.clear(true);
+	_tc_stack.clear(true);
+}
 
-// // Keep for each thread the time that need to traverse the TeraHeap
-// // card table.
-// // Each thread writes the time in a table based on each ID and then we
-// // take the maximum time from all the threads as the total time.
-// void TeraHeap::h2_back_ref_traversal_time(unsigned int tid, uint64_t total_time) {
-// 	if (tc_ct_trav_time[tid]  < total_time)
-// 		tc_ct_trav_time[tid] = total_time;
-// }
+// Keep for each thread the time that need to traverse the TeraHeap
+// card table.
+// Each thread writes the time in a table based on each ID and then we
+// take the maximum time from all the threads as the total time.
+void TeraHeap::h2_back_ref_traversal_time(unsigned int tid, uint64_t total_time) {
+	if (tc_ct_trav_time[tid]  < total_time)
+		tc_ct_trav_time[tid] = total_time;
+}
 
-// // Keep for each thread the time that need to traverse the Heap
-// // card table
-// // Each thread writes the time in a table based on each ID and then we
-// // take the maximum time from all the threads as the total time.
-// void TeraHeap::h1_old_to_young_traversal_time(unsigned int tid, uint64_t total_time) {
-// 	if (heap_ct_trav_time[tid]  < total_time)
-// 		heap_ct_trav_time[tid] = total_time;
-// }
+// Keep for each thread the time that need to traverse the Heap
+// card table
+// Each thread writes the time in a table based on each ID and then we
+// take the maximum time from all the threads as the total time.
+void TeraHeap::h1_old_to_young_traversal_time(unsigned int tid, uint64_t total_time) {
+	if (heap_ct_trav_time[tid]  < total_time)
+		heap_ct_trav_time[tid] = total_time;
+}
 
-// // Print the statistics of TeraHeap at the end of each minorGC
-// // Will print:
-// //	- the time to traverse the TeraHeap dirty card tables
-// //	- the time to traverse the Heap dirty card tables
-// //	- TODO number of dirty cards in TeraHeap
-// //	- TODO number of dirty cards in Heap
+// Print the statistics of TeraHeap at the end of each minorGC
+// Will print:
+//	- the time to traverse the TeraHeap dirty card tables
+//	- the time to traverse the Heap dirty card tables
+//	- TODO number of dirty cards in TeraHeap
+//	- TODO number of dirty cards in Heap
 // void TeraHeap::print_minor_gc_statistics() {
 // 	uint64_t max_tc_ct_trav_time = 0;		//< Maximum traversal time of
 // 											// TeraHeap card tables from all
@@ -667,27 +665,27 @@
 // 	return pos;
 // }
 
-// // We save the current object group 'id' for tera-marked object to
-// // promote this 'id' to its reference objects
-// void TeraHeap::set_cur_obj_group_id(long int id) {
-// 	cur_obj_group_id = id;
-// }
+// We save the current object group 'id' for tera-marked object to
+// promote this 'id' to its reference objects
+void TeraHeap::set_cur_obj_group_id(long int id) {
+	cur_obj_group_id = id;
+}
 
-// // Get the saved current object group id 
-// long int TeraHeap::get_cur_obj_group_id(void) {
-// 	return cur_obj_group_id;
-// }
+// Get the saved current object group id 
+long int TeraHeap::get_cur_obj_group_id(void) {
+	return cur_obj_group_id;
+}
 
-// // We save the current object partition 'id' for tera-marked object to
-// // promote this 'id' to its reference objects
-// void TeraHeap::set_cur_obj_part_id(long int id) {
-// 	cur_obj_part_id = id;
-// }
+// We save the current object partition 'id' for tera-marked object to
+// promote this 'id' to its reference objects
+void TeraHeap::set_cur_obj_part_id(long int id) {
+	cur_obj_part_id = id;
+}
 
-// // Get the saved current object partition id 
-// long int TeraHeap::get_cur_obj_part_id(void) {
-// 	return cur_obj_part_id;
-// }
+// Get the saved current object partition id 
+long int TeraHeap::get_cur_obj_part_id(void) {
+	return cur_obj_part_id;
+}
 
 // // If obj is in a different H2 region than the region enabled, they
 // // are grouped 
@@ -724,25 +722,25 @@
 // 	}
 // }
 
-// // Set non promote label value
-// void TeraHeap::set_non_promote_tag(long val) {
-//   non_promote_tag = val;
-// }
+// Set non promote label value
+void TeraHeap::set_non_promote_tag(long val) {
+  non_promote_tag = val;
+}
 
-// // Set promote tag value
-// void TeraHeap::set_promote_tag(long val) {
-//   promote_tag = val;
-// }
+// Set promote tag value
+void TeraHeap::set_promote_tag(long val) {
+  promote_tag = val;
+}
 
-// // Get non promote tag value
-// long TeraHeap::get_non_promote_tag() {
-//   return non_promote_tag;
-// }
+// Get non promote tag value
+long TeraHeap::get_non_promote_tag() {
+  return non_promote_tag;
+}
 
-// // Get promote tag value
-// long TeraHeap::get_promote_tag() {
-//   return promote_tag;
-// }
+// Get promote tag value
+long TeraHeap::get_promote_tag() {
+  return promote_tag;
+}
 
 // bool TeraHeap::h2_promotion_policy(oop obj, bool is_direct) {
 // #ifdef P_NO_TRANSFER

@@ -6,8 +6,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEV "/home/mariach/Desktop/TeraHeap/H2.txt"	     //< Device name
-#define DEV_SIZE (2*1024LU*1024*1024)  //< Device size (in bytes)
+#define DEV "/home1/public/mariach/TeraHeap/H2.txt"	     //< Device name
+#define DEV_SIZE (4*1024LU*1024*1024)  //< Device size (in bytes)
 
 //#define ASSERT
 

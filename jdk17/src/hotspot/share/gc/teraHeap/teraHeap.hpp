@@ -3,11 +3,10 @@
 
 #include "gc/parallel/objectStartArray.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
-
 #include "memory/sharedDefines.h"
 #include "oops/oop.hpp"
-
 #include <regions.h>
+
 #ifdef BACK_REF_STAT
 #include <map>
 #include <tr1/tuple>

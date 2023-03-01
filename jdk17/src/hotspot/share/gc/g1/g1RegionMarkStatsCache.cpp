@@ -50,6 +50,13 @@ void G1RegionMarkStatsCache::add_live_words(oop obj) {
   add_live_words(region_index, (size_t) obj->size());
 }
 
+#ifdef TERA_CONC_MARKING
+void G1RegionMarkStatsCache::add_h2_live_words(oop obj) {
+  uint region_index = G1CollectedHeap::heap()->addr_to_region(cast_from_oop<HeapWord*>(obj));
+  add_h2_live_words(region_index, (size_t) obj->size());
+}
+#endif
+
 // Evict all remaining statistics, returning cache hits and misses.
 Pair<size_t, size_t> G1RegionMarkStatsCache::evict_all() {
   for (uint i = 0; i < _num_cache_entries; i++) {

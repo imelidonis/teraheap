@@ -107,10 +107,11 @@ class oopDesc {
 	  _tera_flag |= IN_TERA_CACHE;
   }
 
-  // ***********Check if an object is in H2
-  // bool is_in_h2() {
-	//   return (_tera_flag & 0xffffffff) == IN_TERA_CACHE;
-  // }
+  //##!! Check if an object is in H2 (used for simulation)
+  //The obj is actualy in H1, but we set a flag simulating that its is in H2. needs to be removed
+  bool is_in_h2() {
+	  return (_tera_flag & 0xffffffff) == IN_TERA_CACHE;
+  }
 
   // Get the state of the object
   uint64_t get_obj_state() {

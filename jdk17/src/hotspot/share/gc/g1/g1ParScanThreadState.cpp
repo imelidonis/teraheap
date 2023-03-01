@@ -178,6 +178,9 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   // Reference should not be NULL here as such are never pushed to the task queue.
   oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
 
+  //##!! assert( obj is not in H2 ) 
+  //we only push to the queues non H2 objects. do_oop_evac is called when popping from queues
+
   // Although we never intentionally push references outside of the collection
   // set, due to (benign) races in the claim mechanism during RSet scanning more
   // than one thread might claim the same card. So the same card may be
@@ -190,24 +193,51 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
          "Obj " PTR_FORMAT " should not refer to humongous region %u from " PTR_FORMAT,
          p2i(obj), _g1h->addr_to_region(cast_from_oop<HeapWord*>(obj)), p2i(p));
 
-  if (!region_attr.is_in_cset()) {
+ 
+  if (!region_attr.is_in_cset()) {    
     // In this case somebody else already did all the work.
     return;
   }
+
 
   markWord m = obj->mark();
   if (m.is_marked()) {
     obj = cast_to_oop(m.decode_pointer());
   } else {
+
+    //##!! If obj is marked to be moved in H2 && is mix collection
+    //  (1) evacuate obj in H2 (obj may be humongous)
+    //  (2) set forwarding ptr of obj
+    //  (3) forwardee = new address of obj in H2  
+    //  (4) transitive closure : find obj children 
+    //        *mark them to be moved in H2
+    //        *mporei na eine idi evacuated (if its child of a root and root at the same time) -> skip
+    //        *push them to the queue (G1ScanClosureBase::prefetch_and_push)
+    //        *back refs ???
+    //else call copy_to_survivor_space (line below)
+
     obj = do_copy_to_survivor_space(region_attr, obj, m);
   }
+
+
   RawAccess<IS_NOT_NULL>::oop_store(p, obj);
 
   assert(obj != NULL, "Must be");
+
+  //##!! If obj is in H2 (meaning its forwrded and evacuated in H2)
+  //  assert ( in mix gc )  --> only in mix gcs we can evacuate in H2
+  //  back refs
+  //  return
+
+  //if in same region, no need to update obj-region incoming ptrs (RemSet)
   if (HeapRegion::is_in_same_region(p, obj)) {
     return;
   }
-  HeapRegion* from = _g1h->heap_region_containing(p);
+
+  // p (old) --> obj (old/young)
+  // p must be in an old region, in order for the obj-region RemSet to be updated
+  // bcs RemSets only hold infos about old->young , old->old  incoming ptrs
+  HeapRegion* from = _g1h->heap_region_containing(p);  
   if (!from->is_young()) {
     enqueue_card_if_tracked(_g1h->region_attr(obj), p, obj);
   }

@@ -163,6 +163,7 @@ public:
            region_idx,
            BOOL_TO_STR(cm->is_marked_in_prev_bitmap(obj)),
            BOOL_TO_STR(cm->is_marked_in_next_bitmap(obj)));
+           
     _humongous_objects_reclaimed++;
     do {
       HeapRegion* next = g1h->next_region_in_humongous(r);

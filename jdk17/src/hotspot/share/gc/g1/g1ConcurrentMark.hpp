@@ -466,6 +466,16 @@ public:
   // Returns the liveness value in bytes.
   size_t live_bytes(uint region) const { return live_words(region) * HeapWordSize; }
 
+#ifdef TERA_CONC_MARKING
+  void add_to_h2_liveness(uint worker_id, oop const obj, size_t size);
+  // words that are going to be transfered in H2 at the given region 
+  // as determined by concurrent marking, i.e. the amount of
+  // h2 words between bottom and nTAMS.
+  size_t h2_live_words(uint region) const { return _region_mark_stats[region]._h2_live_words; }
+  // Returns the butes that are going to be transfered in H2
+  size_t h2_live_bytes(uint region) const { return h2_live_words(region) * HeapWordSize; }
+#endif
+
   // Sets the internal top_at_region_start for the given region to current top of the region.
   inline void update_top_at_rebuild_start(HeapRegion* r);
   // TARS for the given region during remembered set rebuilding.
@@ -768,6 +778,10 @@ public:
 
   void set_cm_oop_closure(G1CMOopClosure* cm_oop_closure);
 
+#ifdef TERA_CONC_MARKING
+  bool is_tera_traversal();
+#endif
+
   // Increment the number of references this task has visited.
   void increment_refs_reached() { ++_refs_reached; }
 
@@ -819,6 +833,10 @@ public:
            G1RegionMarkStats* mark_stats);
 
   inline void update_liveness(oop const obj, size_t const obj_size);
+
+#ifdef TERA_CONC_MARKING
+  inline void update_h2_liveness(oop const obj, size_t const obj_size);
+#endif
 
   // Clear (without flushing) the mark cache entry for the given region.
   void clear_mark_stats_cache(uint region_idx);

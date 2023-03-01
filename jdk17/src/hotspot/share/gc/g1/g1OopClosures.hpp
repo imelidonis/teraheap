@@ -195,8 +195,7 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
 #ifdef TERA_CONC_MARKING
-  void set_h2_flag() { _h2_flag = true; }
-  void unset_h2_flag() { _h2_flag = false; }
+  void set_h2_flag(bool v) { _h2_flag = v; }
   bool is_h2_flag_set() { return _h2_flag; }
 #endif
 

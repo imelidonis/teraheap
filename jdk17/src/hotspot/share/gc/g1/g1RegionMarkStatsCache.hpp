@@ -38,18 +38,34 @@
 // to ntams. This is an exact measure.
 // The code corrects later for the live data between ntams and top.
 struct G1RegionMarkStats {
-  size_t _live_words;
+  size_t _live_words; //region liveness = H1 live + H2 live
 
+#ifdef TERA_CONC_MARKING
+  // The words that are going to be transfered in H2.
+  size_t _h2_live_words; // h2 liveness
+#endif
+  
   // Clear all members.
-  void clear() {
-    _live_words = 0;
+  void clear() { 
+    _live_words = 0; 
+  #ifdef TERA_CONC_MARKING
+    _h2_live_words = 0;
+  #endif
   }
+  
   // Clear all members after a marking overflow. Nothing to do as the live words
   // are updated by the atomic mark. We do not remark objects after overflow.
-  void clear_during_overflow() {
+  void clear_during_overflow() {}
+
+ 
+  bool is_clear() const {   
+  #ifdef TERA_CONC_MARKING
+    return _live_words == 0 && _h2_live_words == 0;
+  #else
+    return _live_words == 0; 
+  #endif
   }
 
-  bool is_clear() const { return _live_words == 0; }
 };
 
 // Per-marking thread cache for the region mark statistics.
@@ -108,6 +124,26 @@ public:
     G1RegionMarkStatsCacheEntry* const cur = find_for_add(region_idx);
     cur->_stats._live_words += live_words;
   }
+
+#ifdef TERA_CONC_MARKING
+  void add_h2_live_words(oop obj);
+  void add_h2_live_words(uint region_idx, size_t h2_live_words) {
+    G1RegionMarkStatsCacheEntry* const cur = find_for_add(region_idx);
+    
+    std::cout << "ADD H2 RATIO:"
+    << "\n   Region idx = " << region_idx 
+    << "\n   obj size = " << h2_live_words 
+    << "\n   region liveness ratio = " << cur->_stats._live_words 
+    << "\n   region h2 ratio b4 = " << cur->_stats._h2_live_words ;
+    
+    
+    cur->_stats._h2_live_words += h2_live_words;
+    
+    std::cout
+    << "\n   region h2 ratio = " << cur->_stats._h2_live_words 
+    << "\n";
+  }
+#endif
 
   void reset(uint region_idx) {
     uint const cache_idx = hash(region_idx);

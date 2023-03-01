@@ -237,10 +237,17 @@ private:
   size_t _prev_marked_bytes;    // Bytes known to be live via last completed marking.
   size_t _next_marked_bytes;    // Bytes known to be live via in-progress marking.
 
+#ifdef TERA_CONC_MARKING
+  size_t _h2_marked_bytes; //Bytes known to be live, and are going to be transfered to the H2
+#endif
+
   void init_top_at_mark_start() {
     assert(_prev_marked_bytes == 0 &&
            _next_marked_bytes == 0,
            "Must be called after zero_marked_bytes.");
+#ifdef TERA_CONC_MARKING
+    assert(_h2_marked_bytes == 0, "_h2_marked_bytes should be zero");
+#endif
     _prev_top_at_mark_start = _next_top_at_mark_start = bottom();
   }
 
@@ -361,8 +368,19 @@ public:
     _next_marked_bytes = _next_marked_bytes + incr_bytes;
   }
 
+#ifdef TERA_CONC_MARKING
+  void add_to_h2_marked_bytes(size_t incr_bytes) {
+    _h2_marked_bytes = _h2_marked_bytes + incr_bytes;
+  }
+
+  size_t h2_marked_bytes() { return _h2_marked_bytes; }
+#endif
+
   void zero_marked_bytes()      {
     _prev_marked_bytes = _next_marked_bytes = 0;
+#ifdef TERA_CONC_MARKING
+    _h2_marked_bytes = 0;
+#endif
   }
   // Get the start of the unmarked area in this region.
   HeapWord* prev_top_at_mark_start() const { return _prev_top_at_mark_start; }

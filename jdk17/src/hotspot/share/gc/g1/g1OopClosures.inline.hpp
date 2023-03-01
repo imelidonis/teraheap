@@ -43,6 +43,8 @@
 
 template <class T>
 inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
+  //##!! assert( obj should not be in H2 )  --> we already filter this out
+  
   // We're not going to even bother checking whether the object is
   // already forwarded or not, as this usually causes an immediate
   // stall. We'll try to prefetch the object (for write, given that
@@ -64,7 +66,13 @@ inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
 
 template <class T>
 inline void G1ScanClosureBase::handle_non_cset_obj_common(G1HeapRegionAttr const region_attr, T* p, oop const obj) {
-  if (region_attr.is_humongous()) {
+  //##!! if it's humongous + optional 
+  //(meanining its gonna be moved to H2 and is included in the opt cset)
+  //        then : 
+  // set_humongous_is_live
+  // remember_reference_into_optional_region
+  
+  if (region_attr.is_humongous() ) {
     _g1h->set_humongous_is_live(obj);
   } else if (region_attr.is_optional()) {
     _par_scan_state->remember_reference_into_optional_region(p);
@@ -83,23 +91,36 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
     return;
   }
   oop obj = CompressedOops::decode_not_null(heap_oop);
+
+  //##!! If obj is in H2
+  //  (1) set H2 region live bit
+  //  (2) Fence heap traversal to H2
+
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
     prefetch_and_push(p, obj);
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
     assert(_scanning_in_young != Uninitialized, "Scan location has not been initialized.");
+    
+    // p (ref of already evac object) points to -->  obj
+    // _scanning_in_young == True  :  evac obj (young) --> obj (old/young)
     if (_scanning_in_young == True) {
       return;
     }
+
+    // _scanning_in_young == False  : evac obj (old) --> obj (old/young)
+    // rem set of obj-region needs to be updated
+    // bcs RemSets only hold infos about old->young , old->old  incoming ptrs
     _par_scan_state->enqueue_card_if_tracked(region_attr, p, obj);
   }
 }
 
 template <class T>
-inline void G1CMOopClosure::do_oop_work(T* p) {
+inline void G1CMOopClosure::do_oop_work(T* p) {  
   _task->deal_with_reference(p);
 }
+
 
 template <class T>
 inline void G1RootRegionScanClosure::do_oop_work(T* p) {
@@ -169,6 +190,10 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   }
   oop obj = CompressedOops::decode_not_null(o);
 
+  //##!! If obj is in H2
+  //  (1) set H2 region live bit
+  //  (2) Fence heap traversal to H2
+
   check_obj_during_refinement(p, obj);
 
   assert(!_g1h->is_in_cset((HeapWord*)p),
@@ -227,6 +252,9 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
 
   oop obj = CompressedOops::decode_not_null(heap_oop);
 
+  //##!! If obj is in H2
+  //Fence heap traversal to H2
+
   assert(_worker_id == _par_scan_state->worker_id(), "sanity");
 
   const G1HeapRegionAttr state = _g1h->region_attr(obj);
@@ -236,28 +264,61 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
     if (m.is_marked()) {
       forwardee = cast_to_oop(m.decode_pointer());
     } else {
+
+      //##!! If obj is marked to be moved in H2 && is mix collection
+      //  (1) evacuate obj in H2 (obj may be humongous)
+      //  (2) set forwarding ptr of obj
+      //  (3) forwardee = new address of obj in H2  
+      //  (4) transitive closure : find obj children 
+      //        *mark them to be moved in H2
+      //        *mporei na eine idi evacuated (if its child of a root and root at the same time) -> skip
+      //        *push them to the queue (G1ScanClosureBase::prefetch_and_push)
+      //        *back refs ???
+      //else call copy_to_survivor_space (line below)
+
       forwardee = _par_scan_state->copy_to_survivor_space(state, obj, m);
+      
     }
+
+    
     assert(forwardee != NULL, "forwardee should not be NULL");
     RawAccess<IS_NOT_NULL>::oop_store(p, forwardee);
 
-    if (barrier == G1BarrierCLD) {
+
+    //##!! Does something to the class loader data, if the evacuation region is young
+    //if it doesnt cares about the old regions, maybe we dont care either if its H2 region
+    if (barrier == G1BarrierCLD /*##!! and forwardee is not in H2*/ ) {
       do_cld_barrier(forwardee);
     }
+
+
   } else {
+
+    // here obj is not in cset, and is not in H2
+    // but obj may be marked to be moved in H2 
+    // => ignore it, move only the objects that are in the cset
+
     if (state.is_humongous()) {
       _g1h->set_humongous_is_live(obj);
+
     } else if ((barrier != G1BarrierNoOptRoots) && state.is_optional()) {
+      //if the root is pointing into a region that is in the optional cset
+      //then remember this root, to scan it when the evacuation of the opt cset comes
       _par_scan_state->remember_root_into_optional_region(p);
     }
 
-    // The object is not in the collection set. should_mark is true iff the
-    // current closure is applied on strong roots (and weak roots when class
-    // unloading is disabled) in a concurrent mark start pause.
+   
+    // The object is not in collection set. If we're a root scanning
+    // closure during an initial mark pause then attempt to mark the object.    
+    //Start of a concurrent marking = young gc + initial marking (piggybacked)
+
+    //##!! For H2 marking (transitive closure) i dont thing we need to do anything
+    // bcs the root obj is already marked to be moved with the use of the unsafe-function
     if (should_mark) {
       mark_object(obj);
     }
   }
+  
   trim_queue_partially();
 }
 

@@ -61,6 +61,10 @@ public:
   static const region_type_t Young        =   0;    // The region is in the collection set and a young region.
   static const region_type_t Old          =   1;    // The region is in the collection set and an old region.
   static const region_type_t Num          =   2;
+//##!! add new type --> OptHumongous = humongous obj that is gonna be moved in H2 AND belongs in the opt cset
+// add func --> is_opthumongous()
+// add func --> set_opthumongous()
+
 
   G1HeapRegionAttr(region_type_t type = NotInCSet, bool needs_remset_update = false) :
     _needs_remset_update(needs_remset_update), _type(type) {
@@ -127,6 +131,13 @@ class G1HeapRegionAttrBiasedMappedArray : public G1BiasedMappedArray<G1HeapRegio
   }
 
   void set_humongous(uintptr_t index, bool needs_remset_update) {
+    //##!! if it's already set as optional --> from the calculate_collection_set() func
+    // then it is an opthumongous, not just humongous
+   
+    //if ( get_by_index(index).is_optional() ) then
+    //    set_opthumongous(uintptr_t index, bool needs_remset_update)
+    //    return
+    
     assert(get_by_index(index).is_default(),
            "Region attributes at index " INTPTR_FORMAT " should be default but is %s", index, get_by_index(index).get_type_str());
     set_by_index(index, G1HeapRegionAttr(G1HeapRegionAttr::Humongous, needs_remset_update));

@@ -174,6 +174,7 @@ G1HeapRegionAttr G1CollectedHeap::region_attr(uint idx) const {
 }
 
 void G1CollectedHeap::register_humongous_region_with_region_attr(uint index) {
+  //##!! if its already 
   _region_attr.set_humongous(index, region_at(index)->rem_set()->is_tracked());
 }
 
@@ -334,7 +335,7 @@ inline void G1CollectedHeap::set_humongous_is_live(oop obj) {
   // This is racy, as multiple threads may at the same time enter here, but this
   // is benign.
   // During collection we only ever clear the "candidate" flag, and only ever clear the
-  // entry in the in_cset_fast_table.
+  // entry in the _region_attr.
   // We only ever evaluate the contents of these tables (in the VM thread) after
   // having synchronized the worker threads with the VM thread, or in the same
   // thread (i.e. within the VM thread).

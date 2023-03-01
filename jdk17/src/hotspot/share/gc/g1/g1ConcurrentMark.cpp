@@ -1018,13 +1018,38 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
              "Marked words should either be 0 or the same as humongous object (" SIZE_FORMAT ") but is " SIZE_FORMAT,
              obj_size_in_words, marked_words);
 
+#ifdef TERA_CONC_MARKING
+      size_t const h2_marked_words = _cm->h2_live_words(region_idx);
+
+      DEBUG_ONLY( 
+        if( EnableTeraHeap && h2_marked_words > 0 ){       
+            assert( h2_marked_words == marked_words , 
+              "Humongous object should have same h2_marked_words (" SIZE_FORMAT ") with marked_words (" SIZE_FORMAT ")", 
+              h2_marked_words, marked_words
+            );
+        }
+      )
+
+      bool h2_liveness = (EnableTeraHeap && h2_marked_words == marked_words);
+#endif
+
       for (uint i = region_idx; i < (region_idx + num_regions_in_humongous); i++) {
         HeapRegion* const r = _g1h->region_at(i);
         size_t const words_to_add = MIN2(HeapRegion::GrainWords, marked_words);
 
         log_trace(gc, marking)("Adding " SIZE_FORMAT " words to humongous region %u (%s)",
                                words_to_add, i, r->get_type_str());
+
+#ifdef TERA_CONC_MARKING
+        if( h2_liveness ){
+          add_marked_bytes_and_note_end(r, words_to_add * HeapWordSize, words_to_add * HeapWordSize);
+        }else{
+          add_marked_bytes_and_note_end(r, words_to_add * HeapWordSize);
+        }
+#else
         add_marked_bytes_and_note_end(r, words_to_add * HeapWordSize);
+#endif
+        
         marked_words -= words_to_add;
       }
       assert(marked_words == 0,
@@ -1046,8 +1071,20 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
           distribute_marked_bytes(hr, marked_words);
         }
       } else {
+        
         log_trace(gc, marking)("Adding " SIZE_FORMAT " words to region %u (%s)", marked_words, region_idx, hr->get_type_str());
+        
+#ifdef TERA_CONC_MARKING
+        if( EnableTeraHeap ){
+          add_marked_bytes_and_note_end(hr, _cm->live_bytes(region_idx) , _cm->h2_live_bytes(region_idx) );
+        }else{
+          add_marked_bytes_and_note_end(hr, _cm->live_bytes(region_idx));
+        }
+#else
         add_marked_bytes_and_note_end(hr, _cm->live_bytes(region_idx));
+#endif
+
+
       }
     }
 
@@ -1056,6 +1093,19 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
       _cl->do_heap_region(hr);
       hr->note_end_of_marking();
     }
+
+
+#ifdef TERA_CONC_MARKING
+    //overload function
+    void add_marked_bytes_and_note_end(HeapRegion* hr, size_t marked_bytes, size_t h2_bytes ) {
+      hr->add_to_marked_bytes(marked_bytes);
+      hr->add_to_h2_marked_bytes(h2_bytes);
+      _cl->do_heap_region(hr);
+      //##!! modify note_end_of_marking() to swap the h2 liveness as well ??
+      // do we need prec_h2_bytes and next_h2_bytes ??
+      hr->note_end_of_marking();
+    }
+#endif
 
   public:
     G1UpdateRemSetTrackingBeforeRebuild(G1CollectedHeap* g1h, G1ConcurrentMark* cm, G1PrintRegionLivenessInfoClosure* cl) :
@@ -2069,6 +2119,13 @@ void G1CMTask::set_cm_oop_closure(G1CMOopClosure* cm_oop_closure) {
   }
   _cm_oop_closure = cm_oop_closure;
 }
+
+#ifdef TERA_CONC_MARKING
+  bool G1CMTask::is_tera_traversal() { 
+    if( _cm_oop_closure != NULL ) return _cm_oop_closure->is_h2_flag_set();
+    else return false;
+  }
+#endif
 
 void G1CMTask::reset(G1CMBitMap* next_mark_bitmap) {
   guarantee(next_mark_bitmap != NULL, "invariant");

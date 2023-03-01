@@ -65,7 +65,12 @@ inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegi
   assert(hr != NULL, "just checking");
   assert(hr->is_in_reserved(obj), "Attempting to mark object at " PTR_FORMAT " that is not contained in the given region %u", p2i(obj), hr->hrm_index());
 
-  if (hr->obj_allocated_since_next_marking(obj)) {
+  if (hr->obj_allocated_since_next_marking(obj)) { //this returns true, if the obj is above TAMPs
+    //##!! TODO or not TODO
+    //if is_tera_traversal() then
+    // if ! obj->is_marked_move_h2() then 
+    //     enable its tera flag in parallel (atomic operation)
+    //     if succeeded then count it in h2 liveness 
     return false;
   }
 
@@ -74,9 +79,23 @@ inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegi
   assert(!hr->is_continues_humongous(), "Should not try to mark object " PTR_FORMAT " in Humongous continues region %u above nTAMS " PTR_FORMAT, p2i(obj), hr->hrm_index(), p2i(hr->next_top_at_mark_start()));
 
   bool success = _next_mark_bitmap->par_mark(obj);
-  if (success) {
+  
+  if (success) {  
+
+#ifdef TERA_CONC_MARKING
+    if( EnableTeraHeap ){
+
+      if( task(worker_id)->is_tera_traversal() || obj->is_marked_move_h2()  ){
+        add_to_h2_liveness(worker_id, obj, obj->size());
+        // return success; 
+      }
+
+    }
+#endif
+
     add_to_liveness(worker_id, obj, obj->size());
   }
+
   return success;
 }
 
@@ -162,6 +181,9 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
   assert(task_entry.is_array_slice() || _next_mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())),
          "Any stolen object should be a slice or marked");
 
+#ifdef TERA_CONC_MARKING
+  assert( !_cm_oop_closure->is_h2_flag_set(), "Closure flag should not be set. Afetr each tera oop iteration, it sould be un-set" );
+#endif
 
   if (scan) {
     if (task_entry.is_array_slice()) {
@@ -176,8 +198,16 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
     } else {
       oop obj = task_entry.obj();
 
-      //if object is in H2 then return
-      if(EnableTeraHeap && (Universe::teraHeap()->is_obj_in_h2(obj))) return;
+      //##!! If obj is in H2
+      //  (1) set H2 region live bit
+      //  (2) Fence heap traversal to H2
+      //Correct:
+      // if(EnableTeraHeap && (Universe::teraHeap()->is_obj_in_h2(obj))) return;
+      //temp (simulating an obj in H2):
+      if (obj->is_in_h2()) {        
+        std::cout << obj->klass()->signature_name() << " (pop) is in H2 : " << (HeapWord*) obj << "\n" ;
+        // return;
+      }
       
       if (G1CMObjArrayProcessor::should_be_sliced(obj)) {
         
@@ -200,14 +230,13 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
           //If it's an object array, push every obj[i] to the local queue without traversing them 
 
 #ifdef TERA_CONC_MARKING
-          if (obj->is_marked_move_h2()) {
-              _cm_oop_closure->set_h2_flag();
-              std::cout << "Search under H2 obj : " << (HeapWord*) obj << "\n";
-
-              _words_scanned += obj->oop_iterate_size(_cm_oop_closure);
-
-              std::cout << "Finished searching H2 obj\n";
-              _cm_oop_closure->unset_h2_flag();
+          if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
+              std::cout << obj->klass()->signature_name() << " (pop) search under it : " << (HeapWord*) obj << "\n";
+              
+              //iterate this oop, in tera mode
+              _cm_oop_closure->set_h2_flag(true); 
+              _words_scanned += obj->oop_iterate_size(_cm_oop_closure); 
+              _cm_oop_closure->set_h2_flag(false);
           }
           else
 #endif
@@ -228,16 +257,20 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
 
 #ifdef TERA_CONC_MARKING
-    assert( ! (Universe::teraHeap()->is_obj_in_h2(obj)) , "Object should not be in H2");
+    DEBUG_ONLY(
+      if(EnableTeraHeap) 
+        assert( !obj->is_in_h2() , "Object should not be in H2");
+    );
 
-    if (obj->is_marked_move_h2()) {
-        _cm_oop_closure->set_h2_flag();
-        std::cout << "Search under H2 obj\n";
+    if ( EnableTeraHeap && obj->is_marked_move_h2()) {
+        std::cout << obj->klass()->signature_name() << " sarch under it\n";
         
+        //iterate this oop, in tera mode
+        _cm_oop_closure->set_h2_flag(true); 
         obj->oop_iterate(_cm_oop_closure, mr);
+        _cm_oop_closure->set_h2_flag(false); 
 
-        _cm_oop_closure->unset_h2_flag();
-        std::cout << "Finished searching H2 obj\n";
+        // std::cout << "Finished searching H2 obj\n";
     }
     else
 #endif
@@ -275,6 +308,17 @@ inline void G1ConcurrentMark::add_to_liveness(uint worker_id, oop const obj, siz
   task(worker_id)->update_liveness(obj, size);
 }
 
+#ifdef TERA_CONC_MARKING
+inline void G1CMTask::update_h2_liveness(oop const obj, const size_t obj_size) {
+  _mark_stats_cache.add_h2_live_words(_g1h->addr_to_region(cast_from_oop<HeapWord*>(obj)), obj_size);
+}
+
+inline void G1ConcurrentMark::add_to_h2_liveness(uint worker_id, oop const obj, size_t size) {
+  std::cout << "worker id = " << worker_id << "\n";
+  task(worker_id)->update_h2_liveness(obj, size);
+}
+#endif
+
 inline void G1CMTask::abort_marking_if_regular_check_fail() {
   if (!regular_clock_call()) {
     set_has_aborted();
@@ -283,45 +327,65 @@ inline void G1CMTask::abort_marking_if_regular_check_fail() {
 
 inline bool G1CMTask::make_reference_grey(oop obj) {
 
+#ifdef TERA_CONC_MARKING
+  //##!! If obj is in H2
+  //  (1) set H2 region live bit
+  //  (2) Fence heap traversal to H2
+  //  return false (did not add anything to the bitmap)
+
+
+  //##!! Simulated
+  if ( EnableTeraHeap && obj->is_in_h2()) {
+    //ce afto to simulation if apla den to kanoume push ke traverse. 
+    //den ginete mark, ara den ipologizete cto liveness tou reagion. 
+    //Omoc ginete kanonika evacuate cto mix collection, afou to endopizoume meso ton roots traversal
+    
+    //There should be no other objects with this type, bcs they should not be traveresed
+    std::cout << "\t" << obj->klass()->signature_name() << " is in H2 : "  << (HeapWord*) obj << "\n";
+      
+  }
+#endif
+  
+  //mark_in_next_bitmap() : 
+  //returns true if it managed to mark the live obj in the bitmap, 
+  //and include it in the liveness ratio of the region
   if (!_cm->mark_in_next_bitmap(_worker_id, obj)) {
     return false;
   }
 
+
 #ifdef TERA_CONC_MARKING
+  //objs that are going to be moved in h2
+  //    (1) mark them on the bitmap: 
+  //        if they dont get transfered during mix gc
+  //        and the java application terminates, then the heap verifyer will detect
+  //        this as an error -obj found live, but bitmap says its dead-
+  //    (2) increase liveness
+  //    (3) detect that the obj should be moved in h2
+  //        --> enable its tera flag (if not already enabled from unsafe.cpp)
+  //        --> increase h2 liveness
 
-  //Fence: if its in H2 then return
-  if(Universe::teraHeap()->is_obj_in_h2(obj)){
-      std::cout << "\tObj is in H2 : " << obj->klass()->signature_name() << " " << (HeapWord*) obj << "\n";
-      //There should be no other objects with this type, bcs they should not be traveresed
-      return true;
-  }
-
-  //if its parent object is marked to be moved in H2
-  //then mark this object too (if it's not already marked)
-  if ( _cm_oop_closure->is_h2_flag_set() &&  !(obj->is_marked_move_h2()) ) {
-  // JACK instead has the following if statment:
-  // if ( _cm_oop_closure->is_h2_flag_set() &&  !(obj->is_marked_move_h2() || obj->is_instanceMirror() || obj->is_instanceRef()) ) {
-     
+  //##!! if its parent has tera flag enabled (to be moved in h2)
+  //        (1) enable the tera flag of this child obj too (if it's not already enabled)
+  //        (2) increase the h2 liveness of that region
+  // if parent doesnt have its tera flag enabled, but this obj has its tera flag enabled
+  // then this obj was previously visited by the unsafe class, and got it marked to be moved in h2 
+  // (through a command of tha java application) but did not update the h2 liveness 
+  // of that region bcs no concurrent marking was happening at the moment
+  //        (1) incease the h2 liveness of that region
+  if( EnableTeraHeap && is_tera_traversal() ){
+    if ( !obj->is_marked_move_h2() ) {
+      //##!! JACK instead has the following if statment:
+      // if ( !(obj->is_marked_move_h2() || obj->is_instanceMirror() || obj->is_instanceRef()) )
+      
       obj->mark_move_h2(Universe::teraHeap()->get_cur_obj_group_id(),
-                          Universe::teraHeap()->get_cur_obj_part_id());
-
-      std::cout << "\tObj marked to be moved in H2 : " << obj->klass()->signature_name() << " " << (HeapWord*) obj << "\n";
+                        Universe::teraHeap()->get_cur_obj_part_id());
+      
       //All of the transitive closure should be marked and printed
+      std::cout << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n";
+    }
   }
-  else {
-
-      if( strcmp(obj->klass()->signature_name() , "LH2node;") == 0) {
-          std::cout << "\tH2node marked and found : " << (HeapWord*) obj << "\n";
-      }
-
-      if (strcmp(obj->klass()->signature_name(), "LMoveNode;") == 0 ) {
-          std::cout << "\tMoveNode marked and found : " << (HeapWord*) obj << "\n";
-      }
-
-  }
-  
 #endif
-
 
   // No OrderAccess:store_load() is needed. It is implicit in the
   // CAS done in G1CMBitMap::parMark() call in the routine above.
@@ -371,6 +435,7 @@ inline bool G1CMTask::deal_with_reference(T* p) {
   }
   return make_reference_grey(obj);
 }
+
 
 inline void G1ConcurrentMark::mark_in_prev_bitmap(oop p) {
   assert(!_prev_mark_bitmap->is_marked(p), "sanity");

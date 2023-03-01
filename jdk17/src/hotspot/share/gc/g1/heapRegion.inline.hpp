@@ -218,6 +218,10 @@ inline void HeapRegion::reset_skip_compacting_after_full_gc() {
   _next_top_at_mark_start = bottom();
   _next_marked_bytes = 0;
 
+#ifdef TERA_CONC_MARKING
+  _h2_marked_bytes = 0;
+#endif
+
   reset_after_full_gc_common();
 }
 
@@ -276,6 +280,10 @@ inline void HeapRegion::note_start_of_marking() {
   _next_marked_bytes = 0;
   _next_top_at_mark_start = top();
   _gc_efficiency = -1.0;
+
+#ifdef TERA_CONC_MARKING
+  _h2_marked_bytes = 0;
+#endif
 }
 
 inline void HeapRegion::note_end_of_marking() {

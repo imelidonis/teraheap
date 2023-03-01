@@ -165,7 +165,7 @@ private:
 
   SoftRefPolicy      _soft_ref_policy;
 
-  static size_t _humongous_object_threshold_in_words;
+  static size_t _humongous_object_threshold_in_words; //how big an object should be, to be considered as humongous
 
   // These sets keep track of old, archive and humongous regions respectively.
   HeapRegionSet _old_set;
@@ -256,7 +256,12 @@ private:
     }
   };
 
-  HumongousReclaimCandidates _humongous_reclaim_candidates;
+  //is a table representing all the regions in the heap. 
+  //it holds true if its a humongous object that is candidate for 
+  //collection (=garbage), or false if its not humongous either 
+  //humongous but found live
+  HumongousReclaimCandidates _humongous_reclaim_candidates;  
+
   uint _num_humongous_objects; // Current amount of (all) humongous objects found in the heap.
   uint _num_humongous_reclaim_candidates; // Number of humongous object eager reclaim candidates.
 public:

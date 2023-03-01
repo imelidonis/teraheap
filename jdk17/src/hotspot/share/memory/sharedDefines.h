@@ -20,6 +20,10 @@
 
 #define TERA_FLAG				         //< Define teraFlag word
 
+#define TERA_CONC_MARKING
+
+#define TERA_EVACUATION //for minor and mix collections
+
 #define TERA_MINOR_GC            //< Enable Teraheap code for minor GC
 
 #define TERA_CARDS               //< Enable Teraheap card table
@@ -49,8 +53,6 @@
 //#define C2_ONLY_LEAF_CALL		    //< C2 Compiler version - Comparisons and
                                   // card marking are all implemented in the
                                   // make_leaf_call()
-
-#define TERA_CONC_MARKING
 
 //#define TEST_CLONE                // Clone objects
 

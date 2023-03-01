@@ -251,6 +251,8 @@ uint G1CollectionSetChooser::calculate_work_chunk_size(uint num_workers, uint nu
 }
 
 bool G1CollectionSetChooser::should_add(HeapRegion* hr) {
+  // std::cout << hr->>get_type_str() << " : " << 
+
   return !hr->is_young() &&
          !hr->is_pinned() &&
          region_occupancy_low_enough_for_evac(hr->live_bytes()) &&

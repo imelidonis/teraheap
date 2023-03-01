@@ -106,6 +106,10 @@ void HeapRegion::handle_evacuation_failure() {
   clear_young_index_in_cset();
   set_old();
   _next_marked_bytes = 0;
+
+#ifdef TERA_CONC_MARKING
+  _h2_marked_bytes = 0;
+#endif
 }
 
 void HeapRegion::unlink_from_list() {
@@ -245,6 +249,9 @@ HeapRegion::HeapRegion(uint hrm_index,
 #endif
   _prev_top_at_mark_start(NULL), _next_top_at_mark_start(NULL),
   _prev_marked_bytes(0), _next_marked_bytes(0),
+#ifdef TERA_CONC_MARKING
+  _h2_marked_bytes(0),
+#endif
   _young_index_in_cset(-1),
   _surv_rate_group(NULL), _age_index(G1SurvRateGroup::InvalidAgeIndex), _gc_efficiency(-1.0),
   _node_index(G1NUMA::UnknownNodeIndex)
@@ -284,6 +291,10 @@ void HeapRegion::note_self_forwarding_removal_start(bool during_concurrent_start
   // mark all objects we find to be self-forwarded on the prev
   // bitmap. So all objects need to be below PTAMS.
   _prev_marked_bytes = 0;
+
+#ifdef TERA_CONC_MARKING
+  _h2_marked_bytes = 0;
+#endif
 
   if (during_concurrent_start) {
     // During concurrent start, we'll also explicitly mark all objects

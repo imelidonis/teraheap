@@ -81,6 +81,11 @@ SATBMarkQueue& G1SATBMarkQueueSet::satb_queue_for_thread(Thread* const t) const 
 // in an unfiltered buffer refer to valid objects.
 
 static inline bool requires_marking(const void* entry, G1CollectedHeap* g1h) {
+  //##!! If obj is in H2
+  //  (1) set H2 region live bit
+  //  (2) Fence heap traversal to H2
+  //   return false
+  
   // Includes rejection of NULL pointers.
   assert(g1h->is_in_reserved(entry),
          "Non-heap pointer in SATB buffer: " PTR_FORMAT, p2i(entry));

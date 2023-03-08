@@ -1,0 +1,2990 @@
+[0.096s][warning][gc] -XX:+PrintGCDetails is deprecated. Will use -Xlog:gc* instead.
+[28.645s][info   ][gc] Using G1
+[28.663s][info   ][gc,init] Version: 17-internal+0-adhoc.mariach.jdk17 (slowdebug)
+[28.664s][info   ][gc,init] CPUs: 32 total, 32 available
+[28.664s][info   ][gc,init] Memory: 251G
+[28.665s][info   ][gc,init] Large Page Support: Disabled
+[28.665s][info   ][gc,init] NUMA Support: Disabled
+[28.665s][info   ][gc,init] Compressed Oops: Disabled
+[28.665s][info   ][gc,init] Heap Region Size: 1M
+[28.665s][info   ][gc,init] Heap Min Capacity: 56M
+[28.665s][info   ][gc,init] Heap Initial Capacity: 1G
+[28.665s][info   ][gc,init] Heap Max Capacity: 1G
+[28.666s][info   ][gc,init] Pre-touch: Disabled
+[28.666s][info   ][gc,init] Parallel Workers: 1
+[28.666s][info   ][gc,init] Concurrent Workers: 1
+[28.666s][info   ][gc,init] Concurrent Refinement Workers: 1
+[28.666s][info   ][gc,init] Periodic GC: Disabled
+[31.003s][info   ][gc,start] GC(0) Pause Young (Normal) (G1 Evacuation Pause)
+[31.003s][info   ][gc,task ] GC(0) Using 1 workers of 1 for evacuation
+[32.468s][info   ][gc,mmu  ] GC(0) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[32.468s][info   ][gc,phases] GC(0)   Pre Evacuate Collection Set: 1.2ms
+[32.468s][info   ][gc,phases] GC(0)   Merge Heap Roots: 0.1ms
+[32.468s][info   ][gc,phases] GC(0)   Evacuate Collection Set: 1432.2ms
+[32.468s][info   ][gc,phases] GC(0)   Post Evacuate Collection Set: 29.9ms
+[32.468s][info   ][gc,phases] GC(0)   Other: 3.1ms
+[32.468s][info   ][gc,heap  ] GC(0) Eden regions: 50->0(43)
+[32.469s][info   ][gc,heap  ] GC(0) Survivor regions: 0->7(7)
+[32.469s][info   ][gc,heap  ] GC(0) Old regions: 0->38
+[32.469s][info   ][gc,heap  ] GC(0) Archive regions: 0->0
+[32.469s][info   ][gc,heap  ] GC(0) Humongous regions: 0->0
+[32.469s][info   ][gc,metaspace] GC(0) Metaspace: 6416K(6528K)->6416K(6528K)
+[32.470s][info   ][gc          ] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 50M->44M(1024M) 1467.342ms
+[32.470s][info   ][gc,cpu      ] GC(0) User=1.45s Sys=0.02s Real=1.47s
+[32.508s][info   ][gc,start    ] GC(1) Pause Young (Normal) (G1 Evacuation Pause)
+[32.508s][info   ][gc,task     ] GC(1) Using 1 workers of 1 for evacuation
+[34.115s][info   ][gc,mmu      ] GC(1) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[34.116s][info   ][gc,phases   ] GC(1)   Pre Evacuate Collection Set: 0.4ms
+[34.116s][info   ][gc,phases   ] GC(1)   Merge Heap Roots: 0.1ms
+[34.116s][info   ][gc,phases   ] GC(1)   Evacuate Collection Set: 1579.9ms
+[34.116s][info   ][gc,phases   ] GC(1)   Post Evacuate Collection Set: 25.6ms
+[34.116s][info   ][gc,phases   ] GC(1)   Other: 3.4ms
+[34.116s][info   ][gc,heap     ] GC(1) Eden regions: 43->0(43)
+[34.116s][info   ][gc,heap     ] GC(1) Survivor regions: 7->7(7)
+[34.116s][info   ][gc,heap     ] GC(1) Old regions: 38->81
+[34.117s][info   ][gc,heap     ] GC(1) Archive regions: 0->0
+[34.117s][info   ][gc,heap     ] GC(1) Humongous regions: 0->0
+[34.117s][info   ][gc,metaspace] GC(1) Metaspace: 6417K(6528K)->6417K(6528K)
+[34.118s][info   ][gc          ] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 87M->88M(1024M) 1610.147ms
+[34.118s][info   ][gc,cpu      ] GC(1) User=1.60s Sys=0.01s Real=1.61s
+[34.158s][info   ][gc,start    ] GC(2) Pause Young (Normal) (G1 Evacuation Pause)
+[34.159s][info   ][gc,task     ] GC(2) Using 1 workers of 1 for evacuation
+[35.806s][info   ][gc,mmu      ] GC(2) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[35.807s][info   ][gc,phases   ] GC(2)   Pre Evacuate Collection Set: 0.4ms
+[35.807s][info   ][gc,phases   ] GC(2)   Merge Heap Roots: 0.1ms
+[35.807s][info   ][gc,phases   ] GC(2)   Evacuate Collection Set: 1623.3ms
+[35.807s][info   ][gc,phases   ] GC(2)   Post Evacuate Collection Set: 22.8ms
+[35.807s][info   ][gc,phases   ] GC(2)   Other: 2.9ms
+[35.807s][info   ][gc,heap     ] GC(2) Eden regions: 43->0(43)
+[35.807s][info   ][gc,heap     ] GC(2) Survivor regions: 7->7(7)
+[35.807s][info   ][gc,heap     ] GC(2) Old regions: 81->124
+[35.807s][info   ][gc,heap     ] GC(2) Archive regions: 0->0
+[35.807s][info   ][gc,heap     ] GC(2) Humongous regions: 0->0
+[35.808s][info   ][gc,metaspace] GC(2) Metaspace: 6417K(6528K)->6417K(6528K)
+[35.808s][info   ][gc          ] GC(2) Pause Young (Normal) (G1 Evacuation Pause) 131M->131M(1024M) 1650.271ms
+[35.809s][info   ][gc,cpu      ] GC(2) User=1.64s Sys=0.01s Real=1.65s
+[35.849s][info   ][gc,start    ] GC(3) Pause Young (Normal) (G1 Evacuation Pause)
+[35.849s][info   ][gc,task     ] GC(3) Using 1 workers of 1 for evacuation
+[37.500s][info   ][gc,mmu      ] GC(3) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[37.500s][info   ][gc,phases   ] GC(3)   Pre Evacuate Collection Set: 0.4ms
+[37.501s][info   ][gc,phases   ] GC(3)   Merge Heap Roots: 0.1ms
+[37.501s][info   ][gc,phases   ] GC(3)   Evacuate Collection Set: 1626.1ms
+[37.501s][info   ][gc,phases   ] GC(3)   Post Evacuate Collection Set: 23.0ms
+[37.501s][info   ][gc,phases   ] GC(3)   Other: 2.9ms
+[37.501s][info   ][gc,heap     ] GC(3) Eden regions: 43->0(43)
+[37.501s][info   ][gc,heap     ] GC(3) Survivor regions: 7->7(7)
+[37.501s][info   ][gc,heap     ] GC(3) Old regions: 124->167
+[37.501s][info   ][gc,heap     ] GC(3) Archive regions: 0->0
+[37.501s][info   ][gc,heap     ] GC(3) Humongous regions: 0->0
+[37.502s][info   ][gc,metaspace] GC(3) Metaspace: 6417K(6528K)->6417K(6528K)
+[37.502s][info   ][gc          ] GC(3) Pause Young (Normal) (G1 Evacuation Pause) 174M->174M(1024M) 1653.539ms
+[37.503s][info   ][gc,cpu      ] GC(3) User=1.65s Sys=0.01s Real=1.65s
+[37.543s][info   ][gc,start    ] GC(4) Pause Young (Normal) (G1 Evacuation Pause)
+[37.543s][info   ][gc,task     ] GC(4) Using 1 workers of 1 for evacuation
+[39.190s][info   ][gc,mmu      ] GC(4) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[39.191s][info   ][gc,phases   ] GC(4)   Pre Evacuate Collection Set: 0.4ms
+[39.191s][info   ][gc,phases   ] GC(4)   Merge Heap Roots: 0.1ms
+[39.191s][info   ][gc,phases   ] GC(4)   Evacuate Collection Set: 1622.7ms
+[39.191s][info   ][gc,phases   ] GC(4)   Post Evacuate Collection Set: 22.9ms
+[39.191s][info   ][gc,phases   ] GC(4)   Other: 3.0ms
+[39.191s][info   ][gc,heap     ] GC(4) Eden regions: 43->0(43)
+[39.191s][info   ][gc,heap     ] GC(4) Survivor regions: 7->7(7)
+[39.192s][info   ][gc,heap     ] GC(4) Old regions: 167->210
+[39.192s][info   ][gc,heap     ] GC(4) Archive regions: 0->0
+[39.192s][info   ][gc,heap     ] GC(4) Humongous regions: 0->0
+[39.192s][info   ][gc,metaspace] GC(4) Metaspace: 6417K(6528K)->6417K(6528K)
+[39.193s][info   ][gc          ] GC(4) Pause Young (Normal) (G1 Evacuation Pause) 217M->217M(1024M) 1649.892ms
+[39.193s][info   ][gc,cpu      ] GC(4) User=1.64s Sys=0.01s Real=1.65s
+================== Sum is 3000001
+[39.673s][info   ][gc,start    ] GC(5) Pause Young (Normal) (G1 Evacuation Pause)
+[39.673s][info   ][gc,task     ] GC(5) Using 1 workers of 1 for evacuation
+[41.310s][info   ][gc,mmu      ] GC(5) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[41.311s][info   ][gc,phases   ] GC(5)   Pre Evacuate Collection Set: 0.8ms
+[41.311s][info   ][gc,phases   ] GC(5)   Merge Heap Roots: 0.6ms
+[41.311s][info   ][gc,phases   ] GC(5)   Evacuate Collection Set: 1611.2ms
+[41.311s][info   ][gc,phases   ] GC(5)   Post Evacuate Collection Set: 23.6ms
+[41.311s][info   ][gc,phases   ] GC(5)   Other: 2.9ms
+[41.311s][info   ][gc,heap     ] GC(5) Eden regions: 43->0(43)
+[41.311s][info   ][gc,heap     ] GC(5) Survivor regions: 7->7(7)
+[41.311s][info   ][gc,heap     ] GC(5) Old regions: 210->251
+[41.311s][info   ][gc,heap     ] GC(5) Archive regions: 0->0
+[41.312s][info   ][gc,heap     ] GC(5) Humongous regions: 1->1
+[41.312s][info   ][gc,metaspace] GC(5) Metaspace: 6919K(7040K)->6919K(7040K)
+[41.313s][info   ][gc          ] GC(5) Pause Young (Normal) (G1 Evacuation Pause) 261M->259M(1024M) 1640.006ms
+[41.313s][info   ][gc,cpu      ] GC(5) User=1.64s Sys=0.00s Real=1.64s
+[48.177s][info   ][gc,start    ] GC(6) Pause Young (Normal) (G1 Evacuation Pause)
+[48.177s][info   ][gc,task     ] GC(6) Using 1 workers of 1 for evacuation
+[51.816s][info   ][gc,mmu      ] GC(6) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[51.816s][info   ][gc,phases   ] GC(6)   Pre Evacuate Collection Set: 2.3ms
+[51.816s][info   ][gc,phases   ] GC(6)   Merge Heap Roots: 45.9ms
+[51.816s][info   ][gc,phases   ] GC(6)   Evacuate Collection Set: 3564.4ms
+[51.816s][info   ][gc,phases   ] GC(6)   Post Evacuate Collection Set: 25.0ms
+[51.817s][info   ][gc,phases   ] GC(6)   Other: 2.9ms
+[51.817s][info   ][gc,heap     ] GC(6) Eden regions: 43->0(43)
+[51.817s][info   ][gc,heap     ] GC(6) Survivor regions: 7->7(7)
+[51.817s][info   ][gc,heap     ] GC(6) Old regions: 251->293
+[51.817s][info   ][gc,heap     ] GC(6) Archive regions: 0->0
+[51.817s][info   ][gc,heap     ] GC(6) Humongous regions: 26->26
+[51.817s][info   ][gc,metaspace] GC(6) Metaspace: 6921K(7040K)->6921K(7040K)
+[51.818s][info   ][gc          ] GC(6) Pause Young (Normal) (G1 Evacuation Pause) 327M->325M(1024M) 3641.142ms
+[51.818s][info   ][gc,cpu      ] GC(6) User=3.62s Sys=0.02s Real=3.65s
+[60.865s][info   ][gc,start    ] GC(7) Pause Young (Normal) (G1 Evacuation Pause)
+[60.865s][info   ][gc,task     ] GC(7) Using 1 workers of 1 for evacuation
+[65.866s][info   ][gc,mmu      ] GC(7) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[65.866s][info   ][gc,phases   ] GC(7)   Pre Evacuate Collection Set: 0.4ms
+[65.866s][info   ][gc,phases   ] GC(7)   Merge Heap Roots: 54.2ms
+[65.867s][info   ][gc,phases   ] GC(7)   Evacuate Collection Set: 4914.6ms
+[65.867s][info   ][gc,phases   ] GC(7)   Post Evacuate Collection Set: 30.4ms
+[65.867s][info   ][gc,phases   ] GC(7)   Other: 3.2ms
+[65.867s][info   ][gc,heap     ] GC(7) Eden regions: 43->0(43)
+[65.867s][info   ][gc,heap     ] GC(7) Survivor regions: 7->7(7)
+[65.867s][info   ][gc,heap     ] GC(7) Old regions: 293->331
+[65.867s][info   ][gc,heap     ] GC(7) Archive regions: 0->0
+[65.867s][info   ][gc,heap     ] GC(7) Humongous regions: 43->43
+[65.867s][info   ][gc,metaspace] GC(7) Metaspace: 6921K(7040K)->6921K(7040K)
+[65.868s][info   ][gc          ] GC(7) Pause Young (Normal) (G1 Evacuation Pause) 385M->380M(1024M) 5003.367ms
+[65.868s][info   ][gc,cpu      ] GC(7) User=4.99s Sys=0.01s Real=5.01s
+[73.743s][info   ][gc,start    ] GC(8) Pause Young (Normal) (G1 Evacuation Pause)
+[73.743s][info   ][gc,task     ] GC(8) Using 1 workers of 1 for evacuation
+[78.960s][info   ][gc,mmu      ] GC(8) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[78.961s][info   ][gc,phases   ] GC(8)   Pre Evacuate Collection Set: 1.4ms
+[78.961s][info   ][gc,phases   ] GC(8)   Merge Heap Roots: 42.1ms
+[78.961s][info   ][gc,phases   ] GC(8)   Evacuate Collection Set: 5141.9ms
+[78.961s][info   ][gc,phases   ] GC(8)   Post Evacuate Collection Set: 30.3ms
+[78.961s][info   ][gc,phases   ] GC(8)   Other: 3.2ms
+[78.961s][info   ][gc,heap     ] GC(8) Eden regions: 43->0(43)
+[78.961s][info   ][gc,heap     ] GC(8) Survivor regions: 7->7(7)
+[78.961s][info   ][gc,heap     ] GC(8) Old regions: 331->366
+[78.961s][info   ][gc,heap     ] GC(8) Archive regions: 0->0
+[78.961s][info   ][gc,heap     ] GC(8) Humongous regions: 48->48
+[78.962s][info   ][gc,metaspace] GC(8) Metaspace: 6921K(7040K)->6921K(7040K)
+[78.962s][info   ][gc          ] GC(8) Pause Young (Normal) (G1 Evacuation Pause) 428M->420M(1024M) 5219.363ms
+[78.963s][info   ][gc,cpu      ] GC(8) User=5.21s Sys=0.01s Real=5.22s
+[90.074s][info   ][gc,start    ] GC(9) Pause Young (Normal) (G1 Evacuation Pause)
+[90.074s][info   ][gc,task     ] GC(9) Using 1 workers of 1 for evacuation
+[95.504s][info   ][gc,mmu      ] GC(9) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[95.504s][info   ][gc,phases   ] GC(9)   Pre Evacuate Collection Set: 1.1ms
+[95.504s][info   ][gc,phases   ] GC(9)   Merge Heap Roots: 56.3ms
+[95.504s][info   ][gc,phases   ] GC(9)   Evacuate Collection Set: 5341.4ms
+[95.504s][info   ][gc,phases   ] GC(9)   Post Evacuate Collection Set: 29.8ms
+[95.504s][info   ][gc,phases   ] GC(9)   Other: 2.8ms
+[95.504s][info   ][gc,heap     ] GC(9) Eden regions: 43->0(43)
+[95.505s][info   ][gc,heap     ] GC(9) Survivor regions: 7->7(7)
+[95.505s][info   ][gc,heap     ] GC(9) Old regions: 366->397
+[95.505s][info   ][gc,heap     ] GC(9) Archive regions: 0->0
+[95.505s][info   ][gc,heap     ] GC(9) Humongous regions: 81->81
+[95.505s][info   ][gc,metaspace] GC(9) Metaspace: 6921K(7040K)->6921K(7040K)
+[95.506s][info   ][gc          ] GC(9) Pause Young (Normal) (G1 Evacuation Pause) 496M->484M(1024M) 5431.520ms
+[95.506s][info   ][gc,cpu      ] GC(9) User=5.42s Sys=0.01s Real=5.43s
+[106.546s][info   ][gc,start    ] GC(10) Pause Young (Concurrent Start) (G1 Evacuation Pause)
+[106.546s][info   ][gc,task     ] GC(10) Using 1 workers of 1 for evacuation
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 37
+   obj size = 6
+   region liveness ratio = 42
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+[110.857s][info   ][gc,mmu      ] GC(10) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[110.857s][info   ][gc,phases   ] GC(10)   Pre Evacuate Collection Set: 0.7ms
+[110.857s][info   ][gc,phases   ] GC(10)   Merge Heap Roots: 31.0ms
+[110.857s][info   ][gc,phases   ] GC(10)   Evacuate Collection Set: 4247.7ms
+[110.857s][info   ][gc,phases   ] GC(10)   Post Evacuate Collection Set: 29.1ms
+[110.857s][info   ][gc,phases   ] GC(10)   Other: 4.2ms
+[110.857s][info   ][gc,heap     ] GC(10) Eden regions: 43->0(43)
+[110.857s][info   ][gc,heap     ] GC(10) Survivor regions: 7->7(7)
+[110.858s][info   ][gc,heap     ] GC(10) Old regions: 397->423
+[110.858s][info   ][gc,heap     ] GC(10) Archive regions: 0->0
+[110.858s][info   ][gc,heap     ] GC(10) Humongous regions: 81->81
+[110.858s][info   ][gc,metaspace] GC(10) Metaspace: 6921K(7040K)->6921K(7040K)
+[110.859s][info   ][gc          ] GC(10) Pause Young (Concurrent Start) (G1 Evacuation Pause) 527M->511M(1024M) 4312.326ms
+[110.859s][info   ][gc,cpu      ] GC(10) User=4.31s Sys=0.01s Real=4.32s
+[110.859s][info   ][gc          ] GC(11) Concurrent Mark Cycle
+[110.859s][info   ][gc,marking  ] GC(11) Concurrent Clear Claimed Marks
+[110.859s][info   ][gc,marking  ] GC(11) Concurrent Clear Claimed Marks 0.111ms
+[110.859s][info   ][gc,marking  ] GC(11) Concurrent Scan Root Regions
+[111.617s][info   ][gc,marking  ] GC(11) Concurrent Scan Root Regions 757.699ms
+[111.617s][info   ][gc,marking  ] GC(11) Concurrent Mark
+[111.618s][info   ][gc,marking  ] GC(11) Concurrent Mark From Roots
+[111.618s][info   ][gc,task     ] GC(11) Using 1 workers of 1 for marking
+LH2node; (pop) is in H2 : 0x7ffea2d981c8
+LMoveNode; (pop) search under it : 0x7ffea2d98218
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 30490
+   region h2 ratio b4 = 0
+   region h2 ratio = 9
+	[J marked to be moved in H2 : 0x7ffea2ebc980
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 0
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6a20
+[J (pop) search under it : 0x7ffea2ebc980
+LMoveNode; (pop) search under it : 0x7ffeb42a6a20
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3452
+   region h2 ratio b4 = 6
+   region h2 ratio = 15
+	[J marked to be moved in H2 : 0x7ffeb42a6a50
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3461
+   region h2 ratio b4 = 15
+   region h2 ratio = 21
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6a98
+[J (pop) search under it : 0x7ffeb42a6a50
+LMoveNode; (pop) search under it : 0x7ffeb42a6a98
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3467
+   region h2 ratio b4 = 21
+   region h2 ratio = 30
+	[J marked to be moved in H2 : 0x7ffeb42a6ac8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3476
+   region h2 ratio b4 = 30
+   region h2 ratio = 36
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6b10
+[J (pop) search under it : 0x7ffeb42a6ac8
+LMoveNode; (pop) search under it : 0x7ffeb42a6b10
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3482
+   region h2 ratio b4 = 36
+   region h2 ratio = 45
+	[J marked to be moved in H2 : 0x7ffeb42a6b40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3491
+   region h2 ratio b4 = 45
+   region h2 ratio = 51
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6b88
+[J (pop) search under it : 0x7ffeb42a6b40
+LMoveNode; (pop) search under it : 0x7ffeb42a6b88
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3497
+   region h2 ratio b4 = 51
+   region h2 ratio = 60
+	[J marked to be moved in H2 : 0x7ffeb42a6bb8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3506
+   region h2 ratio b4 = 60
+   region h2 ratio = 66
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6c00
+[J (pop) search under it : 0x7ffeb42a6bb8
+LMoveNode; (pop) search under it : 0x7ffeb42a6c00
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3512
+   region h2 ratio b4 = 66
+   region h2 ratio = 75
+	[J marked to be moved in H2 : 0x7ffeb42a6c30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3521
+   region h2 ratio b4 = 75
+   region h2 ratio = 81
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6c78
+[J (pop) search under it : 0x7ffeb42a6c30
+LMoveNode; (pop) search under it : 0x7ffeb42a6c78
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3527
+   region h2 ratio b4 = 81
+   region h2 ratio = 90
+	[J marked to be moved in H2 : 0x7ffeb42a6ca8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3536
+   region h2 ratio b4 = 90
+   region h2 ratio = 96
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6cf0
+[J (pop) search under it : 0x7ffeb42a6ca8
+LMoveNode; (pop) search under it : 0x7ffeb42a6cf0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3542
+   region h2 ratio b4 = 96
+   region h2 ratio = 105
+	[J marked to be moved in H2 : 0x7ffeb42a6d20
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3551
+   region h2 ratio b4 = 105
+   region h2 ratio = 111
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6d68
+[J (pop) search under it : 0x7ffeb42a6d20
+LMoveNode; (pop) search under it : 0x7ffeb42a6d68
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3557
+   region h2 ratio b4 = 111
+   region h2 ratio = 120
+	[J marked to be moved in H2 : 0x7ffeb42a6d98
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 3566
+   region h2 ratio b4 = 120
+   region h2 ratio = 126
+	LMoveNode; marked to be moved in H2 : 0x7ffeb42a6de0
+[J (pop) search under it : 0x7ffeb42a6d98
+LMoveNode; (pop) search under it : 0x7ffeb42a6de0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 3572
+   region h2 ratio b4 = 126
+   region h2 ratio = 135
+	[J marked to be moved in H2 : 0x7ffeb42a6e10
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95068
+   region h2 ratio b4 = 9
+   region h2 ratio = 15
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebc9c8
+LMoveNode; (pop) search under it : 0x7ffea2ebc9c8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95074
+   region h2 ratio b4 = 15
+   region h2 ratio = 24
+	[J marked to be moved in H2 : 0x7ffea2ebc9f8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95083
+   region h2 ratio b4 = 24
+   region h2 ratio = 30
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebca40
+LMoveNode; (pop) search under it : 0x7ffea2ebca40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95089
+   region h2 ratio b4 = 30
+   region h2 ratio = 39
+	[J marked to be moved in H2 : 0x7ffea2ebca70
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95098
+   region h2 ratio b4 = 39
+   region h2 ratio = 45
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebcab8
+LMoveNode; (pop) search under it : 0x7ffea2ebcab8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95104
+   region h2 ratio b4 = 45
+   region h2 ratio = 54
+	[J marked to be moved in H2 : 0x7ffea2ebcae8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95113
+   region h2 ratio b4 = 54
+   region h2 ratio = 60
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebcb30
+LMoveNode; (pop) search under it : 0x7ffea2ebcb30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95119
+   region h2 ratio b4 = 60
+   region h2 ratio = 69
+	[J marked to be moved in H2 : 0x7ffea2ebcb60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95128
+   region h2 ratio b4 = 69
+   region h2 ratio = 75
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebcba8
+LMoveNode; (pop) search under it : 0x7ffea2ebcba8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95134
+   region h2 ratio b4 = 75
+   region h2 ratio = 84
+	[J marked to be moved in H2 : 0x7ffea2ebcbd8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95143
+   region h2 ratio b4 = 84
+   region h2 ratio = 90
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebcc20
+LMoveNode; (pop) search under it : 0x7ffea2ebcc20
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95149
+   region h2 ratio b4 = 90
+   region h2 ratio = 99
+	[J marked to be moved in H2 : 0x7ffea2ebcc50
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95158
+   region h2 ratio b4 = 99
+   region h2 ratio = 105
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebcc98
+LMoveNode; (pop) search under it : 0x7ffea2ebcc98
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95164
+   region h2 ratio b4 = 105
+   region h2 ratio = 114
+	[J marked to be moved in H2 : 0x7ffea2ebccc8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95173
+   region h2 ratio b4 = 114
+   region h2 ratio = 120
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebcd10
+LMoveNode; (pop) search under it : 0x7ffea2ebcd10
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95179
+   region h2 ratio b4 = 120
+   region h2 ratio = 129
+	[J marked to be move************ Deleteded 2250000
+d in H2 : 0x7ffea2ebcd40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 95188
+   region h2 ratio b4 = 129
+   region h2 ratio = 135
+	LMoveNode; marked to be moved in H2 : 0x7ffea2ebcd88
+LMoveNode; (pop) search under it : 0x7ffea2ebcd88
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 95194
+   region h2 ratio b4 = 135
+   region h2 ratio = 144
+	[J marked to be moved in H2 : 0x7ffea2ebcdb8
+[J (pop) search under it : 0x7ffeb42a6e10
+[122.217s][info   ][gc,start    ] GC(12) Pause Young (Normal) (G1 Evacuation Pause)
+[122.217s][info   ][gc,task     ] GC(12) Using 1 workers of 1 for evacuation
+[126.899s][info   ][gc,mmu      ] GC(12) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[126.899s][info   ][gc,phases   ] GC(12)   Pre Evacuate Collection Set: 1.1ms
+[126.899s][info   ][gc,phases   ] GC(12)   Merge Heap Roots: 18.2ms
+[126.899s][info   ][gc,phases   ] GC(12)   Evacuate Collection Set: 4625.0ms
+[126.899s][info   ][gc,phases   ] GC(12)   Post Evacuate Collection Set: 35.9ms
+[126.899s][info   ][gc,phases   ] GC(12)   Other: 3.6ms
+[126.900s][info   ][gc,heap     ] GC(12) Eden regions: 43->0(43)
+[126.900s][info   ][gc,heap     ] GC(12) Survivor regions: 7->7(7)
+[126.900s][info   ][gc,heap     ] GC(12) Old regions: 423->452
+[126.900s][info   ][gc,heap     ] GC(12) Archive regions: 0->0
+[126.900s][info   ][gc,heap     ] GC(12) Humongous regions: 99->90
+[126.900s][info   ][gc,metaspace] GC(12) Metaspace: 7015K(7104K)->7015K(7104K)
+[126.901s][info   ][gc          ] GC(12) Pause Young (Normal) (G1 Evacuation Pause) 572M->549M(1024M) 4683.733ms
+[126.901s][info   ][gc,cpu      ] GC(12) User=4.67s Sys=0.02s Real=4.69s
+[127.033s][info   ][gc,start    ] GC(13) Pause Young (Normal) (G1 Evacuation Pause)
+[127.033s][info   ][gc,task     ] GC(13) Using 1 workers of 1 for evacuation
+[129.778s][info   ][gc,mmu      ] GC(13) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[129.778s][info   ][gc,phases   ] GC(13)   Pre Evacuate Collection Set: 0.6ms
+[129.778s][info   ][gc,phases   ] GC(13)   Merge Heap Roots: 7.2ms
+[129.778s][info   ][gc,phases   ] GC(13)   Evacuate Collection Set: 2707.5ms
+[129.778s][info   ][gc,phases   ] GC(13)   Post Evacuate Collection Set: 27.5ms
+[129.778s][info   ][gc,phases   ] GC(13)   Other: 3.6ms
+[129.779s][info   ][gc,heap     ] GC(13) Eden regions: 43->0(43)
+[129.779s][info   ][gc,heap     ] GC(13) Survivor regions: 7->7(7)
+[129.779s][info   ][gc,heap     ] GC(13) Old regions: 452->495
+[129.779s][info   ][gc,heap     ] GC(13) Archive regions: 0->0
+[129.779s][info   ][gc,heap     ] GC(13) Humongous regions: 90->90
+[129.779s][info   ][gc,metaspace] GC(13) Metaspace: 7015K(7104K)->7015K(7104K)
+[129.780s][info   ][gc          ] GC(13) Pause Young (Normal) (G1 Evacuation Pause) 592M->592M(1024M) 2746.894ms
+[129.780s][info   ][gc,cpu      ] GC(13) User=2.73s Sys=0.01s Real=2.75s
+[129.913s][info   ][gc,start    ] GC(14) Pause Young (Normal) (G1 Evacuation Pause)
+[129.913s][info   ][gc,task     ] GC(14) Using 1 workers of 1 for evacuation
+[131.561s][info   ][gc,mmu      ] GC(14) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[131.561s][info   ][gc,phases   ] GC(14)   Pre Evacuate Collection Set: 0.6ms
+[131.561s][info   ][gc,phases   ] GC(14)   Merge Heap Roots: 0.4ms
+[131.561s][info   ][gc,phases   ] GC(14)   Evacuate Collection Set: 1618.8ms
+[131.561s][info   ][gc,phases   ] GC(14)   Post Evacuate Collection Set: 26.7ms
+[131.561s][info   ][gc,phases   ] GC(14)   Other: 3.1ms
+[131.561s][info   ][gc,heap     ] GC(14) Eden regions: 43->0(43)
+[131.562s][info   ][gc,heap     ] GC(14) Survivor regions: 7->7(7)
+[131.562s][info   ][gc,heap     ] GC(14) Old regions: 495->538
+[131.562s][info   ][gc,heap     ] GC(14) Archive regions: 0->0
+[131.562s][info   ][gc,heap     ] GC(14) Humongous regions: 90->90
+[131.562s][info   ][gc,metaspace] GC(14) Metaspace: 7015K(7104K)->7015K(7104K)
+[131.563s][info   ][gc          ] GC(14) Pause Young (Normal) (G1 Evacuation Pause) 635M->635M(1024M) 1650.012ms
+[131.563s][info   ][gc,cpu      ] GC(14) User=1.64s Sys=0.01s Real=1.65s
+[131.695s][info   ][gc,start    ] GC(15) Pause Young (Normal) (G1 Evacuation Pause)
+[131.695s][info   ][gc,task     ] GC(15) Using 1 workers of 1 for evacuation
+[133.344s][info   ][gc,mmu      ] GC(15) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[133.345s][info   ][gc,phases   ] GC(15)   Pre Evacuate Collection Set: 0.6ms
+[133.345s][info   ][gc,phases   ] GC(15)   Merge Heap Roots: 0.4ms
+[133.345s][info   ][gc,phases   ] GC(15)   Evacuate Collection Set: 1620.6ms
+[133.345s][info   ][gc,phases   ] GC(15)   Post Evacuate Collection Set: 26.2ms
+[133.345s][info   ][gc,phases   ] GC(15)   Other: 3.0ms
+[133.345s][info   ][gc,heap     ] GC(15) Eden regions: 43->0(43)
+[133.345s][info   ][gc,heap     ] GC(15) Survivor regions: 7->7(7)
+[133.345s][info   ][gc,heap     ] GC(15) Old regions: 538->581
+[133.345s][info   ][gc,heap     ] GC(15) Archive regions: 0->0
+[133.345s][info   ][gc,heap     ] GC(15) Humongous regions: 90->90
+[133.345s][info   ][gc,metaspace] GC(15) Metaspace: 7015K(7104K)->7015K(7104K)
+[133.346s][info   ][gc          ] GC(15) Pause Young (Normal) (G1 Evacuation Pause) 678M->678M(1024M) 1651.498ms
+[133.346s][info   ][gc,cpu      ] GC(15) User=1.64s Sys=0.01s Real=1.65s
+[133.479s][info   ][gc,start    ] GC(16) Pause Young (Normal) (G1 Evacuation Pause)
+[133.479s][info   ][gc,task     ] GC(16) Using 1 workers of 1 for evacuation
+[135.135s][info   ][gc,mmu      ] GC(16) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[135.135s][info   ][gc,phases   ] GC(16)   Pre Evacuate Collection Set: 0.6ms
+[135.136s][info   ][gc,phases   ] GC(16)   Merge Heap Roots: 0.4ms
+[135.136s][info   ][gc,phases   ] GC(16)   Evacuate Collection Set: 1628.1ms
+[135.136s][info   ][gc,phases   ] GC(16)   Post Evacuate Collection Set: 25.9ms
+[135.136s][info   ][gc,phases   ] GC(16)   Other: 2.7ms
+[135.136s][info   ][gc,heap     ] GC(16) Eden regions: 43->0(43)
+[135.136s][info   ][gc,heap     ] GC(16) Survivor regions: 7->7(7)
+[135.136s][info   ][gc,heap     ] GC(16) Old regions: 581->624
+[135.136s][info   ][gc,heap     ] GC(16) Archive regions: 0->0
+[135.136s][info   ][gc,heap     ] GC(16) Humongous regions: 90->90
+[135.136s][info   ][gc,metaspace] GC(16) Metaspace: 7015K(7104K)->7015K(7104K)
+[135.137s][info   ][gc          ] GC(16) Pause Young (Normal) (G1 Evacuation Pause) 721M->721M(1024M) 1658.320ms
+[135.137s][info   ][gc,cpu      ] GC(16) User=1.65s Sys=0.01s Real=1.65s
+[135.269s][info   ][gc,start    ] GC(17) Pause Young (Normal) (G1 Evacuation Pause)
+[135.269s][info   ][gc,task     ] GC(17) Using 1 workers of 1 for evacuation
+[136.919s][info   ][gc,mmu      ] GC(17) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[136.919s][info   ][gc,phases   ] GC(17)   Pre Evacuate Collection Set: 0.6ms
+[136.919s][info   ][gc,phases   ] GC(17)   Merge Heap Roots: 0.4ms
+[136.919s][info   ][gc,phases   ] GC(17)   Evacuate Collection Set: 1621.4ms
+[136.920s][info   ][gc,phases   ] GC(17)   Post Evacuate Collection Set: 26.1ms
+[136.920s][info   ][gc,phases   ] GC(17)   Other: 2.5ms
+[136.920s][info   ][gc,heap     ] GC(17) Eden regions: 43->0(43)
+[136.920s][info   ][gc,heap     ] GC(17) Survivor regions: 7->7(7)
+[136.920s][info   ][gc,heap     ] GC(17) Old regions: 624->667
+[136.920s][info   ][gc,heap     ] GC(17) Archive regions: 0->0
+[136.920s][info   ][gc,heap     ] GC(17) Humongous regions: 90->90
+[136.920s][info   ][gc,metaspace] GC(17) Metaspace: 7015K(7104K)->7015K(7104K)
+[136.921s][info   ][gc          ] GC(17) Pause Young (Normal) (G1 Evacuation Pause) 764M->764M(1024M) 1651.747ms
+[136.921s][info   ][gc,cpu      ] GC(17) User=1.64s Sys=0.01s Real=1.65s
+================== Sum is 3750002
+[139.244s][info   ][gc,start    ] GC(18) Pause Young (Normal) (G1 Evacuation Pause)
+[139.244s][info   ][gc,task     ] GC(18) Using 1 workers of 1 for evacuation
+[141.632s][info   ][gc,mmu      ] GC(18) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[141.632s][info   ][gc,phases   ] GC(18)   Pre Evacuate Collection Set: 0.6ms
+[141.633s][info   ][gc,phases   ] GC(18)   Merge Heap Roots: 15.5ms
+[141.633s][info   ][gc,phases   ] GC(18)   Evacuate Collection Set: 2343.8ms
+[141.633s][info   ][gc,phases   ] GC(18)   Post Evacuate Collection Set: 26.8ms
+[141.633s][info   ][gc,phases   ] GC(18)   Other: 2.7ms
+[141.633s][info   ][gc,heap     ] GC(18) Eden regions: 43->0(43)
+[141.633s][info   ][gc,heap     ] GC(18) Survivor regions: 7->7(7)
+[141.633s][info   ][gc,heap     ] GC(18) Old regions: 667->710
+[141.633s][info   ][gc,heap     ] GC(18) Archive regions: 0->0
+[141.633s][info   ][gc,heap     ] GC(18) Humongous regions: 102->102
+[141.633s][info   ][gc,metaspace] GC(18) Metaspace: 7015K(7104K)->7015K(7104K)
+[141.634s][info   ][gc          ] GC(18) Pause Young (Normal) (G1 Evacuation Pause) 819M->818M(1024M) 2389.837ms
+[141.634s][info   ][gc,cpu      ] GC(18) User=2.38s Sys=0.00s Real=2.39s
+[142.554s][info   ][gc,marking  ] GC(11) Concurrent Mark From Roots 30935.944ms
+[142.554s][info   ][gc,marking  ] GC(11) Concurrent Preclean
+[142.554s][info   ][gc,marking  ] GC(11) Concurrent Preclean 0.621ms
+[142.555s][info   ][gc,start    ] GC(11) Pause Remark
+H2 liveness 6 added to region 37
+H2 liveness 144 added to region 38
+H2 liveness 135 added to region 314
+[142.624s][info   ][gc          ] GC(11) Pause Remark 828M->791M(1024M) 68.893ms
+[142.624s][info   ][gc,cpu      ] GC(11) User=0.06s Sys=0.01s Real=0.07s
+[142.625s][info   ][gc,marking  ] GC(11) Concurrent Mark 31007.168ms
+[142.625s][info   ][gc,marking  ] GC(11) Concurrent Rebuild Remembered Sets
+[149.105s][info   ][gc,start    ] GC(19) Pause Young (Normal) (G1 Evacuation Pause)
+[149.105s][info   ][gc,task     ] GC(19) Using 1 workers of 1 for evacuation
+[153.250s][info   ][gc,mmu      ] GC(19) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[153.250s][info   ][gc,phases   ] GC(19)   Pre Evacuate Collection Set: 0.6ms
+[153.250s][info   ][gc,phases   ] GC(19)   Merge Heap Roots: 37.7ms
+[153.250s][info   ][gc,phases   ] GC(19)   Evacuate Collection Set: 4076.6ms
+[153.250s][info   ][gc,phases   ] GC(19)   Post Evacuate Collection Set: 29.3ms
+[153.251s][info   ][gc,phases   ] GC(19)   Other: 3.1ms
+[153.251s][info   ][gc,heap     ] GC(19) Eden regions: 43->0(43)
+[153.251s][info   ][gc,heap     ] GC(19) Survivor regions: 7->7(7)
+[153.251s][info   ][gc,heap     ] GC(19) Old regions: 710->750
+[153.251s][info   ][gc,heap     ] GC(19) Archive regions: 0->0
+[153.251s][info   ][gc,heap     ] GC(19) Humongous regions: 79->79
+[153.251s][info   ][gc,metaspace] GC(19) Metaspace: 7015K(7104K)->7015K(7104K)
+[153.252s][info   ][gc          ] GC(19) Pause Young (Normal) (G1 Evacuation Pause) 838M->836M(1024M) 4147.166ms
+[153.252s][info   ][gc,cpu      ] GC(19) User=4.14s Sys=0.01s Real=4.15s
+[155.226s][info   ][gc,marking  ] GC(11) Concurrent Rebuild Remembered Sets 12601.599ms
+[155.229s][info   ][gc,start    ] GC(11) Pause Cleanup
+OLD 37 :
+  marked  129796
+  live    129796
+  h2 live 6
+
+OLD 38 :
+  marked  130578
+  live    130578
+  h2 live 144
+
+Region added 80 with:
+live words 67441
+Region added 123 with:
+live words 122067
+Region added 166 with:
+live words 122067
+Region added 209 with:
+live words 122067
+Region added 251 with:
+live words 83820
+OLD 314 :
+  marked  131060
+  live    131060
+  h2 live 135
+
+Region added 318 with:
+live words 111940
+Region added 413 with:
+live words 107415
+Region added 477 with:
+live words 67582
+[155.232s][info   ][gc          ] GC(11) Pause Cleanup 862M->862M(1024M) 3.500ms
+[155.233s][info   ][gc,cpu      ] GC(11) User=0.00s Sys=0.00s Real=0.00s
+[155.233s][info   ][gc,marking  ] GC(11) Concurrent Cleanup for Next Mark
+[155.244s][info   ][gc,marking  ] GC(11) Concurrent Cleanup for Next Mark 11.378ms
+[155.244s][info   ][gc          ] GC(11) Concurrent Mark Cycle 44385.336ms
+[160.167s][info   ][gc,start    ] GC(20) Pause Young (Concurrent Start) (G1 Humongous Allocation)
+[160.167s][info   ][gc,task     ] GC(20) Using 1 workers of 1 for evacuation
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 37
+   obj size = 6
+   region liveness ratio = 70
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+[164.693s][info   ][gc,mmu      ] GC(20) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[164.693s][info   ][gc,phases   ] GC(20)   Pre Evacuate Collection Set: 0.7ms
+[164.693s][info   ][gc,phases   ] GC(20)   Merge Heap Roots: 41.2ms
+[164.693s][info   ][gc,phases   ] GC(20)   Evacuate Collection Set: 4456.0ms
+[164.694s][info   ][gc,phases   ] GC(20)   Post Evacuate Collection Set: 26.1ms
+[164.694s][info   ][gc,phases   ] GC(20)   Other: 2.9ms
+[164.694s][info   ][gc,heap     ] GC(20) Eden regions: 35->0(43)
+[164.694s][info   ][gc,heap     ] GC(20) Survivor regions: 7->7(7)
+[164.694s][info   ][gc,heap     ] GC(20) Old regions: 750->780
+[164.694s][info   ][gc,heap     ] GC(20) Archive regions: 0->0
+[164.694s][info   ][gc,heap     ] GC(20) Humongous regions: 96->96
+[164.694s][info   ][gc,metaspace] GC(20) Metaspace: 7015K(7104K)->7015K(7104K)
+[164.695s][info   ][gc          ] GC(20) Pause Young (Concurrent Start) (G1 Humongous Allocation) 887M->883M(1024M) 4527.571ms
+[164.695s][info   ][gc,cpu      ] GC(20) User=4.52s Sys=0.01s Real=4.53s
+[164.695s][info   ][gc          ] GC(21) Concurrent Mark Cycle
+[164.695s][info   ][gc,marking  ] GC(21) Concurrent Clear Claimed Marks
+[164.695s][info   ][gc,marking  ] GC(21) Concurrent Clear Claimed Marks 0.121ms
+[164.696s][info   ][gc,marking  ] GC(21) Concurrent Scan Root Regions
+[165.549s][info   ][gc,marking  ] GC(21) Concurrent Scan Root Regions 852.987ms
+[165.549s][info   ][gc,marking  ] GC(21) Concurrent Mark
+[165.549s][info   ][gc,marking  ] GC(21) Concurrent Mark From Roots
+[165.549s][info   ][gc,task     ] GC(21) Using 1 workers of 1 for marking
+LH2node; (pop) is in H2 : 0x7ffea2d981c8
+LMoveNode; (pop) search under it : 0x7ffea2d98218
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 30513
+   region h2 ratio b4 = 0
+   region h2 ratio = 9
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 0
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+	LMoveNode; marked to be moved in H2 : 0x7ffed32ae940
+[J (pop) search under it : 0x7ffea2ebc980
+[172.543s][info   ][gc,start    ] GC(22) Pause Young (Normal) (G1 Evacuation Pause)
+[172.544s][info   ][gc,task     ] GC(22) Using 1 workers of 1 for evacuation
+[177.857s][info   ][gc,mmu      ] GC(22) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[177.857s][info   ][gc,phases   ] GC(22)   Pre Evacuate Collection Set: 0.7ms
+[177.857s][info   ][gc,phases   ] GC(22)   Merge Heap Roots: 43.9ms
+[177.857s][info   ][gc,phases   ] GC(22)   Evacuate Collection Set: 5238.4ms
+[177.857s][info   ][gc,phases   ] GC(22)   Post Evacuate Collection Set: 28.8ms
+[177.857s][info   ][gc,phases   ] GC(22)   Other: 3.2ms
+[177.857s][info   ][gc,heap     ] GC(22) Eden regions: 43->0(43)
+[177.857s][info   ][gc,heap     ] GC(22) Survivor regions: 7->7(7)
+[177.857s][info   ][gc,heap     ] GC(22) Old regions: 780->815
+[177.857s][info   ][gc,heap     ] GC(22) Archive regions: 0->0
+[177.858s][info   ][gc,heap     ] GC(22) Humongous regions: 101->101
+[177.858s][info   ][gc,metaspace] GC(22) Metaspace: 7015K(7104K)->7015K(7104K)
+[177.858s][info   ][gc          ] GC(22) Pause Young (Normal) (G1 Evacuation Pause) 931M->922M(1024M) 5314.847ms
+[177.858s][info   ][gc,cpu      ] GC(22) User=5.31s Sys=0.01s Real=5.32s
+LMoveNode; (pop) search under it : 0x7ffed32ae940
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89381
+   region h2 ratio b4 = 6
+   region h2 ratio = 15
+	[J marked to be moved in H2 : 0x7ffed32ae970
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89390
+   region h2 ratio b4 = 15
+   region h2 ratio = 21
+	LMoveNode; marked to be moved in H2 : 0x7ffed32ae9b8
+[J (pop) search under it : 0x7ffed32ae970
+LMoveNode; (pop) search under it : 0x7ffed32ae9b8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89396
+   region h2 ratio b4 = 21
+   region h2 ratio = 30
+	[J marked to be moved in H2 : 0x7ffed32ae9e8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89405
+   region h2 ratio b4 = 30
+   region h2 ratio = 36
+	LMoveNode; marked to be moved in H2 : 0x7ffed32aea30
+[J (pop) search under it : 0x7ffed32ae9e8
+LMoveNode; (pop) search under it : 0x7ffed32aea30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89411
+   region h2 ratio b4 = 36
+   region h2 ratio = 45
+	[J marked to be moved in H2 : 0x7ffed32aea60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89420
+   region h2 ratio b4 = 45
+   region h2 ratio = 51
+	LMoveNode; marked to be moved in H2 : 0x7ffed32aeaa8
+[J (pop) search under it : 0x7ffed32aea60
+LMoveNode; (pop) search under it : 0x7ffed32aeaa8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89426
+   region h2 ratio b4 = 51
+   region h2 ratio = 60
+	[J marked to be moved in H2 : 0x7ffed32aead8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89435
+   region h2 ratio b4 = 60
+   region h2 ratio = 66
+	LMoveNode; marked to be moved in H2 : 0x7ffed32aeb20
+[J (pop) search under it : 0x7ffed32aead8
+LMoveNode; (pop) search under it : 0x7ffed32aeb20
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89441
+   region h2 ratio b4 = 66
+   region h2 ratio = 75
+	[J marked to be moved in H2 : 0x7ffed32aeb50
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89450
+   region h2 ratio b4 = 75
+   region h2 ratio = 81
+	LMoveNode; marked to be moved in H2 : 0x7ffed32aeb98
+[J (pop) search under it : 0x7ffed32aeb50
+LMoveNode; (pop) search under it : 0x7ffed32aeb98
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89456
+   region h2 ratio b4 = 81
+   region h2 ratio = 90
+	[J marked to be moved in H2 : 0x7ffed32aebc8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89465
+   region h2 ratio b4 = 90
+   region h2 ratio = 96
+	LMoveNode; marked to be moved in H2 : 0x7ffed32aec10
+[J (pop) search under it : 0x7ffed32aebc8
+LMoveNode; (pop) search under it : 0x7ffed32aec10
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89471
+   region h2 ratio b4 = 96
+   region h2 ratio = 105
+	[J marked to be moved in H2 : 0x7ffed32aec40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89480
+   region h2 ratio b4 = 105
+   region h2 ratio = 111
+	LMoveNode; marked to be moved in H2 : 0x7ffed32aec88
+[J (pop) search under it : 0x7ffed32aec40
+LMoveNode; (pop) search under it : 0x7ffed32aec88
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89486
+   region h2 ratio b4 = 111
+   region h2 ratio = 120
+	[J marked to be moved in H2 : 0x7ffed32aecb8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 89495
+   region h2 ratio b4 = 120
+   region h2 ratio = 126
+	LMoveNode; marked to be moved in H2 : 0x7ffed32aed00
+[J (pop) search under it : 0x7ffed32aecb8
+LMoveNode; (pop) search under it : 0x7ffed32aed00
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 9
+   region liveness ratio = 89501
+   region h2 ratio b4 = 126
+   region h2 ratio = 135
+	[J marked to be moved in H2 : 0x7ffed32aed30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14277
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+LMoveNode; (pop) search under it : 0x7ffeb42a6a20
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14283
+   region h2 ratio b4 = 6
+   region h2 ratio = 15
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14292
+   region h2 ratio b4 = 15
+   region h2 ratio = 21
+LMoveNode; (pop) search under it : 0x7ffeb42a6a98
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14298
+   region h2 ratio b4 = 21
+   region h2 ratio = 30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14307
+   region h2 ratio b4 = 30
+   region h2 ratio = 36
+LMoveNode; (pop) search under it : 0x7ffeb42a6b10
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14313
+   region h2 ratio b4 = 36
+   region h2 ratio = 45
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14322
+   region h2 ratio b4 = 45
+   region h2 ratio = 51
+LMoveNode; (pop) search under it : 0x7ffeb42a6b88
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14328
+   region h2 ratio b4 = 51
+   region h2 ratio = 60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14337
+   region h2 ratio b4 = 60
+   region h2 ratio = 66
+LMoveNode; (pop) search under it : 0x7ffeb42a6c00
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14343
+   region h2 ratio b4 = 66
+   region h2 ratio = 75
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14352
+   region h2 ratio b4 = 75
+   region h2 ratio = 81
+LMoveNode; (pop) search under it : 0x7ffeb42a6c78
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14358
+   region h2 ratio b4 = 81
+   region h2 ratio = 90
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14367
+   region h2 ratio b4 = 90
+   region h2 ratio = 96
+LMoveNode; (pop) search under it : 0x7ffeb42a6cf0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14373
+   region h2 ratio b4 = 96
+   region h2 ratio = 105
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14382
+   region h2 ratio b4 = 105
+   region h2 ratio = 111
+LMoveNode; (pop) search under it : 0x7ffeb42a6d68
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14388
+   region h2 ratio b4 = 111
+   region h2 ratio = 120
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 6
+   region liveness ratio = 14397
+   region h2 ratio b4 = 120
+   region h2 ratio = 126
+LMoveNode; (pop) search under it : 0x7ffeb42a6de0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 314
+   obj size = 9
+   region liveness ratio = 14403
+   region h2 ratio b4 = 126
+   region h2 ratio = 135
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103483
+   region h2 ratio b4 = 9
+   region h2 ratio = 15
+LMoveNode; (pop) search under it : 0x7ffea2ebc9c8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103489
+   region h2 ratio b4 = 15
+   region h2 ratio = 24
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103498
+   region h2 ratio b4 = 24
+   region h2 ratio = 30
+LMoveNode; (pop) search under it : 0x7ffea2ebca40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103504
+   region h2 ratio b4 = 30
+   region h2 ratio = 39
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103513
+   region h2 ratio b4 = 39
+   region h2 ratio = 45
+LMoveNode; (pop) search under it : 0x7ffea2ebcab8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103519
+   region h2 ratio b4 = 45
+   region h2 ratio = 54
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103528
+   region h2 ratio b4 = 54
+   region h2 ratio = 60
+LMoveNode; (pop) search under it : 0x7ffea2ebcb30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103534
+   region h2 ratio b4 = 60
+   region h2 ratio = 69
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103543
+   region h2 ratio b4 = 69
+   region h2 ratio = 75
+LMoveNode; (pop) search under it : 0x7ffea2ebcba8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103549
+   region h2 ratio b4 = 75
+   region h2 ratio = 84
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103558
+   region h2 ratio b4 = 84
+   region h2 ratio = 90
+LMoveNode; (pop) search under it : 0x7ffea2ebcc20
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103564
+   region h2 ratio b4 = 90
+   region h2 ratio = 99
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103573
+   region h2 ratio b4 = 99
+   region h2 ratio = 105
+LMoveNode; (pop) search under it : 0x7ffea2ebcc98
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103579
+   region h2 ratio b4 = 105
+   region h2 ratio = 114
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103588
+   region h2 ratio b4 = 114
+   region h2 ratio = 120
+LMoveNode; (pop) search under it : 0x7ffea2ebcd10
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103594
+   region h2 ratio b4 = 120
+   region h2 ratio = 129
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 6
+   region liveness ratio = 103603
+   region h2 ratio b4 = 129
+   region h2 ratio = 135
+LMoveNode; (pop) search under it : 0x7ffea2ebcd88
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 103609
+   region h2 ratio b4 = 135
+   region h2 ratio = 144
+[J (pop) search under it : 0x7ffed32aed30
+[181.914s][info   ][gc,marking  ] GC(21) Concurrent Mark From Roots 16364.841ms
+[181.914s][info   ][gc,marking  ] GC(21) Concurrent Preclean
+[181.915s][info   ][gc,marking  ] GC(21) Concurrent Preclean 0.480ms
+[181.917s][info   ][gc,start    ] GC(21) Pause Remark
+H2 liveness 6 added to region 37
+H2 liveness 144 added to region 38
+H2 liveness 135 added to region 314
+H2 liveness 135 added to region 810
+[182.094s][info   ][gc          ] GC(21) Pause Remark 969M->710M(1024M) 176.806ms
+[182.094s][info   ][gc,cpu      ] GC(21) User=0.16s Sys=0.01s Real=0.18s
+[182.094s][info   ][gc,marking  ] GC(21) Concurrent Mark 16545.481ms
+[182.094s][info   ][gc,marking  ] GC(21) Concurrent Rebuild Remembered Sets
+[191.287s][info   ][gc,marking  ] GC(21) Concurrent Rebuild Remembered Sets 9192.435ms
+[191.287s][info   ][gc,start    ] GC(21) Pause Cleanup
+Region added 0 with:
+live words 31977
+Region added 1 with:
+live words 32329
+Region added 2 with:
+live words 32131
+Region added 3 with:
+live words 32285
+Region added 4 with:
+live words 33297
+Region added 5 with:
+live words 32626
+Region added 6 with:
+live words 32626
+Region added 7 with:
+live words 32428
+Region added 8 with:
+live words 32527
+Region added 9 with:
+live words 31647
+Region added 10 with:
+live words 32098
+Region added 11 with:
+live words 32219
+Region added 12 with:
+live words 32571
+Region added 13 with:
+live words 32736
+Region added 14 with:
+live words 32384
+Region added 15 with:
+live words 32175
+Region added 16 with:
+live words 32582
+Region added 17 with:
+live words 32164
+Region added 18 with:
+live words 33000
+Region added 19 with:
+live words 33000
+Region added 20 with:
+live words 32483
+Region added 21 with:
+live words 32131
+Region added 22 with:
+live words 32582
+Region added 23 with:
+live words 32560
+Region added 24 with:
+live words 33451
+Region added 25 with:
+live words 32252
+Region added 26 with:
+live words 32263
+Region added 27 with:
+live words 32131
+Region added 28 with:
+live words 33099
+Region added 29 with:
+live words 32065
+Region added 30 with:
+live words 33407
+Region added 31 with:
+live words 32692
+Region added 32 with:
+live words 32329
+Region added 33 with:
+live words 32934
+Region added 34 with:
+live words 32901
+Region added 35 with:
+live words 31658
+Region added 36 with:
+live words 32615
+OLD 37 :
+  marked  72751
+  live    72751
+  h2 live 6
+
+Region added 37 with:
+live words 72751
+OLD 38 :
+  marked  104739
+  live    104739
+  h2 live 144
+
+Region added 38 with:
+live words 104739
+Region added 39 with:
+live words 32450
+Region added 40 with:
+live words 32934
+Region added 41 with:
+live words 32373
+Region added 42 with:
+live words 32472
+Region added 43 with:
+live words 31900
+Region added 44 with:
+live words 32637
+Region added 45 with:
+live words 33011
+Region added 46 with:
+live words 33935
+Region added 47 with:
+live words 33352
+Region added 48 with:
+live words 32417
+Region added 49 with:
+live words 32934
+Region added 50 with:
+live words 32692
+Region added 51 with:
+live words 33077
+Region added 52 with:
+live words 33528
+Region added 53 with:
+live words 32846
+Region added 54 with:
+live words 32890
+Region added 55 with:
+live words 32835
+Region added 56 with:
+live words 32329
+Region added 57 with:
+live words 32175
+Region added 58 with:
+live words 31757
+Region added 59 with:
+live words 31471
+Region added 60 with:
+live words 32967
+Region added 61 with:
+live words 31977
+Region added 62 with:
+live words 33176
+Region added 63 with:
+live words 32296
+Region added 64 with:
+live words 32329
+Region added 65 with:
+live words 32582
+Region added 66 with:
+live words 31999
+Region added 67 with:
+live words 32593
+Region added 68 with:
+live words 32736
+Region added 69 with:
+live words 32846
+Region added 70 with:
+live words 32868
+Region added 71 with:
+live words 32571
+Region added 72 with:
+live words 33253
+Region added 73 with:
+live words 31878
+Region added 74 with:
+live words 33506
+Region added 75 with:
+live words 32318
+Region added 76 with:
+live words 31713
+Region added 77 with:
+live words 32560
+Region added 78 with:
+live words 31944
+Region added 79 with:
+live words 32824
+Region added 80 with:
+live words 16654
+Region added 81 with:
+live words 33187
+Region added 82 with:
+live words 33550
+Region added 83 with:
+live words 33418
+Region added 84 with:
+live words 33209
+Region added 85 with:
+live words 33121
+Region added 86 with:
+live words 32670
+Region added 87 with:
+live words 32571
+Region added 88 with:
+live words 32868
+Region added 89 with:
+live words 32725
+Region added 90 with:
+live words 33451
+Region added 91 with:
+live words 32527
+Region added 92 with:
+live words 31669
+Region added 93 with:
+live words 33715
+Region added 94 with:
+live words 33187
+Region added 95 with:
+live words 32725
+Region added 96 with:
+live words 32494
+Region added 97 with:
+live words 33649
+Region added 98 with:
+live words 32879
+Region added 99 with:
+live words 31878
+Region added 100 with:
+live words 32681
+Region added 101 with:
+live words 33011
+Region added 102 with:
+live words 33022
+Region added 103 with:
+live words 32032
+Region added 104 with:
+live words 32846
+Region added 105 with:
+live words 33132
+Region added 106 with:
+live words 33473
+Region added 107 with:
+live words 33297
+Region added 108 with:
+live words 32615
+Region added 109 with:
+live words 32659
+Region added 110 with:
+live words 32593
+Region added 111 with:
+live words 32890
+Region added 112 with:
+live words 33242
+Region added 113 with:
+live words 32725
+Region added 114 with:
+live words 31427
+Region added 115 with:
+live words 32978
+Region added 116 with:
+live words 32450
+Region added 117 with:
+live words 32648
+Region added 118 with:
+live words 32978
+Region added 119 with:
+live words 33649
+Region added 120 with:
+live words 33099
+Region added 121 with:
+live words 33418
+Region added 122 with:
+live words 32593
+Region added 123 with:
+live words 30250
+Region added 124 with:
+live words 33044
+Region added 125 with:
+live words 33044
+Region added 126 with:
+live words 31878
+Region added 127 with:
+live words 32549
+Region added 128 with:
+live words 33176
+Region added 129 with:
+live words 32252
+Region added 130 with:
+live words 33748
+Region added 131 with:
+live words 32186
+Region added 132 with:
+live words 32912
+Region added 133 with:
+live words 32153
+Region added 134 with:
+live words 32054
+Region added 135 with:
+live words 32879
+Region added 136 with:
+live words 33396
+Region added 137 with:
+live words 33572
+Region added 138 with:
+live words 33473
+Region added 139 with:
+live words 32494
+Region added 140 with:
+live words 32549
+Region added 141 with:
+live words 32571
+Region added 142 with:
+live words 32857
+Region added 143 with:
+live words 32736
+Region added 144 with:
+live words 32791
+Region added 145 with:
+live words 32956
+Region added 146 with:
+live words 31735
+Region added 147 with:
+live words 32582
+Region added 148 with:
+live words 32604
+Region added 149 with:
+live words 33308
+Region added 150 with:
+live words 32274
+Region added 151 with:
+live words 32516
+Region added 152 with:
+live words 32978
+Region added 153 with:
+live words 33572
+Region added 154 with:
+live words 32318
+Region added 155 with:
+live words 32571
+Region added 156 with:
+live words 32219
+Region added 157 with:
+live words 32692
+Region added 158 with:
+live words 32901
+Region added 159 with:
+live words 31966
+Region added 160 with:
+live words 33242
+Region added 161 with:
+live words 32681
+Region added 162 with:
+live words 33132
+Region added 163 with:
+live words 33660
+Region added 164 with:
+live words 32175
+Region added 165 with:
+live words 33044
+Region added 166 with:
+live words 29777
+Region added 167 with:
+live words 33033
+Region added 168 with:
+live words 32934
+Region added 169 with:
+live words 32736
+Region added 170 with:
+live words 32934
+Region added 171 with:
+live words 32758
+Region added 172 with:
+live words 32351
+Region added 173 with:
+live words 32681
+Region added 174 with:
+live words 33066
+Region added 175 with:
+live words 32890
+Region added 176 with:
+live words 33077
+Region added 177 with:
+live words 32615
+Region added 178 with:
+live words 32307
+Region added 179 with:
+live words 32758
+Region added 180 with:
+live words 31933
+Region added 181 with:
+live words 33396
+Region added 182 with:
+live words 32769
+Region added 183 with:
+live words 33528
+Region added 184 with:
+live words 33660
+Region added 185 with:
+live words 32725
+Region added 186 with:
+live words 33847
+Region added 187 with:
+live words 32648
+Region added 188 with:
+live words 33759
+Region added 189 with:
+live words 32516
+Region added 190 with:
+live words 32428
+Region added 191 with:
+live words 33660
+Region added 192 with:
+live words 32483
+Region added 193 with:
+live words 32274
+Region added 194 with:
+live words 32967
+Region added 195 with:
+live words 32758
+Region added 196 with:
+live words 32384
+Region added 197 with:
+live words 31900
+Region added 198 with:
+live words 31493
+Region added 199 with:
+live words 32758
+Region added 200 with:
+live words 31240
+Region added 201 with:
+live words 32923
+Region added 202 with:
+live words 33132
+Region added 203 with:
+live words 32637
+Region added 204 with:
+live words 32692
+Region added 205 with:
+live words 31823
+Region added 206 with:
+live words 32560
+Region added 207 with:
+live words 32846
+Region added 208 with:
+live words 32417
+Region added 209 with:
+live words 30635
+Region added 211 with:
+live words 31658
+Region added 212 with:
+live words 33022
+Region added 213 with:
+live words 32659
+Region added 214 with:
+live words 32549
+Region added 215 with:
+live words 33297
+Region added 216 with:
+live words 32450
+Region added 217 with:
+live words 33220
+Region added 218 with:
+live words 32978
+Region added 219 with:
+live words 32439
+Region added 220 with:
+live words 32879
+Region added 221 with:
+live words 33396
+Region added 222 with:
+live words 33286
+Region added 223 with:
+live words 32263
+Region added 224 with:
+live words 33418
+Region added 225 with:
+live words 32615
+Region added 226 with:
+live words 33110
+Region added 227 with:
+live words 32901
+Region added 228 with:
+live words 32593
+Region added 229 with:
+live words 33759
+Region added 230 with:
+live words 32934
+Region added 231 with:
+live words 32703
+Region added 232 with:
+live words 32879
+Region added 233 with:
+live words 33264
+Region added 234 with:
+live words 31933
+Region added 235 with:
+live words 32384
+Region added 236 with:
+live words 33363
+Region added 237 with:
+live words 32615
+Region added 238 with:
+live words 32340
+Region added 239 with:
+live words 33517
+Region added 240 with:
+live words 32065
+Region added 241 with:
+live words 32230
+Region added 242 with:
+live words 32560
+Region added 243 with:
+live words 32549
+Region added 244 with:
+live words 32351
+Region added 245 with:
+live words 32912
+Region added 246 with:
+live words 32593
+Region added 247 with:
+live words 33264
+Region added 248 with:
+live words 32538
+Region added 249 with:
+live words 32901
+Region added 250 with:
+live words 33022
+Region added 251 with:
+live words 12752
+Region added 277 with:
+live words 12275
+OLD 314 :
+  marked  14643
+  live    14643
+  h2 live 135
+
+Region added 314 with:
+live words 14643
+Region added 315 with:
+live words 33187
+Region added 316 with:
+live words 32252
+Region added 317 with:
+live words 33209
+Region added 318 with:
+live words 11755
+Region added 513 with:
+live words 138
+Region added 519 with:
+live words 704
+Region added 537 with:
+live words 102725
+Region added 550 with:
+live words 80102
+Region added 584 with:
+live words 121363
+Region added 627 with:
+live words 122067
+Region added 670 with:
+live words 122067
+Region added 713 with:
+live words 122067
+Region added 756 with:
+live words 122067
+OLD 810 :
+  marked  130991
+  live    130991
+  h2 live 135
+
+Region added 811 with:
+live words 65687
+OLD 314 :
+  marked  14643
+  live    14643
+  h2 live 135
+
+[191.292s][info   ][gc          ] GC(21) Pause Cleanup 738M->738M(1024M) 4.104ms
+[191.292s][info   ][gc,cpu      ] GC(21) User=0.01s Sys=0.00s Real=0.01s
+[191.292s][info   ][gc,marking  ] GC(21) Concurrent Cleanup for Next Mark
+[191.302s][info   ][gc,marking  ] GC(21) Concurrent Cleanup for Next Mark 10.061ms
+[191.302s][info   ][gc          ] GC(21) Concurrent Mark Cycle 26607.048ms
+[191.752s][info   ][gc,start    ] GC(23) Pause Young (Prepare Mixed) (G1 Evacuation Pause)
+[191.752s][info   ][gc,task     ] GC(23) Using 1 workers of 1 for evacuation
+[196.863s][info   ][gc,mmu      ] GC(23) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[196.863s][info   ][gc,phases   ] GC(23)   Pre Evacuate Collection Set: 0.6ms
+[196.864s][info   ][gc,phases   ] GC(23)   Merge Heap Roots: 46.9ms
+[196.864s][info   ][gc,phases   ] GC(23)   Evacuate Collection Set: 5033.3ms
+[196.864s][info   ][gc,phases   ] GC(23)   Post Evacuate Collection Set: 29.0ms
+[196.864s][info   ][gc,phases   ] GC(23)   Other: 2.6ms
+[196.864s][info   ][gc,heap     ] GC(23) Eden regions: 43->0(43)
+[196.864s][info   ][gc,heap     ] GC(23) Survivor regions: 7->7(7)
+[196.864s][info   ][gc,heap     ] GC(23) Old regions: 629->659
+[196.864s][info   ][gc,heap     ] GC(23) Archive regions: 0->0
+[196.864s][info   ][gc,heap     ] GC(23) Humongous regions: 61->61
+[196.864s][info   ][gc,metaspace] GC(23) Metaspace: 7015K(7104K)->7015K(7104K)
+[196.865s][info   ][gc          ] GC(23) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 739M->726M(1024M) 5112.932ms
+[196.865s][info   ][gc,cpu      ] GC(23) User=5.10s Sys=0.02s Real=5.11s
+[208.256s][info   ][gc,start    ] GC(24) Pause Young (Mixed) (G1 Evacuation Pause)
+[208.257s][info   ][gc,task     ] GC(24) Using 1 workers of 1 for evacuation
+OLD 314 :
+  marked  14643
+  live    14643
+  h2 live 135
+
+[212.736s][info   ][gc,mmu      ] GC(24) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[212.736s][info   ][gc,phases   ] GC(24)   Pre Evacuate Collection Set: 0.8ms
+[212.736s][info   ][gc,phases   ] GC(24)   Merge Heap Roots: 30.5ms
+[212.736s][info   ][gc,phases   ] GC(24)   Evacuate Collection Set: 4406.3ms
+[212.736s][info   ][gc,phases   ] GC(24)   Post Evacuate Collection Set: 40.3ms
+[212.736s][info   ][gc,phases   ] GC(24)   Other: 2.5ms
+[212.736s][info   ][gc,heap     ] GC(24) Eden regions: 43->0(43)
+[212.736s][info   ][gc,heap     ] GC(24) Survivor regions: 7->7(7)
+[212.736s][info   ][gc,heap     ] GC(24) Old regions: 659->665
+[212.737s][info   ][gc,heap     ] GC(24) Archive regions: 0->0
+[212.737s][info   ][gc,heap     ] GC(24) Humongous regions: 70->70
+[212.737s][info   ][gc,metaspace] GC(24) Metaspace: 7015K(7104K)->7015K(7104K)
+[212.737s][info   ][gc          ] GC(24) Pause Young (Mixed) (G1 Evacuation Pause) 778M->741M(1024M) 4480.984ms
+[212.738s][info   ][gc,cpu      ] GC(24) User=4.48s Sys=0.00s Real=4.48s
+************ Deleteded 2250000
+[219.665s][info   ][gc,start    ] GC(25) Pause Young (Mixed) (G1 Evacuation Pause)
+[219.665s][info   ][gc,task     ] GC(25) Using 1 workers of 1 for evacuation
+[224.248s][info   ][gc,mmu      ] GC(25) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[224.248s][info   ][gc,phases   ] GC(25)   Pre Evacuate Collection Set: 0.7ms
+[224.248s][info   ][gc,phases   ] GC(25)   Merge Heap Roots: 15.0ms
+[224.248s][info   ][gc,phases   ] GC(25)   Evacuate Collection Set: 4519.3ms
+[224.248s][info   ][gc,phases   ] GC(25)   Post Evacuate Collection Set: 46.3ms
+[224.249s][info   ][gc,phases   ] GC(25)   Other: 2.7ms
+[224.249s][info   ][gc,heap     ] GC(25) Eden regions: 43->0(43)
+[224.249s][info   ][gc,heap     ] GC(25) Survivor regions: 7->7(7)
+[224.249s][info   ][gc,heap     ] GC(25) Old regions: 665->679
+[224.249s][info   ][gc,heap     ] GC(25) Archive regions: 0->0
+[224.249s][info   ][gc,heap     ] GC(25) Humongous regions: 79->70
+[224.249s][info   ][gc,metaspace] GC(25) Metaspace: 7015K(7104K)->7015K(7104K)
+[224.250s][info   ][gc          ] GC(25) Pause Young (Mixed) (G1 Evacuation Pause) 793M->755M(1024M) 4584.629ms
+[224.250s][info   ][gc,cpu      ] GC(25) User=4.59s Sys=0.00s Real=4.59s
+[224.283s][info   ][gc,start    ] GC(26) Pause Young (Mixed) (G1 Evacuation Pause)
+[224.284s][info   ][gc,task     ] GC(26) Using 1 workers of 1 for evacuation
+[227.474s][info   ][gc,mmu      ] GC(26) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[227.475s][info   ][gc,phases   ] GC(26)   Pre Evacuate Collection Set: 1.1ms
+[227.475s][info   ][gc,phases   ] GC(26)   Merge Heap Roots: 10.0ms
+[227.475s][info   ][gc,phases   ] GC(26)   Evacuate Collection Set: 3141.8ms
+[227.475s][info   ][gc,phases   ] GC(26)   Post Evacuate Collection Set: 36.4ms
+[227.475s][info   ][gc,phases   ] GC(26)   Other: 2.8ms
+[227.475s][info   ][gc,heap     ] GC(26) Eden regions: 43->0(43)
+[227.475s][info   ][gc,heap     ] GC(26) Survivor regions: 7->7(7)
+[227.475s][info   ][gc,heap     ] GC(26) Old regions: 679->704
+[227.475s][info   ][gc,heap     ] GC(26) Archive regions: 0->0
+[227.475s][info   ][gc,heap     ] GC(26) Humongous regions: 70->70
+[227.475s][info   ][gc,metaspace] GC(26) Metaspace: 7015K(7104K)->7015K(7104K)
+[227.476s][info   ][gc          ] GC(26) Pause Young (Mixed) (G1 Evacuation Pause) 798M->780M(1024M) 3192.648ms
+[227.476s][info   ][gc,cpu      ] GC(26) User=3.19s Sys=0.00s Real=3.19s
+[227.509s][info   ][gc,start    ] GC(27) Pause Young (Mixed) (G1 Evacuation Pause)
+[227.510s][info   ][gc,task     ] GC(27) Using 1 workers of 1 for evacuation
+[229.317s][info   ][gc,mmu      ] GC(27) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[229.317s][info   ][gc,phases   ] GC(27)   Pre Evacuate Collection Set: 0.7ms
+[229.317s][info   ][gc,phases   ] GC(27)   Merge Heap Roots: 0.3ms
+[229.317s][info   ][gc,phases   ] GC(27)   Evacuate Collection Set: 1768.5ms
+[229.317s][info   ][gc,phases   ] GC(27)   Post Evacuate Collection Set: 36.7ms
+[229.317s][info   ][gc,phases   ] GC(27)   Other: 2.5ms
+[229.317s][info   ][gc,heap     ] GC(27) Eden regions: 43->0(43)
+[229.317s][info   ][gc,heap     ] GC(27) Survivor regions: 7->7(7)
+[229.317s][info   ][gc,heap     ] GC(27) Old regions: 704->729
+[229.318s][info   ][gc,heap     ] GC(27) Archive regions: 0->0
+[229.318s][info   ][gc,heap     ] GC(27) Humongous regions: 70->70
+[229.318s][info   ][gc,metaspace] GC(27) Metaspace: 7015K(7104K)->7015K(7104K)
+[229.318s][info   ][gc          ] GC(27) Pause Young (Mixed) (G1 Evacuation Pause) 823M->805M(1024M) 1809.200ms
+[229.319s][info   ][gc,cpu      ] GC(27) User=1.80s Sys=0.00s Real=1.81s
+[229.351s][info   ][gc,start    ] GC(28) Pause Young (Mixed) (G1 Evacuation Pause)
+[229.352s][info   ][gc,task     ] GC(28) Using 1 workers of 1 for evacuation
+[231.190s][info   ][gc,mmu      ] GC(28) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[231.191s][info   ][gc,phases   ] GC(28)   Pre Evacuate Collection Set: 0.6ms
+[231.191s][info   ][gc,phases   ] GC(28)   Merge Heap Roots: 0.5ms
+[231.191s][info   ][gc,phases   ] GC(28)   Evacuate Collection Set: 1799.9ms
+[231.191s][info   ][gc,phases   ] GC(28)   Post Evacuate Collection Set: 36.5ms
+[231.191s][info   ][gc,phases   ] GC(28)   Other: 2.6ms
+[231.191s][info   ][gc,heap     ] GC(28) Eden regions: 43->0(43)
+[231.191s][info   ][gc,heap     ] GC(28) Survivor regions: 7->7(7)
+[231.191s][info   ][gc,heap     ] GC(28) Old regions: 729->754
+[231.191s][info   ][gc,heap     ] GC(28) Archive regions: 0->0
+[231.191s][info   ][gc,heap     ] GC(28) Humongous regions: 70->70
+[231.191s][info   ][gc,metaspace] GC(28) Metaspace: 7015K(7104K)->7015K(7104K)
+[231.192s][info   ][gc          ] GC(28) Pause Young (Mixed) (G1 Evacuation Pause) 848M->830M(1024M) 1840.603ms
+[231.192s][info   ][gc,cpu      ] GC(28) User=1.83s Sys=0.00s Real=1.84s
+[231.225s][info   ][gc,start    ] GC(29) Pause Young (Mixed) (G1 Evacuation Pause)
+[231.225s][info   ][gc,task     ] GC(29) Using 1 workers of 1 for evacuation
+[233.041s][info   ][gc,mmu      ] GC(29) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[233.041s][info   ][gc,phases   ] GC(29)   Pre Evacuate Collection Set: 0.7ms
+[233.041s][info   ][gc,phases   ] GC(29)   Merge Heap Roots: 0.3ms
+[233.041s][info   ][gc,phases   ] GC(29)   Evacuate Collection Set: 1777.0ms
+[233.041s][info   ][gc,phases   ] GC(29)   Post Evacuate Collection Set: 36.6ms
+[233.042s][info   ][gc,phases   ] GC(29)   Other: 2.7ms
+[233.042s][info   ][gc,heap     ] GC(29) Eden regions: 43->0(43)
+[233.042s][info   ][gc,heap     ] GC(29) Survivor regions: 7->7(7)
+[233.042s][info   ][gc,heap     ] GC(29) Old regions: 754->779
+[233.042s][info   ][gc,heap     ] GC(29) Archive regions: 0->0
+[233.042s][info   ][gc,heap     ] GC(29) Humongous regions: 70->70
+[233.042s][info   ][gc,metaspace] GC(29) Metaspace: 7015K(7104K)->7015K(7104K)
+[233.043s][info   ][gc          ] GC(29) Pause Young (Mixed) (G1 Evacuation Pause) 873M->855M(1024M) 1817.875ms
+[233.043s][info   ][gc,cpu      ] GC(29) User=1.81s Sys=0.00s Real=1.82s
+[233.075s][info   ][gc,start    ] GC(30) Pause Young (Mixed) (G1 Evacuation Pause)
+[233.076s][info   ][gc,task     ] GC(30) Using 1 workers of 1 for evacuation
+[234.907s][info   ][gc,mmu      ] GC(30) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[234.907s][info   ][gc,phases   ] GC(30)   Pre Evacuate Collection Set: 0.6ms
+[234.907s][info   ][gc,phases   ] GC(30)   Merge Heap Roots: 0.3ms
+[234.907s][info   ][gc,phases   ] GC(30)   Evacuate Collection Set: 1792.6ms
+[234.907s][info   ][gc,phases   ] GC(30)   Post Evacuate Collection Set: 36.6ms
+[234.908s][info   ][gc,phases   ] GC(30)   Other: 2.8ms
+[234.908s][info   ][gc,heap     ] GC(30) Eden regions: 43->0(43)
+[234.908s][info   ][gc,heap     ] GC(30) Survivor regions: 7->7(7)
+[234.908s][info   ][gc,heap     ] GC(30) Old regions: 779->804
+[234.908s][info   ][gc,heap     ] GC(30) Archive regions: 0->0
+[234.908s][info   ][gc,heap     ] GC(30) Humongous regions: 70->70
+[234.908s][info   ][gc,metaspace] GC(30) Metaspace: 7015K(7104K)->7015K(7104K)
+[234.909s][info   ][gc          ] GC(30) Pause Young (Mixed) (G1 Evacuation Pause) 898M->880M(1024M) 1833.328ms
+[234.909s][info   ][gc,cpu      ] GC(30) User=1.83s Sys=0.00s Real=1.84s
+================== Sum is 4500002
+[238.386s][info   ][gc,start    ] GC(31) Pause Young (Mixed) (G1 Evacuation Pause)
+[238.386s][info   ][gc,task     ] GC(31) Using 1 workers of 1 for evacuation
+[241.308s][info   ][gc,mmu      ] GC(31) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[241.309s][info   ][gc,phases   ] GC(31)   Pre Evacuate Collection Set: 0.7ms
+[241.309s][info   ][gc,phases   ] GC(31)   Merge Heap Roots: 18.2ms
+[241.309s][info   ][gc,phases   ] GC(31)   Evacuate Collection Set: 2864.7ms
+[241.309s][info   ][gc,phases   ] GC(31)   Post Evacuate Collection Set: 37.2ms
+[241.309s][info   ][gc,phases   ] GC(31)   Other: 2.8ms
+[241.309s][info   ][gc,heap     ] GC(31) Eden regions: 43->0(43)
+[241.309s][info   ][gc,heap     ] GC(31) Survivor regions: 7->7(7)
+[241.309s][info   ][gc,heap     ] GC(31) Old regions: 804->828
+[241.309s][info   ][gc,heap     ] GC(31) Archive regions: 0->0
+[241.309s][info   ][gc,heap     ] GC(31) Humongous regions: 84->84
+[241.310s][info   ][gc,metaspace] GC(31) Metaspace: 7015K(7104K)->7015K(7104K)
+[241.310s][info   ][gc          ] GC(31) Pause Young (Mixed) (G1 Evacuation Pause) 937M->919M(1024M) 2924.190ms
+[241.310s][info   ][gc,cpu      ] GC(31) User=2.92s Sys=0.00s Real=2.93s
+[242.709s][info   ][gc,start    ] GC(32) Pause Young (Concurrent Start) (G1 Humongous Allocation)
+[242.709s][info   ][gc,task     ] GC(32) Using 1 workers of 1 for evacuation
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 37
+   obj size = 6
+   region liveness ratio = 45
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+[244.428s][info   ][gc,mmu      ] GC(32) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[244.429s][info   ][gc,phases   ] GC(32)   Pre Evacuate Collection Set: 0.8ms
+[244.429s][info   ][gc,phases   ] GC(32)   Merge Heap Roots: 8.0ms
+[244.429s][info   ][gc,phases   ] GC(32)   Evacuate Collection Set: 1694.4ms
+[244.429s][info   ][gc,phases   ] GC(32)   Post Evacuate Collection Set: 14.9ms
+[244.429s][info   ][gc,phases   ] GC(32)   Other: 2.5ms
+[244.429s][info   ][gc,heap     ] GC(32) Eden regions: 10->0(43)
+[244.429s][info   ][gc,heap     ] GC(32) Survivor regions: 7->7(7)
+[244.429s][info   ][gc,heap     ] GC(32) Old regions: 828->837
+[244.429s][info   ][gc,heap     ] GC(32) Archive regions: 0->0
+[244.429s][info   ][gc,heap     ] GC(32) Humongous regions: 84->84
+[244.429s][info   ][gc,metaspace] GC(32) Metaspace: 7015K(7104K)->7015K(7104K)
+[244.430s][info   ][gc          ] GC(32) Pause Young (Concurrent Start) (G1 Humongous Allocation) 928M->928M(1024M) 1721.355ms
+[244.430s][info   ][gc,cpu      ] GC(32) User=1.72s Sys=0.00s Real=1.72s
+[244.430s][info   ][gc          ] GC(33) Concurrent Mark Cycle
+[244.431s][info   ][gc,marking  ] GC(33) Concurrent Clear Claimed Marks
+[244.431s][info   ][gc,marking  ] GC(33) Concurrent Clear Claimed Marks 0.132ms
+[244.431s][info   ][gc,marking  ] GC(33) Concurrent Scan Root Regions
+[244.798s][info   ][gc,marking  ] GC(33) Concurrent Scan Root Regions 367.275ms
+[244.798s][info   ][gc,marking  ] GC(33) Concurrent Mark
+[244.798s][info   ][gc,marking  ] GC(33) Concurrent Mark From Roots
+[244.799s][info   ][gc,task     ] GC(33) Using 1 workers of 1 for marking
+LH2node; (pop) is in H2 : 0x7ffea2d981c8
+LMoveNode; (pop) search under it : 0x7ffea2d98218
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 38
+   obj size = 9
+   region liveness ratio = 30486
+   region h2 ratio b4 = 0
+   region h2 ratio = 9
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 245
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6980
+[J (pop) search under it : 0x7ffea2ebc980
+[247.272s][info   ][gc,start    ] GC(34) Pause Young (Normal) (G1 Preventive Collection)
+[247.272s][info   ][gc,task     ] GC(34) Using 1 workers of 1 for evacuation
+[251.396s][info   ][gc,mmu      ] GC(34) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[251.396s][info   ][gc,phases   ] GC(34)   Pre Evacuate Collection Set: 0.7ms
+[251.396s][info   ][gc,phases   ] GC(34)   Merge Heap Roots: 35.9ms
+[251.397s][info   ][gc,phases   ] GC(34)   Evacuate Collection Set: 4060.9ms
+[251.397s][info   ][gc,phases   ] GC(34)   Post Evacuate Collection Set: 25.6ms
+[251.397s][info   ][gc,phases   ] GC(34)   Other: 3.3ms
+[251.397s][info   ][gc,heap     ] GC(34) Eden regions: 36->0(43)
+[251.397s][info   ][gc,heap     ] GC(34) Survivor regions: 7->7(7)
+[251.397s][info   ][gc,heap     ] GC(34) Old regions: 837->870
+[251.397s][info   ][gc,heap     ] GC(34) Archive regions: 0->0
+[251.397s][info   ][gc,heap     ] GC(34) Humongous regions: 96->96
+[251.397s][info   ][gc,metaspace] GC(34) Metaspace: 7015K(7104K)->7015K(7104K)
+[251.398s][info   ][gc          ] GC(34) Pause Young (Normal) (G1 Preventive Collection) 976M->973M(1024M) 4126.026ms
+[251.398s][info   ][gc,cpu      ] GC(34) User=4.12s Sys=0.00s Real=4.12s
+[254.809s][info   ][gc,start    ] GC(35) Pause Young (Normal) (G1 Preventive Collection)
+[254.809s][info   ][gc,task     ] GC(35) Using 1 workers of 1 for evacuation
+[257.314s][info   ][gc,mmu      ] GC(35) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[257.314s][info   ][gc,phases   ] GC(35)   Pre Evacuate Collection Set: 0.6ms
+[257.314s][info   ][gc,phases   ] GC(35)   Merge Heap Roots: 17.6ms
+[257.314s][info   ][gc,phases   ] GC(35)   Evacuate Collection Set: 2469.4ms
+[257.315s][info   ][gc,phases   ] GC(35)   Post Evacuate Collection Set: 16.2ms
+[257.315s][info   ][gc,phases   ] GC(35)   Other: 2.8ms
+[257.315s][info   ][gc,heap     ] GC(35) Eden regions: 12->0(43)
+[257.315s][info   ][gc,heap     ] GC(35) Survivor regions: 7->7(7)
+[257.315s][info   ][gc,heap     ] GC(35) Old regions: 870->881
+[257.315s][info   ][gc,heap     ] GC(35) Archive regions: 0->0
+[257.315s][info   ][gc,heap     ] GC(35) Humongous regions: 113->113
+[257.315s][info   ][gc,metaspace] GC(35) Metaspace: 7015K(7104K)->7015K(7104K)
+[257.316s][info   ][gc          ] GC(35) Pause Young (Normal) (G1 Preventive Collection) 1002M->1000M(1024M) 2507.127ms
+[257.316s][info   ][gc,cpu      ] GC(35) User=2.51s Sys=0.00s Real=2.50s
+[258.297s][info   ][gc,start    ] GC(36) Pause Young (Normal) (G1 Preventive Collection)
+[258.297s][info   ][gc,task     ] GC(36) Using 1 workers of 1 for evacuation
+[260.581s][info   ][gc,mmu      ] GC(36) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[260.582s][info   ][gc,phases   ] GC(36)   Pre Evacuate Collection Set: 1.0ms
+[260.582s][info   ][gc,phases   ] GC(36)   Merge Heap Roots: 17.9ms
+[260.582s][info   ][gc,phases   ] GC(36)   Evacuate Collection Set: 2247.0ms
+[260.582s][info   ][gc,phases   ] GC(36)   Post Evacuate Collection Set: 17.0ms
+[260.582s][info   ][gc,phases   ] GC(36)   Other: 2.3ms
+[260.582s][info   ][gc,heap     ] GC(36) Eden regions: 7->0(44)
+[260.582s][info   ][gc,heap     ] GC(36) Survivor regions: 7->6(7)
+[260.582s][info   ][gc,heap     ] GC(36) Old regions: 881->888
+[260.582s][info   ][gc,heap     ] GC(36) Archive regions: 0->0
+[260.582s][info   ][gc,heap     ] GC(36) Humongous regions: 113->113
+[260.582s][info   ][gc,metaspace] GC(36) Metaspace: 7015K(7104K)->7015K(7104K)
+[260.583s][info   ][gc          ] GC(36) Pause Young (Normal) (G1 Preventive Collection) 1007M->1006M(1024M) 2285.958ms
+[260.583s][info   ][gc,cpu      ] GC(36) User=2.29s Sys=0.00s Real=2.29s
+LMoveNode; (pop) search under it : 0x7ffec17f6980
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126498
+   region h2 ratio b4 = 6
+   region h2 ratio = 15
+	[J marked to be moved in H2 : 0x7ffec17f69b0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126507
+   region h2 ratio b4 = 15
+   region h2 ratio = 21
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f69f8
+[J (pop) search under it : 0x7ffec17f69b0
+LMoveNode; (pop) search under it : 0x7ffec17f69f8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126513
+   region h2 ratio b4 = 21
+   region h2 ratio = 30
+	[J marked to be moved in H2 : 0x7ffec17f6a28
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126522
+   region h2 ratio b4 = 30
+   region h2 ratio = 36
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6a70
+[J (pop) search under it : 0x7ffec17f6a28
+LMoveNode; (pop) search under it : 0x7ffec17f6a70
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126528
+   region h2 ratio b4 = 36
+   region h2 ratio = 45
+	[J marked to be moved in H2 : 0x7ffec17f6aa0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126537
+   region h2 ratio b4 = 45
+   region h2 ratio = 51
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6ae8
+[J (pop) search under it : 0x7ffec17f6aa0
+LMoveNode; (pop) search under it : 0x7ffec17f6ae8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126543
+   region h2 ratio b4 = 51
+   region h2 ratio = 60
+	[J marked to be moved in H2 : 0x7ffec17f6b18
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126552
+   region h2 ratio b4 = 60
+   region h2 ratio = 66
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6b60
+[J (pop) search under it : 0x7ffec17f6b18
+LMoveNode; (pop) search under it : 0x7ffec17f6b60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126558
+   region h2 ratio b4 = 66
+   region h2 ratio = 75
+	[J marked to be moved in H2 : 0x7ffec17f6b90
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126567
+   region h2 ratio b4 = 75
+   region h2 ratio = 81
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6bd8
+[J (pop) search under it : 0x7ffec17f6b90
+LMoveNode; (pop) search under it : 0x7ffec17f6bd8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126573
+   region h2 ratio b4 = 81
+   region h2 ratio = 90
+	[J marked to be moved in H2 : 0x7ffec17f6c08
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126582
+   region h2 ratio b4 = 90
+   region h2 ratio = 96
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6c50
+[J (pop) search under it : 0x7ffec17f6c08
+LMoveNode; (pop) search under it : 0x7ffec17f6c50
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126588
+   region h2 ratio b4 = 96
+   region h2 ratio = 105
+	[J marked to be moved in H2 : 0x7ffec17f6c80
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126597
+   region h2 ratio b4 = 105
+   region h2 ratio = 111
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6cc8
+[J (pop) search under it : 0x7ffec17f6c80
+LMoveNode; (pop) search under it : 0x7ffec17f6cc8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126603
+   region h2 ratio b4 = 111
+   region h2 ratio = 120
+	[J marked to be moved in H2 : 0x7ffec17f6cf8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126612
+   region h2 ratio b4 = 120
+   region h2 ratio = 126
+	LMoveNode; marked to be moved in H2 : 0x7ffec17f6d40
+[J (pop) search under it : 0x7ffec17f6cf8
+LMoveNode; (pop) search under it : 0x7ffec17f6d40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126618
+   region h2 ratio b4 = 126
+   region h2 ratio = 135
+	[J marked to be moved in H2 : 0x7ffec17f6d70
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 810
+   obj size = 6
+   region liveness ratio = 0
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+[J (pop) search under it : 0x7ffec17f6d70
+[261.158s][info   ][gc,start    ] GC(37) Pause Young (Normal) (G1 Preventive Collection)
+[261.158s][info   ][gc,task     ] GC(37) Using 1 workers of 1 for evacuation
+[263.990s][info   ][gc,mmu      ] GC(37) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[263.991s][info   ][gc,phases   ] GC(37)   Pre Evacuate Collection Set: 0.7ms
+[263.991s][info   ][gc,phases   ] GC(37)   Merge Heap Roots: 20.8ms
+[263.991s][info   ][gc,phases   ] GC(37)   Evacuate Collection Set: 2797.0ms
+[263.991s][info   ][gc,phases   ] GC(37)   Post Evacuate Collection Set: 12.6ms
+[263.991s][info   ][gc,phases   ] GC(37)   Other: 2.4ms
+[263.991s][info   ][gc,heap     ] GC(37) Eden regions: 5->0(45)
+[263.991s][info   ][gc,heap     ] GC(37) Survivor regions: 6->5(7)
+[263.991s][info   ][gc,heap     ] GC(37) Old regions: 888->894
+[263.991s][info   ][gc,heap     ] GC(37) Archive regions: 0->0
+[263.991s][info   ][gc,heap     ] GC(37) Humongous regions: 113->113
+[263.991s][info   ][gc,metaspace] GC(37) Metaspace: 7015K(7104K)->7015K(7104K)
+[263.992s][info   ][gc          ] GC(37) Pause Young (Normal) (G1 Preventive Collection) 1011M->1011M(1024M) 2834.172ms
+[263.992s][info   ][gc,cpu      ] GC(37) User=2.83s Sys=0.00s Real=2.84s
+[264.193s][info   ][gc,start    ] GC(38) Pause Young (Normal) (G1 Preventive Collection)
+[264.193s][info   ][gc,task     ] GC(38) Using 1 workers of 1 for evacuation
+[266.463s][info   ][gc,mmu      ] GC(38) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[266.464s][info   ][gc,phases   ] GC(38)   Pre Evacuate Collection Set: 0.7ms
+[266.464s][info   ][gc,phases   ] GC(38)   Merge Heap Roots: 14.4ms
+[266.464s][info   ][gc,phases   ] GC(38)   Evacuate Collection Set: 2246.7ms
+[266.464s][info   ][gc,phases   ] GC(38)   Post Evacuate Collection Set: 7.3ms
+[266.464s][info   ][gc,phases   ] GC(38)   Other: 2.1ms
+[266.464s][info   ][gc,heap     ] GC(38) Eden regions: 2->0(48)
+[266.464s][info   ][gc,heap     ] GC(38) Survivor regions: 5->2(7)
+[266.464s][info   ][gc,heap     ] GC(38) Old regions: 894->898
+[266.464s][info   ][gc,heap     ] GC(38) Archive regions: 0->0
+[266.464s][info   ][gc,heap     ] GC(38) Humongous regions: 113->113
+[266.464s][info   ][gc,metaspace] GC(38) Metaspace: 7015K(7104K)->7015K(7104K)
+[266.465s][info   ][gc          ] GC(38) Pause Young (Normal) (G1 Preventive Collection) 1013M->1012M(1024M) 2272.172ms
+[266.465s][info   ][gc,cpu      ] GC(38) User=2.27s Sys=0.00s Real=2.27s
+[266.829s][info   ][gc,start    ] GC(39) Pause Young (Normal) (G1 Preventive Collection)
+[266.829s][info   ][gc,task     ] GC(39) Using 1 workers of 1 for evacuation
+[267.921s][info   ][gc,mmu      ] GC(39) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[267.922s][info   ][gc,phases   ] GC(39)   Pre Evacuate Collection Set: 0.6ms
+[267.922s][info   ][gc,phases   ] GC(39)   Merge Heap Roots: 8.8ms
+[267.922s][info   ][gc,phases   ] GC(39)   Evacuate Collection Set: 1074.0ms
+[267.922s][info   ][gc,phases   ] GC(39)   Post Evacuate Collection Set: 7.8ms
+[267.922s][info   ][gc,phases   ] GC(39)   Other: 1.9ms
+[267.922s][info   ][gc,heap     ] GC(39) Eden regions: 2->0(46)
+[267.922s][info   ][gc,heap     ] GC(39) Survivor regions: 2->4(4)
+[267.922s][info   ][gc,heap     ] GC(39) Old regions: 898->898
+[267.922s][info   ][gc,heap     ] GC(39) Archive regions: 0->0
+[267.922s][info   ][gc,heap     ] GC(39) Humongous regions: 118->118
+[267.922s][info   ][gc,metaspace] GC(39) Metaspace: 7015K(7104K)->7015K(7104K)
+[267.923s][info   ][gc          ] GC(39) Pause Young (Normal) (G1 Preventive Collection) 1019M->1019M(1024M) 1094.094ms
+[267.923s][info   ][gc,cpu      ] GC(39) User=1.09s Sys=0.00s Real=1.09s
+[268.047s][info   ][gc,start    ] GC(40) Pause Young (Normal) (G1 Preventive Collection)
+[268.047s][info   ][gc,task     ] GC(40) Using 1 workers of 1 for evacuation
+[269.378s][info   ][gc,mmu      ] GC(40) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[269.378s][info   ][gc          ] GC(40) To-space exhausted
+[269.378s][info   ][gc,phases   ] GC(40)   Pre Evacuate Collection Set: 0.5ms
+[269.378s][info   ][gc,phases   ] GC(40)   Merge Heap Roots: 11.5ms
+[269.378s][info   ][gc,phases   ] GC(40)   Evacuate Collection Set: 1228.6ms
+[269.378s][info   ][gc,phases   ] GC(40)   Post Evacuate Collection Set: 89.0ms
+[269.378s][info   ][gc,phases   ] GC(40)   Other: 1.8ms
+[269.378s][info   ][gc,heap     ] GC(40) Eden regions: 1->0(48)
+[269.379s][info   ][gc,heap     ] GC(40) Survivor regions: 4->2(3)
+[269.379s][info   ][gc,heap     ] GC(40) Old regions: 898->902
+[269.379s][info   ][gc,heap     ] GC(40) Archive regions: 0->0
+[269.379s][info   ][gc,heap     ] GC(40) Humongous regions: 118->118
+[269.379s][info   ][gc,metaspace] GC(40) Metaspace: 7015K(7104K)->7015K(7104K)
+[269.379s][info   ][gc          ] GC(40) Pause Young (Normal) (G1 Preventive Collection) 1020M->1022M(1024M) 1332.392ms
+[269.380s][info   ][gc,cpu      ] GC(40) User=1.33s Sys=0.00s Real=1.34s
+[269.476s][info   ][gc,start    ] GC(41) Pause Young (Normal) (G1 Preventive Collection)
+[269.477s][info   ][gc,task     ] GC(41) Using 1 workers of 1 for evacuation
+[270.748s][info   ][gc,mmu      ] GC(41) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[270.748s][info   ][gc          ] GC(41) To-space exhausted
+[270.749s][info   ][gc,phases   ] GC(41)   Pre Evacuate Collection Set: 0.6ms
+[270.749s][info   ][gc,phases   ] GC(41)   Merge Heap Roots: 11.3ms
+[270.749s][info   ][gc,phases   ] GC(41)   Evacuate Collection Set: 1116.4ms
+[270.749s][info   ][gc,phases   ] GC(41)   Post Evacuate Collection Set: 142.4ms
+[270.749s][info   ][gc,phases   ] GC(41)   Other: 2.1ms
+[270.749s][info   ][gc,heap     ] GC(41) Eden regions: 1->0(49)
+[270.749s][info   ][gc,heap     ] GC(41) Survivor regions: 2->1(1)
+[270.749s][info   ][gc,heap     ] GC(41) Old regions: 902->905
+[270.749s][info   ][gc,heap     ] GC(41) Archive regions: 0->0
+[270.749s][info   ][gc,heap     ] GC(41) Humongous regions: 118->118
+[270.749s][info   ][gc,metaspace] GC(41) Metaspace: 7015K(7104K)->7015K(7104K)
+[270.750s][info   ][gc          ] GC(41) Pause Young (Normal) (G1 Preventive Collection) 1023M->1024M(1024M) 1273.544ms
+[270.750s][info   ][gc,cpu      ] GC(41) User=1.27s Sys=0.00s Real=1.28s
+[270.751s][info   ][gc,ergo     ] Attempting full compaction
+[270.751s][info   ][gc,task     ] GC(42) Using 1 workers of 1 for full compaction
+[270.753s][info   ][gc,start    ] GC(42) Pause Full (G1 Compaction Pause)
+[270.763s][info   ][gc,phases,start] GC(42) Phase 1: Mark live objects
+[288.097s][info   ][gc,phases      ] GC(42) Phase 1: Mark live objects 17333.563ms
+[288.097s][info   ][gc,phases,start] GC(42) Phase 2: Prepare for compaction
+[289.440s][info   ][gc,phases      ] GC(42) Phase 2: Prepare for compaction 1343.168ms
+[289.440s][info   ][gc,phases,start] GC(42) Phase 3: Adjust pointers
+[296.702s][info   ][gc,phases      ] GC(42) Phase 3: Adjust pointers 7261.407ms
+[296.702s][info   ][gc,phases,start] GC(42) Phase 4: Compact heap
+[297.545s][info   ][gc,phases      ] GC(42) Phase 4: Compact heap 843.337ms
+[297.559s][info   ][gc,heap        ] GC(42) Eden regions: 0->0(50)
+[297.560s][info   ][gc,heap        ] GC(42) Survivor regions: 1->0(1)
+[297.560s][info   ][gc,heap        ] GC(42) Old regions: 905->471
+[297.560s][info   ][gc,heap        ] GC(42) Archive regions: 0->0
+[297.560s][info   ][gc,heap        ] GC(42) Humongous regions: 118->28
+[297.560s][info   ][gc,metaspace   ] GC(42) Metaspace: 7015K(7104K)->7009K(7104K)
+[297.560s][info   ][gc             ] GC(42) Pause Full (G1 Compaction Pause) 1024M->498M(1024M) 26807.323ms
+[297.562s][info   ][gc,cpu         ] GC(42) User=26.79s Sys=0.03s Real=26.81s
+[297.562s][info   ][gc,marking     ] GC(33) Concurrent Mark From Roots 52763.871ms
+[297.563s][info   ][gc,marking     ] GC(33) Concurrent Mark Abort
+[297.563s][info   ][gc             ] GC(33) Concurrent Mark Cycle 53132.289ms
+[308.865s][info   ][gc,start       ] GC(43) Pause Young (Normal) (G1 Evacuation Pause)
+[308.865s][info   ][gc,task        ] GC(43) Using 1 workers of 1 for evacuation
+[314.310s][info   ][gc,mmu         ] GC(43) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[314.310s][info   ][gc,phases      ] GC(43)   Pre Evacuate Collection Set: 0.5ms
+[314.310s][info   ][gc,phases      ] GC(43)   Merge Heap Roots: 43.1ms
+[314.310s][info   ][gc,phases      ] GC(43)   Evacuate Collection Set: 5364.1ms
+[314.310s][info   ][gc,phases      ] GC(43)   Post Evacuate Collection Set: 36.0ms
+[314.310s][info   ][gc,phases      ] GC(43)   Other: 2.5ms
+[314.310s][info   ][gc,heap        ] GC(43) Eden regions: 50->0(43)
+[314.310s][info   ][gc,heap        ] GC(43) Survivor regions: 0->7(7)
+[314.310s][info   ][gc,heap        ] GC(43) Old regions: 471->503
+[314.310s][info   ][gc,heap        ] GC(43) Archive regions: 0->0
+[314.310s][info   ][gc,heap        ] GC(43) Humongous regions: 28->28
+[314.311s][info   ][gc,metaspace   ] GC(43) Metaspace: 7009K(7104K)->7009K(7104K)
+[314.311s][info   ][gc             ] GC(43) Pause Young (Normal) (G1 Evacuation Pause) 548M->537M(1024M) 5446.756ms
+[314.311s][info   ][gc,cpu         ] GC(43) User=5.44s Sys=0.00s Real=5.45s
+[314.785s][info   ][gc,start       ] GC(44) Pause Young (Concurrent Start) (G1 Humongous Allocation)
+[314.785s][info   ][gc,task        ] GC(44) Using 1 workers of 1 for evacuation
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 2
+   obj size = 6
+   region liveness ratio = 45
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+[318.171s][info   ][gc,mmu         ] GC(44) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[318.171s][info   ][gc,phases      ] GC(44)   Pre Evacuate Collection Set: 0.7ms
+[318.171s][info   ][gc,phases      ] GC(44)   Merge Heap Roots: 26.4ms
+[318.171s][info   ][gc,phases      ] GC(44)   Evacuate Collection Set: 3347.0ms
+[318.171s][info   ][gc,phases      ] GC(44)   Post Evacuate Collection Set: 10.0ms
+[318.171s][info   ][gc,phases      ] GC(44)   Other: 2.4ms
+[318.171s][info   ][gc,heap        ] GC(44) Eden regions: 3->0(48)
+[318.172s][info   ][gc,heap        ] GC(44) Survivor regions: 7->2(7)
+[318.172s][info   ][gc,heap        ] GC(44) Old regions: 503->510
+[318.172s][info   ][gc,heap        ] GC(44) Archive regions: 0->0
+[318.172s][info   ][gc,heap        ] GC(44) Humongous regions: 28->28
+[318.172s][info   ][gc,metaspace   ] GC(44) Metaspace: 7009K(7104K)->7009K(7104K)
+[318.173s][info   ][gc             ] GC(44) Pause Young (Concurrent Start) (G1 Humongous Allocation) 540M->539M(1024M) 3387.446ms
+[318.173s][info   ][gc,cpu         ] GC(44) User=3.38s Sys=0.00s Real=3.39s
+[318.173s][info   ][gc             ] GC(45) Concurrent Mark Cycle
+[318.173s][info   ][gc,marking     ] GC(45) Concurrent Clear Claimed Marks
+[318.173s][info   ][gc,marking     ] GC(45) Concurrent Clear Claimed Marks 0.107ms
+[318.173s][info   ][gc,marking     ] GC(45) Concurrent Scan Root Regions
+[318.379s][info   ][gc,marking     ] GC(45) Concurrent Scan Root Regions 206.248ms
+[318.380s][info   ][gc,marking     ] GC(45) Concurrent Mark
+[318.380s][info   ][gc,marking     ] GC(45) Concurrent Mark From Roots
+[318.380s][info   ][gc,task        ] GC(45) Using 1 workers of 1 for marking
+LH2node; (pop) is in H2 : 0x7ffea0aacb58
+LMoveNode; (pop) search under it : 0x7ffea0aacba8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 30747
+   region h2 ratio b4 = 0
+   region h2 ratio = 9
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 245
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+[J (pop) search under it : 0x7ffea0ccd430
+LMoveNode; (pop) search under it : 0x7ffec17f6980
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126498
+   region h2 ratio b4 = 6
+   region h2 ratio = 15
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126507
+   region h2 ratio b4 = 15
+   region h2 ratio = 21
+[J (pop) search under it : 0x7ffec17f69b0
+LMoveNode; (pop) search under it : 0x7ffec17f69f8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126513
+   region h2 ratio b4 = 21
+   region h2 ratio = 30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126522
+   region h2 ratio b4 = 30
+   region h2 ratio = 36
+[J (pop) search under it : 0x7ffec17f6a28
+LMoveNode; (pop) search under it : 0x7ffec17f6a70
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126528
+   region h2 ratio b4 = 36
+   region h2 ratio = 45
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126537
+   region h2 ratio b4 = 45
+   region h2 ratio = 51
+[J (pop) search under it : 0x7ffec17f6aa0
+LMoveNode; (pop) search under it : 0x7ffec17f6ae8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126543
+   region h2 ratio b4 = 51
+   region h2 ratio = 60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126552
+   region h2 ratio b4 = 60
+   region h2 ratio = 66
+[J (pop) search under it : 0x7ffec17f6b18
+LMoveNode; (pop) search under it : 0x7ffec17f6b60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126558
+   region h2 ratio b4 = 66
+   region h2 ratio = 75
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126567
+   region h2 ratio b4 = 75
+   region h2 ratio = 81
+[J (pop) search under it : 0x7ffec17f6b90
+LMoveNode; (pop) search under it : 0x7ffec17f6bd8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126573
+   region h2 ratio b4 = 81
+   region h2 ratio = 90
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126582
+   region h2 ratio b4 = 90
+   region h2 ratio = 96
+[J (pop) search under it : 0x7ffec17f6c08
+LMoveNode; (pop) search under it : 0x7ffec17f6c50
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126588
+   region h2 ratio b4 = 96
+   region h2 ratio = 105
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126597
+   region h2 ratio b4 = 105
+   region h2 ratio = 111
+[J (pop) search under it : 0x7ffec17f6c80
+LMoveNode; (pop) search under it : 0x7ffec17f6cc8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126603
+   region h2 ratio b4 = 111
+   region h2 ratio = 120
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 6
+   region liveness ratio = 126612
+   region h2 ratio b4 = 120
+   region h2 ratio = 126
+[J (pop) search under it : 0x7ffec17f6cf8
+LMoveNode; (pop) search under it : 0x7ffec17f6d40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 527
+   obj size = 9
+   region liveness ratio = 126618
+   region h2 ratio b4 = 126
+   region h2 ratio = 135
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 130933
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+LMoveNode; (pop) search under it : 0x7ffeb047fae8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 130939
+   region h2 ratio b4 = 6
+   region h2 ratio = 15
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 130948
+   region h2 ratio b4 = 15
+   region h2 ratio = 21
+LMoveNode; (pop) search under it : 0x7ffeb047fb60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 130954
+   region h2 ratio b4 = 21
+   region h2 ratio = 30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 130963
+   region h2 ratio b4 = 30
+   region h2 ratio = 36
+LMoveNode; (pop) search under it : 0x7ffeb047fbd8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 130969
+   region h2 ratio b4 = 36
+   region h2 ratio = 45
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 130978
+   region h2 ratio b4 = 45
+   region h2 ratio = 51
+LMoveNode; (pop) search under it : 0x7ffeb047fc50
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 130984
+   region h2 ratio b4 = 51
+   region h2 ratio = 60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 130993
+   region h2 ratio b4 = 60
+   region h2 ratio = 66
+LMoveNode; (pop) search under it : 0x7ffeb047fcc8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 130999
+   region h2 ratio b4 = 66
+   region h2 ratio = 75
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 131008
+   region h2 ratio b4 = 75
+   region h2 ratio = 81
+LMoveNode; (pop) search under it : 0x7ffeb047fd40
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 131014
+   region h2 ratio b4 = 81
+   region h2 ratio = 90
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 131023
+   region h2 ratio b4 = 90
+   region h2 ratio = 96
+LMoveNode; (pop) search under it : 0x7ffeb047fdb8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 131029
+   region h2 ratio b4 = 96
+   region h2 ratio = 105
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 131038
+   region h2 ratio b4 = 105
+   region h2 ratio = 111
+LMoveNode; (pop) search under it : 0x7ffeb047fe30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 131044
+   region h2 ratio b4 = 111
+   region h2 ratio = 120
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 6
+   region liveness ratio = 131053
+   region h2 ratio b4 = 120
+   region h2 ratio = 126
+LMoveNode; (pop) search under it : 0x7ffeb047fea8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 252
+   obj size = 9
+   region liveness ratio = 131059
+   region h2 ratio b4 = 126
+   region h2 ratio = 135
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54757
+   region h2 ratio b4 = 0
+   region h2 ratio = 6
+LMoveNode; (pop) search under it : 0x7ffea3deb4b0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54763
+   region h2 ratio b4 = 6
+   region h2 ratio = 15
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54772
+   region h2 ratio b4 = 15
+   region h2 ratio = 21
+LMoveNode; (pop) search under it : 0x7ffea3deb528
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54778
+   region h2 ratio b4 = 21
+   region h2 ratio = 30
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54787
+   region h2 ratio b4 = 30
+   region h2 ratio = 36
+LMoveNode; (pop) search under it : 0x7ffea3deb5a0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54793
+   region h2 ratio b4 = 36
+   region h2 ratio = 45
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54802
+   region h2 ratio b4 = 45
+   region h2 ratio = 51
+LMoveNode; (pop) search under it : 0x7ffea3deb618
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54808
+   region h2 ratio b4 = 51
+   region h2 ratio = 60
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54817
+   region h2 ratio b4 = 60
+   region h2 ratio = 66
+LMoveNode; (pop) search under it : 0x7ffea3deb690
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54823
+   region h2 ratio b4 = 66
+   region h2 ratio = 75
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54832
+   region h2 ratio b4 = 75
+   region h2 ratio = 81
+LMoveNode; (pop) search under it : 0x7ffea3deb708
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54838
+   region h2 ratio b4 = 81
+   region h2 ratio = 90
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54847
+   region h2 ratio b4 = 90
+   region h2 ratio = 96
+LMoveNode; (pop) search under it : 0x7ffea3deb780
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54853
+   region h2 ratio b4 = 96
+   region h2 ratio = 105
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54862
+   region h2 ratio b4 = 105
+   region h2 ratio = 111
+LMoveNode; (pop) search under it : 0x7ffea3deb7f8
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54868
+   region h2 ratio b4 = 111
+   region h2 ratio = 120
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 6
+   region liveness ratio = 54877
+   region h2 ratio b4 = 120
+   region h2 ratio = 126
+LMoveNode; (pop) search under it : 0x7ffea3deb870
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 53
+   obj size = 9
+   region liveness ratio = 54883
+   region h2 ratio b4 = 126
+   region h2 ratio = 135
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104083
+   region h2 ratio b4 = 9
+   region h2 ratio = 15
+LMoveNode; (pop) search under it : 0x7ffea0ccd478
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104089
+   region h2 ratio b4 = 15
+   region h2 ratio = 24
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104098
+   region h2 ratio b4 = 24
+   region h2 ratio = 30
+LMoveNode; (pop) search under it : 0x7ffea0ccd4f0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104104
+   region h2 ratio b4 = 30
+   region h2 ratio = 39
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104113
+   region h2 ratio b4 = 39
+   region h2 ratio = 45
+LMoveNode; (pop) search under it : 0x7ffea0ccd568
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104119
+   region h2 ratio b4 = 45
+   region h2 ratio = 54
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104128
+   region h2 ratio b4 = 54
+   region h2 ratio = 60
+LMoveNode; (pop) search under it : 0x7ffea0ccd5e0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104134
+   region h2 ratio b4 = 60
+   region h2 ratio = 69
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104143
+   region h2 ratio b4 = 69
+   region h2 ratio = 75
+LMoveNode; (pop) search under it : 0x7ffea0ccd658
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104149
+   region h2 ratio b4 = 75
+   region h2 ratio = 84
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104158
+   region h2 ratio b4 = 84
+   region h2 ratio = 90
+LMoveNode; (pop) search under it : 0x7ffea0ccd6d0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104164
+   region h2 ratio b4 = 90
+   region h2 ratio = 99
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104173
+   region h2 ratio b4 = 99
+   region h2 ratio = 105
+LMoveNode; (pop) search under it : 0x7ffea0ccd748
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104179
+   region h2 ratio b4 = 105
+   region h2 ratio = 114
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104188
+   region h2 ratio b4 = 114
+   region h2 ratio = 120
+LMoveNode; (pop) search under it : 0x7ffea0ccd7c0
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104194
+   region h2 ratio b4 = 120
+   region h2 ratio = 129
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 6
+   region liveness ratio = 104203
+   region h2 ratio b4 = 129
+   region h2 ratio = 135
+LMoveNode; (pop) search under it : 0x7ffea0ccd838
+worker id = 0
+ADD H2 RATIO:
+   Region idx = 4
+   obj size = 9
+   region liveness ratio = 104209
+   region h2 ratio b4 = 135
+   region h2 ratio = 144
+[J (pop) search under it : 0x7ffec17f6d70
+[331.390s][info   ][gc,start       ] GC(46) Pause Young (Normal) (G1 Evacuation Pause)
+[331.390s][info   ][gc,task        ] GC(46) Using 1 workers of 1 for evacuation
+[335.887s][info   ][gc,mmu         ] GC(46) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[335.887s][info   ][gc,phases      ] GC(46)   Pre Evacuate Collection Set: 0.7ms
+[335.887s][info   ][gc,phases      ] GC(46)   Merge Heap Roots: 40.8ms
+[335.887s][info   ][gc,phases      ] GC(46)   Evacuate Collection Set: 4426.2ms
+[335.888s][info   ][gc,phases      ] GC(46)   Post Evacuate Collection Set: 28.4ms
+[335.888s][info   ][gc,phases      ] GC(46)   Other: 3.2ms
+[335.888s][info   ][gc,heap        ] GC(46) Eden regions: 48->0(43)
+[335.888s][info   ][gc,heap        ] GC(46) Survivor regions: 2->7(7)
+[335.888s][info   ][gc,heap        ] GC(46) Old regions: 510->537
+[335.888s][info   ][gc,heap        ] GC(46) Archive regions: 0->0
+[335.888s][info   ][gc,heap        ] GC(46) Humongous regions: 61->61
+[335.888s][info   ][gc,metaspace   ] GC(46) Metaspace: 7009K(7104K)->7009K(7104K)
+[335.889s][info   ][gc             ] GC(46) Pause Young (Normal) (G1 Evacuation Pause) 620M->604M(1024M) 4499.177ms
+[335.889s][info   ][gc,cpu         ] GC(46) User=4.50s Sys=0.00s Real=4.50s
+[337.591s][info   ][gc,marking     ] GC(45) Concurrent Mark From Roots 19210.863ms
+[337.591s][info   ][gc,marking     ] GC(45) Concurrent Preclean
+[337.591s][info   ][gc,marking     ] GC(45) Concurrent Preclean 0.559ms
+[337.592s][info   ][gc,start       ] GC(45) Pause Remark
+H2 liveness 6 added to region 2
+H2 liveness 144 added to region 4
+H2 liveness 135 added to region 53
+H2 liveness 135 added to region 252
+H2 liveness 135 added to region 527
+[337.641s][info   ][gc             ] GC(45) Pause Remark 609M->609M(1024M) 49.149ms
+[337.641s][info   ][gc,cpu         ] GC(45) User=0.05s Sys=0.00s Real=0.05s
+[337.641s][info   ][gc,marking     ] GC(45) Concurrent Mark 19261.592ms
+[337.641s][info   ][gc,marking     ] GC(45) Concurrent Rebuild Remembered Sets
+[345.219s][info   ][gc,marking     ] GC(45) Concurrent Rebuild Remembered Sets 7577.468ms
+[345.219s][info   ][gc,start       ] GC(45) Pause Cleanup
+OLD 2 :
+  marked  131069
+  live    131069
+  h2 live 6
+
+OLD 4 :
+  marked  131068
+  live    131068
+  h2 live 144
+
+OLD 53 :
+  marked  131066
+  live    131066
+  h2 live 135
+
+OLD 252 :
+  marked  131068
+  live    131068
+  h2 live 135
+
+Region added 255 with:
+live words 118682
+OLD 527 :
+  marked  131059
+  live    131059
+  h2 live 135
+
+[345.222s][info   ][gc             ] GC(45) Pause Cleanup 646M->646M(1024M) 2.992ms
+[345.222s][info   ][gc,cpu         ] GC(45) User=0.00s Sys=0.00s Real=0.00s
+[345.223s][info   ][gc,marking     ] GC(45) Concurrent Cleanup for Next Mark
+[345.231s][info   ][gc,marking     ] GC(45) Concurrent Cleanup for Next Mark 8.940ms
+[345.232s][info   ][gc             ] GC(45) Concurrent Mark Cycle 27058.867ms
+[348.158s][info   ][gc,start       ] GC(47) Pause Young (Prepare Mixed) (G1 Evacuation Pause)
+[348.158s][info   ][gc,task        ] GC(47) Using 1 workers of 1 for evacuation
+[352.407s][info   ][gc,mmu         ] GC(47) MMU target violated: 201.0ms (200.0ms/201.0ms)
+[352.407s][info   ][gc,phases      ] GC(47)   Pre Evacuate Collection Set: 1.1ms
+[352.407s][info   ][gc,phases      ] GC(47)   Merge Heap Roots: 28.8ms
+[352.407s][info   ][gc,phases      ] GC(47)   Evacuate Collection Set: 4189.2ms
+[352.407s][info   ][gc,phases      ] GC(47)   Post Evacuate Collection Set: 28.5ms
+[352.407s][info   ][gc,phases      ] GC(47)   Other: 3.4ms
+[352.407s][info   ][gc,heap        ] GC(47) Eden regions: 43->0(43)
+[352.407s][info   ][gc,heap        ] GC(47) Survivor regions: 7->7(7)
+[352.408s][info   ][gc,heap        ] GC(47) Old regions: 537->560
+[352.408s][info   ][gc,heap        ] GC(47) Archive regions: 0->0
+[352.408s][info   ][gc,heap        ] GC(47) Humongous regions: 70->70
+[352.408s][info   ][gc,metaspace   ] GC(47) Metaspace: 7009K(7104K)->7009K(7104K)
+[352.408s][info   ][gc             ] GC(47) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 656M->636M(1024M) 4250.782ms
+[352.409s][info   ][gc,cpu         ] GC(47) User=4.25s Sys=0.00s Real=4.26s
+************ Deleteded 2250000
+heap size: 1024.0 MB   1.0 GB
+heap max size: 1024.0 MB   1.0 GB
+heap free size: 373.6267395019531 MB   0.3648698627948761 GB
+heap used size: 650.3732604980469 MB   0.6351301372051239 GB
+[354.463s][info   ][gc,heap,exit   ] Heap
+[354.463s][info   ][gc,heap,exit   ]  garbage-first heap   total 1048576K, used 667518K [0x00007ffea0800000, 0x00007ffee0800000)
+[354.463s][info   ][gc,heap,exit   ]   region size 1024K, 14 young (14336K), 7 survivors (7168K)
+[354.463s][info   ][gc,heap,exit   ]  Metaspace       used 7242K, committed 7296K, reserved 8192K
+[354.468s][info   ][gc,verify,start] Verifying 
+[394.888s][info   ][gc,verify      ] Verifying  40419.988ms

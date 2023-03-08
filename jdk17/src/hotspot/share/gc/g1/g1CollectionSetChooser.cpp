@@ -157,6 +157,9 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
     size_t _reclaimable_bytes_added;
 
     void add_region(HeapRegion* hr) {
+      std::cout << "Region added " << hr->hrm_index() << " with:\n"
+      << "live words " << hr->live_bytes() / 8 << "\n";
+
       if (_cur_chunk_idx == _cur_chunk_end) {
         _array->claim_chunk(_cur_chunk_idx, _cur_chunk_end);
       }
@@ -251,11 +254,19 @@ uint G1CollectionSetChooser::calculate_work_chunk_size(uint num_workers, uint nu
 }
 
 bool G1CollectionSetChooser::should_add(HeapRegion* hr) {
-  // std::cout << hr->>get_type_str() << " : " << 
+  
+  if ( hr->h2_marked_bytes() > 0 ) {
+  
+    std::cout << hr->get_type_str() << " " << hr->hrm_index() << " :\n" 
+    << "  marked  "<< hr->marked_bytes() /8
+    << "\n  live    " << hr->live_bytes() /8
+    << "\n  h2 live "<<hr->h2_marked_bytes() /8
+    << "\n\n";
+  }
 
   return !hr->is_young() &&
          !hr->is_pinned() &&
-         region_occupancy_low_enough_for_evac(hr->live_bytes()) &&
+         region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes()) &&
          hr->rem_set()->is_complete();
 }
 

@@ -181,11 +181,12 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
   assert(task_entry.is_array_slice() || _next_mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())),
          "Any stolen object should be a slice or marked");
 
-#ifdef TERA_CONC_MARKING
-  assert( !_cm_oop_closure->is_h2_flag_set(), "Closure flag should not be set. Afetr each tera oop iteration, it sould be un-set" );
-#endif
-
   if (scan) {
+
+    #ifdef TERA_CONC_MARKING
+      assert( !_cm_oop_closure->is_h2_flag_set(), "Closure flag should not be set. Afetr each tera oop iteration, it sould be un-set" );
+    #endif
+
     if (task_entry.is_array_slice()) {
 
         //Slice = It's the un-processed part of an object array 
@@ -205,7 +206,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       // if(EnableTeraHeap && (Universe::teraHeap()->is_obj_in_h2(obj))) return;
       //temp (simulating an obj in H2):
       if (obj->is_in_h2()) {        
-        std::cout << obj->klass()->signature_name() << " (pop) is in H2 : " << (HeapWord*) obj << "\n" ;
+        std::cout << obj->klass()->signature_name() << " (popped or scan by bitmap) is in H2 : " << (HeapWord*) obj << "\n" ;
         // return;
       }
       
@@ -231,7 +232,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
 #ifdef TERA_CONC_MARKING
           if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
-              std::cout << obj->klass()->signature_name() << " (pop) search under it : " << (HeapWord*) obj << "\n";
+              std::cout << obj->klass()->signature_name() << " (popped or scan by bitmap) search under it : " << (HeapWord*) obj << "\n";
               
               //iterate this oop, in tera mode
               _cm_oop_closure->set_h2_flag(true); 

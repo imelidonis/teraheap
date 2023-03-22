@@ -182,6 +182,9 @@ private:
 public:
   void prepare_region_for_full_compaction(HeapRegion* hr);
 
+  //##!! remove
+  static long int h1,h2;
+
 private:
   // Rebuilds the region sets / lists so that they are repopulated to
   // reflect the contents of the heap. The only exception is the

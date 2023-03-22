@@ -81,10 +81,40 @@ SATBMarkQueue& G1SATBMarkQueueSet::satb_queue_for_thread(Thread* const t) const 
 // in an unfiltered buffer refer to valid objects.
 
 static inline bool requires_marking(const void* entry, G1CollectedHeap* g1h) {
+
+
+#ifdef TERA_CONC_MARKING
+
+  assert(oopDesc::is_oop(cast_to_oop(entry), true /* ignore mark word */),
+         "Invalid oop in SATB buffer: " PTR_FORMAT, p2i(entry));
+
+  oop obj = cast_to_oop(entry);
+
+  // Includes rejection of NULL pointers.
+  assert( g1h->is_in_reserved(obj) 
+          ||  ( EnableTeraHeap && Universe::is_in_h2(obj) ),
+         "Non-heap pointer in SATB buffer: " PTR_FORMAT, p2i(entry));
+
+  
   //##!! If obj is in H2
   //  (1) set H2 region live bit
   //  (2) Fence heap traversal to H2
   //   return false
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+    Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+    return false;
+  }
+
+  //else its in H1
+  HeapRegion* region = g1h->heap_region_containing(entry);
+  assert(region != NULL, "No region for " PTR_FORMAT, p2i(entry));
+  if (entry >= region->next_top_at_mark_start()) {
+    return false;
+  }
+
+  return true;
+
+#else
   
   // Includes rejection of NULL pointers.
   assert(g1h->is_in_reserved(entry),
@@ -100,6 +130,8 @@ static inline bool requires_marking(const void* entry, G1CollectedHeap* g1h) {
          "Invalid oop in SATB buffer: " PTR_FORMAT, p2i(entry));
 
   return true;
+
+#endif
 }
 
 static inline bool discard_entry(const void* entry, G1CollectedHeap* g1h) {

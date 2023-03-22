@@ -953,10 +953,10 @@ const intx ObjectAlignmentInBytes = 8;
    product(bool, H2LivenessAnalysis, false,                                 \
           "Liveness analysis per H2 region objects")                        \
                                                                             \
-   product(bool, TeraHeapSize, false,                                      \
+   product(uintx, TeraHeapSize, 0,                                      \
           "Initial TeraHeap total size(in bytes)")                         \
                                                                             \
-   product(bool, TeraStripeSize, false,                                     \
+   product(uintx, TeraStripeSize, 512,                                     \
           "Size of TeraHeap stripe size (e.g 128)")                        \
                                                                             \
                                                                             \

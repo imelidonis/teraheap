@@ -95,6 +95,8 @@ public:
   size_t remaining_reclaimable_bytes() { return _remaining_reclaimable_bytes; }
 
   void verify() const PRODUCT_RETURN;
+
+  void print(); //##!! remove. its mine
 };
 
 #endif /* SHARE_GC_G1_G1COLLECTIONSETCANDIDATES_HPP */

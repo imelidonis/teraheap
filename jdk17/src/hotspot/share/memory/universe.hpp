@@ -311,6 +311,10 @@ class Universe: AllStatic {
   DEBUG_ONLY(static bool is_in_heap(const void* p);)
   DEBUG_ONLY(static bool is_in_heap_or_null(const void* p) { return p == NULL || is_in_heap(p); })
 
+#ifdef TERA_EVAC
+  static bool is_in_h2(oop p);
+#endif
+
   // Reserve Java heap and determine CompressedOops mode
   static ReservedHeapSpace reserve_heap(size_t heap_size, size_t alignment);
 

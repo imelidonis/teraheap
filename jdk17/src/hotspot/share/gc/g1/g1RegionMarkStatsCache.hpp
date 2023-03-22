@@ -130,18 +130,18 @@ public:
   void add_h2_live_words(uint region_idx, size_t h2_live_words) {
     G1RegionMarkStatsCacheEntry* const cur = find_for_add(region_idx);
     
-    std::cout << "ADD H2 RATIO:"
-    << "\n   Region idx = " << region_idx 
-    << "\n   obj size = " << h2_live_words 
-    << "\n   region liveness ratio = " << cur->_stats._live_words 
-    << "\n   region h2 ratio b4 = " << cur->_stats._h2_live_words ;
+    // std::cout << "ADD H2 RATIO:"
+    // << "\n   Region idx = " << region_idx 
+    // << "\n   obj size = " << h2_live_words 
+    // << "\n   region liveness ratio = " << cur->_stats._live_words 
+    // << "\n   region h2 ratio b4 = " << cur->_stats._h2_live_words ;
     
     
     cur->_stats._h2_live_words += h2_live_words;
     
-    std::cout
-    << "\n   region h2 ratio = " << cur->_stats._h2_live_words 
-    << "\n";
+    // std::cout
+    // << "\n   region h2 ratio = " << cur->_stats._h2_live_words 
+    // << "\n";
   }
 #endif
 

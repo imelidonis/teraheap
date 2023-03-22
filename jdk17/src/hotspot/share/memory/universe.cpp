@@ -1262,3 +1262,9 @@ bool Universe::is_in_heap(const void* p) {
 }
 
 #endif // ASSERT
+
+#ifdef TERA_EVAC
+bool Universe::is_in_h2(oop p) {
+  return teraHeap()->is_obj_in_h2(p);
+}
+#endif

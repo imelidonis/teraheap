@@ -31,6 +31,8 @@
 #include "runtime/atomic.hpp"
 #include "utilities/quickSort.hpp"
 
+
+
 // Order regions according to GC efficiency. This will cause regions with a lot
 // of live objects and large remembered sets to end up at the end of the array.
 // Given that we might skip collecting the last few old regions, if after a few
@@ -158,7 +160,8 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
 
     void add_region(HeapRegion* hr) {
       std::cout << "Region added " << hr->hrm_index() << " with:\n"
-      << "live words " << hr->live_bytes() / 8 << "\n";
+      << "  total live words " << hr->live_bytes() / 8 << "\n"
+      << "  h2 live "<< hr->h2_marked_bytes() /8 << "\n";
 
       if (_cur_chunk_idx == _cur_chunk_end) {
         _array->claim_chunk(_cur_chunk_idx, _cur_chunk_end);
@@ -257,11 +260,11 @@ bool G1CollectionSetChooser::should_add(HeapRegion* hr) {
   
   if ( hr->h2_marked_bytes() > 0 ) {
   
-    std::cout << hr->get_type_str() << " " << hr->hrm_index() << " :\n" 
-    << "  marked  "<< hr->marked_bytes() /8
-    << "\n  live    " << hr->live_bytes() /8
-    << "\n  h2 live "<<hr->h2_marked_bytes() /8
-    << "\n\n";
+    // std::cout << hr->get_type_str() << " " << hr->hrm_index() << " :\n" 
+    // << "  marked  "<< hr->marked_bytes() /8
+    // << "\n  live    " << hr->live_bytes() /8
+    // << "\n  h2 live "<<hr->h2_marked_bytes() /8
+    // << "\n\n";
   }
 
   return !hr->is_young() &&
@@ -334,5 +337,8 @@ G1CollectionSetCandidates* G1CollectionSetChooser::build(WorkGang* workers, uint
   G1CollectionSetCandidates* result = cl.get_sorted_candidates();
   prune(result);
   result->verify();
+
+  result->print(); //##!! remove this line. is mine
+
   return result;
 }

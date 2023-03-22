@@ -192,11 +192,11 @@ void TeraHeap::h1_old_to_young_traversal_time(unsigned int tid, uint64_t total_t
 // #endif
 // }
 
-// // Check if the first object `obj` in the H2 region is valid. If not
-// // that depicts that the region is empty
-// bool TeraHeap::check_if_valid_object(HeapWord *obj) {
-//     return is_before_last_object((char *)obj);
-// }
+// Check if the first object `obj` in the H2 region is valid. If not
+// that depicts that the region is empty
+bool TeraHeap::check_if_valid_object(HeapWord *obj) {
+    return is_before_last_object((char *)obj);
+}
 
 // // Returns the ending address of the last object in the region obj
 // // belongs to
@@ -277,6 +277,7 @@ void TeraHeap::h1_old_to_young_traversal_time(unsigned int tid, uint64_t total_t
 
 // // Add a new entry to `obj1` region dependency list that reference
 // // `obj2` region
+// // group region eine to andistixo h2 rem set pou periexei olous tous outgoing ptrs pros alla h2 region (andi gia incoming ptrs from cards, thimate outgoinf ptrs pros h2 regions)
 // void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2){
 // 	if (is_in_the_same_group((char *) obj1, (char *) obj2)) 
 // 		return;
@@ -315,33 +316,35 @@ void TeraHeap::h1_old_to_young_traversal_time(unsigned int tid, uint64_t total_t
 //   print_groups();
 // }
 
-// void TeraHeap::h2_print_objects_per_region() {
-// 	HeapWord *next_region;
-// 	HeapWord *obj_addr;
-// 	oop obj;
+void TeraHeap::h2_print_objects_per_region() {
+	HeapWord *next_region;
+	HeapWord *obj_addr;
+	oop obj;
 
-// 	start_iterate_regions();
+	start_iterate_regions();
 
-// 	next_region = (HeapWord *) get_next_region();
+	next_region = (HeapWord *) get_next_region();
 
-// 	while(next_region != NULL) {
-// 		obj_addr = next_region;
+	while(next_region != NULL) {
+		obj_addr = next_region;
 
-// 		while (1) {
-// 			obj = oop(obj_addr);
+		while (1) {
+			obj = oop(obj_addr);
 
-// 			fprintf(stderr, "[PLACEMENT] OBJ = %p | RDD = %d | PART_ID = %lu\n", 
-//            (HeapWord *) obj, obj->get_obj_group_id(), obj->get_obj_part_id());
+		// 	fprintf(stderr, "[PLACEMENT] OBJ = %p | RDD = %d | PART_ID = %lu\n", 
+        //    (HeapWord *) obj, obj->get_obj_group_id(), obj->get_obj_part_id());
 
-// 			if (!check_if_valid_object(obj_addr + obj->size()))
-// 				break;
+		   std::cout << "[H2 PLACEMENT] OBJ = " << (HeapWord *) obj << "\n";
 
-// 			obj_addr += obj->size();
-// 		}
+			if (!check_if_valid_object(obj_addr + obj->size()))
+				break;
 
-// 		next_region = (HeapWord *) get_next_region();
-// 	}
-// }
+			obj_addr += obj->size();
+		}
+
+		next_region = (HeapWord *) get_next_region();
+	}
+}
 
 // void TeraHeap::h2_count_marked_objects(){
 // 	HeapWord *next_region;
@@ -577,11 +580,11 @@ void TeraHeap::h1_old_to_young_traversal_time(unsigned int tid, uint64_t total_t
 // }
 // #endif
 
-// // Explicit (using systemcall) write 'data' with 'size' to the specific
-// // 'offset' in the file.
-// void TeraHeap::h2_write(char *data, char *offset, size_t size) {
-// 	r_write(data, offset, size);
-// }
+// Explicit (using systemcall) write 'data' with 'size' to the specific
+// 'offset' in the file.
+void TeraHeap::h2_write(char *data, char *offset, size_t size) {
+	r_write(data, offset, size);
+}
 
 // // Explicit (using systemcall) asynchronous write 'data' with 'size' to
 // // the specific 'offset' in the file.
@@ -629,41 +632,41 @@ void TeraHeap::h1_old_to_young_traversal_time(unsigned int tid, uint64_t total_t
 // 	return get_obj_part_id((char *) p);
 // }
 
-// // Marks the region containing obj as used
-// void TeraHeap::mark_used_region(HeapWord *obj) {
-//     mark_used((char *) obj);
-// }
+// Marks the region containing obj as used
+void TeraHeap::mark_used_region(HeapWord *obj) {
+    mark_used((char *) obj);
+}
 
-// // Allocate new object 'obj' with 'size' in words in TeraHeap.
-// // Return the allocated 'pos' position of the object
-// char* TeraHeap::h2_add_object(oop obj, size_t size) {
-// 	char *pos;			// Allocation position
+// Allocate new object 'obj' with 'size' in words in TeraHeap.
+// Return the allocated 'pos' position of the object
+char* TeraHeap::h2_add_object(oop obj, size_t size) {
+	char *pos;			// Allocation position
 
-// 	// Update Statistics
-// 	total_objects_size += size;
-// 	total_objects++;
-// 	trans_per_fgc++;
+	// Update Statistics
+	total_objects_size += size;
+	total_objects++;
+	trans_per_fgc++;
 
-// 	if (TeraHeapStatistics) {
-// 		size_t obj_size = (size * HeapWordSize) / 1024;
-// 		int count = 0;
+	if (TeraHeapStatistics) {
+		size_t obj_size = (size * HeapWordSize) / 1024;
+		int count = 0;
 
-// 		while (obj_size > 0) {
-// 			count++;
-// 			obj_size/=1024;
-// 		}
+		while (obj_size > 0) {
+			count++;
+			obj_size/=1024;
+		}
 
-// 		assert(count <=2, "Array out of range");
+		assert(count <=2, "Array out of range");
 
-// 		obj_distr_size[count]++;
-// 	}
+		obj_distr_size[count]++;
+	}
 
-// 	pos = allocate(size,(uint64_t)obj->get_obj_group_id(),(uint64_t)obj->get_obj_part_id());
+	pos = allocate(size,(uint64_t)obj->get_obj_group_id(),(uint64_t)obj->get_obj_part_id());
 
-// 	_start_array.th_allocate_block((HeapWord *)pos);
+	_start_array.th_allocate_block((HeapWord *)pos);
 
-// 	return pos;
-// }
+	return pos;
+}
 
 // We save the current object group 'id' for tera-marked object to
 // promote this 'id' to its reference objects

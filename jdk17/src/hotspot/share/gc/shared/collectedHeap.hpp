@@ -94,6 +94,10 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Not used by all GCs
   MemRegion _reserved;
 
+#ifdef TERA_CARDS
+  MemRegion _tera_heap_reserved;
+#endif
+
   bool _is_gc_active;
 
   // Used for filler objects (static, but initialized in ctor).

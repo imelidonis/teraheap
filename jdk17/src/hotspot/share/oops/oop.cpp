@@ -217,9 +217,22 @@ void oopDesc::release_double_field_put(int offset, jdouble value)     { HeapAcce
 
 #ifdef ASSERT
 void oopDesc::verify_forwardee(oop forwardee) {
-#if INCLUDE_CDS_JAVA_HEAP
+
+#ifdef INCLUDE_CDS_JAVA_HEAP
+#ifdef TERA_EVAC
+
+  assert(  Universe::is_in_heap(forwardee) || ( EnableTeraHeap && Universe::is_in_h2(forwardee) ), "forwarding outside the reserved heaps (H1, H2)" );
+  
+  DEBUG_ONLY( 
+     if ( Universe::is_in_heap(forwardee) )
+        assert( !HeapShared::is_archived_object(forwardee) && !HeapShared::is_archived_object(this), 
+        "forwarding archive object in H1" );
+  )
+
+#else
   assert(!HeapShared::is_archived_object(forwardee) && !HeapShared::is_archived_object(this),
          "forwarding archive object");
+#endif
 #endif
 }
 

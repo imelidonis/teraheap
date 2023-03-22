@@ -43,7 +43,20 @@
 
 template <class T>
 inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
-  //##!! assert( obj should not be in H2 )  --> we already filter this out
+  //##!! assert( obj is not in H2 ) 
+#ifdef TERA_EVAC
+      DEBUG_ONLY( if(EnableTeraHeap) assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); )
+
+      DEBUG_ONLY(
+      if( EnableTeraHeap && _g1h->collector_state()->in_mixed_phase() ){        
+        if ( obj->is_marked_move_h2() ) {
+          std::cout << "Pushed H2-marked-obj in queue: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: "<< (HeapWord*)obj << "\n";
+          assert(strcmp(obj->klass()->signature_name(), "LNode;") == 0 , "obj should be of type Node");
+        }
+      }
+      )
+
+#endif
   
   // We're not going to even bother checking whether the object is
   // already forwarded or not, as this usually causes an immediate
@@ -93,8 +106,13 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   oop obj = CompressedOops::decode_not_null(heap_oop);
 
   //##!! If obj is in H2
-  //  (1) set H2 region live bit
+  //  (1) set H2 region live bit //den xriazete: to kanoume mono gia ta roots otan eimste se CM
   //  (2) Fence heap traversal to H2
+#ifdef TERA_EVAC
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+    return;
+  }
+#endif
 
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
@@ -129,12 +147,40 @@ inline void G1RootRegionScanClosure::do_oop_work(T* p) {
     return;
   }
   oop obj = CompressedOops::decode_not_null(heap_oop);
+
+
+#ifdef TERA_CONC_MARKING     
+      //the root regions are iterated, and every oop found in them
+      // it is also iterated as well (oop_iterate). 
+      // So here we find all the outgoing pointers, from the root regions.
+      // An outgoing pointer may be in H1 or in H2
+
+      //##!! If obj is in H2
+      //  (1) set H2 region live bit
+      //  (2) Fence heap traversal to H2
+
+      if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+        Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+        return;
+      }
+#endif
+
   _cm->mark_in_next_bitmap(_worker_id, obj);
 }
 
 template <class T>
 inline static void check_obj_during_refinement(T* p, oop const obj) {
 #ifdef ASSERT
+
+#ifdef TERA_EVAC
+  //##!! p->obj 
+  // p is found during dirty card scanning
+  // it may point to an obj in H2 (H1->H2)
+  // but this should already be filtered out by the calling function
+  DEBUG_ONLY( if(EnableTeraHeap) assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); )
+#endif
+  
+
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   // can't do because of races
   // assert(oopDesc::is_oop_or_null(obj), "expected an oop");
@@ -160,6 +206,12 @@ inline void G1ConcurrentRefineOopClosure::do_oop_work(T* p) {
     return;
   }
   oop obj = CompressedOops::decode_not_null(o);
+
+#ifdef TERA_EVAC
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){
+    return;
+  }
+#endif
 
   check_obj_during_refinement(p, obj);
 
@@ -191,8 +243,17 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   oop obj = CompressedOops::decode_not_null(o);
 
   //##!! If obj is in H2
-  //  (1) set H2 region live bit
+  //  (1) set H2 region live bit 
+  //       -den xriazete gt ginete mono an exoume CM: 
+  //        ara to kanoume mono gia ta roots otan eimste se young gc + initial marking
+  //        ke afou meta ginete traverse olo to heap apo ta roots kata to CM
+  //        ara tha vrethei kcana afto to obj kapote, kata to concurrent marking
   //  (2) Fence heap traversal to H2
+#ifdef TERA_EVAC
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){
+    return;
+  }
+#endif
 
   check_obj_during_refinement(p, obj);
 
@@ -253,7 +314,19 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
   oop obj = CompressedOops::decode_not_null(heap_oop);
 
   //##!! If obj is in H2
-  //Fence heap traversal to H2
+  //  (1) if (should_mark) set H2 region live bit
+  //  (2) Fence heap traversal to H2
+
+#ifdef TERA_EVAC
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){
+    if( should_mark ){
+      //set H2 region live bit
+      Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+    }
+
+    return;
+  }
+#endif
 
   assert(_worker_id == _par_scan_state->worker_id(), "sanity");
 
@@ -274,11 +347,35 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
       //        *mporei na eine idi evacuated (if its child of a root and root at the same time) -> skip
       //        *push them to the queue (G1ScanClosureBase::prefetch_and_push)
       //        *back refs ???
-      //else call copy_to_survivor_space (line below)
+      //else call copy_to_survivor_space 
+
+#ifdef TERA_EVAC
+
+      DEBUG_ONLY(
+      if( EnableTeraHeap && _g1h->collector_state()->in_mixed_phase() ){
+        if ( obj->is_marked_move_h2() ){
+          std::cout << "Evac root from H1 to H2: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: " << (HeapWord*)obj << "\n";
+          assert(strcmp(obj->klass()->signature_name(), "LNode;") == 0 , "obj should be of type Node");
+        }
+      }
+      )
+
+      
+      if( EnableTeraHeap  
+          && _g1h->collector_state()->in_mixed_phase() 
+          && obj->is_marked_move_h2()
+        ){         
+          forwardee = _par_scan_state->copy_to_h2_space(state, obj, m);            
+      }else{
+          forwardee = _par_scan_state->copy_to_survivor_space(state, obj, m);
+      }
+#else
 
       forwardee = _par_scan_state->copy_to_survivor_space(state, obj, m);
+#endif
       
     }
+  
 
     
     assert(forwardee != NULL, "forwardee should not be NULL");
@@ -293,6 +390,8 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
 
 
   } else {
+
+    //IF NOT IN CSET THEN ...
 
     // here obj is not in cset, and is not in H2
     // but obj may be marked to be moved in H2 
@@ -327,6 +426,21 @@ template <class T> void G1RebuildRemSetClosure::do_oop_work(T* p) {
   if (obj == NULL) {
     return;
   }
+
+#ifdef TERA_CONC_MARKING
+     
+      //##!! If obj is in H2
+      //    -Fence heap traversal to H2
+      //    -mark live bit of h2 region
+      // no need to update the rem set of pointed region
+      // bcs its an H2 region, and it does not have a rem set
+
+      if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+        Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+        return;
+      }
+
+#endif
 
   if (HeapRegion::is_in_same_region(p, obj)) {
     return;

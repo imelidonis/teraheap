@@ -114,6 +114,10 @@
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
+//##!!remove
+long int G1CollectedHeap::h1=0;
+long int G1CollectedHeap::h2=0;
+
 // INVARIANTS/NOTES
 //
 // All allocation activity covered by the G1CollectedHeap interface is
@@ -1606,11 +1610,31 @@ jint G1CollectedHeap::initialize() {
   // Create the barrier set for the entire reserved region.
   G1CardTable* ct = new G1CardTable(heap_rs.region());
   ct->initialize();
+
   G1BarrierSet* bs = new G1BarrierSet(ct);
   bs->initialize();
+
   assert(bs->is_a(BarrierSet::G1BarrierSet), "sanity");
   BarrierSet::set_barrier_set(bs);
   _card_table = ct;
+
+#ifdef TERA_CARDS
+  if (EnableTeraHeap) {
+
+	  _tera_heap_reserved = MemRegion(
+			  (HeapWord*)Universe::teraHeap()->h2_start_addr(),
+			  (HeapWord*)Universe::teraHeap()->h2_end_addr());
+
+    if (!(_tera_heap_reserved.start() >= _reserved.end()))
+      vm_shutdown_during_initialization(
+          "H2 should be in greater addresses than H1");
+
+    Universe::teraHeap()->start_array()->th_initialize(_tera_heap_reserved);
+    Universe::teraHeap()->start_array()->th_set_covered_region(_tera_heap_reserved);
+  }
+#endif
+
+
 
   {
     G1SATBMarkQueueSet& satbqs = bs->satb_mark_queue_set();
@@ -3009,7 +3033,13 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         // Actually do the work...
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 
-        if (may_do_optional_evacuation) {
+        if( collector_state()->in_mixed_phase() ){
+          Universe::teraHeap()->h2_print_objects_per_region();
+          fprintf(stderr, "LNodes moved in H1=%ld , H2=%ld\n" , h1,h2 );
+          h1=h2=0;
+        }
+       
+       if (may_do_optional_evacuation) {
           evacuate_optional_collection_set(&per_thread_states);
         }
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);

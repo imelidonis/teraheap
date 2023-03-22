@@ -180,6 +180,18 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 
   //##!! assert( obj is not in H2 ) 
   //we only push to the queues non H2 objects. do_oop_evac is called when popping from queues
+#ifdef TERA_EVAC
+      DEBUG_ONLY( if(EnableTeraHeap) assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); )
+
+      DEBUG_ONLY(
+      if( EnableTeraHeap && _g1h->collector_state()->in_mixed_phase() ){
+        if ( obj->is_marked_move_h2() ){ 
+          std::cout << "Evac from H1 to H2: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: " << (HeapWord*)obj << "\n";
+          assert(strcmp(obj->klass()->signature_name(), "LNode;") == 0 , "obj should be of type Node");
+        }
+      }
+      )
+#endif
 
   // Although we never intentionally push references outside of the collection
   // set, due to (benign) races in the claim mechanism during RSet scanning more
@@ -215,8 +227,20 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
     //        *push them to the queue (G1ScanClosureBase::prefetch_and_push)
     //        *back refs ???
     //else call copy_to_survivor_space (line below)
+#ifdef TERA_EVAC      
+    if( EnableTeraHeap  
+        && _g1h->collector_state()->in_mixed_phase() 
+        && obj->is_marked_move_h2()
+      ){         
+        obj = copy_to_h2_space(region_attr, obj, m);            
+    }else{
+        obj = do_copy_to_survivor_space(region_attr, obj, m);
+    }
+#else
 
     obj = do_copy_to_survivor_space(region_attr, obj, m);
+#endif
+
   }
 
 
@@ -228,6 +252,11 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   //  assert ( in mix gc )  --> only in mix gcs we can evacuate in H2
   //  back refs
   //  return
+#ifdef TERA_EVAC
+  if( EnableTeraHeap && (Universe::is_in_h2(obj)) ) {
+    return;
+  }
+#endif
 
   //if in same region, no need to update obj-region incoming ptrs (RemSet)
   if (HeapRegion::is_in_same_region(p, obj)) {
@@ -455,6 +484,10 @@ MAYBE_INLINE_EVACUATION
 oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const region_attr,
                                                     oop const old,
                                                     markWord const old_mark) {
+
+  //##!! remove
+  if( strcmp(old->klass()->signature_name(), "LNode;") == 0 )  G1CollectedHeap::h1++;
+
   assert(region_attr.is_in_cset(),
          "Unexpected region attr type: %s", region_attr.get_type_str());
 
@@ -560,6 +593,135 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
     return forward_ptr;
   }
 }
+
+
+#ifdef TERA_EVAC
+MAYBE_INLINE_EVACUATION
+oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
+                                                    oop const obj,
+                                                    markWord const m){
+  
+  G1CollectedHeap::h2++; //##!! remove
+  
+  assert(region_attr.is_in_cset(),
+         "Unexpected region attr type: %s", region_attr.get_type_str());
+
+  Klass* klass = obj->klass();
+  const size_t word_sz = obj->size_given_klass(klass);
+
+  //##!! change it. The destination is not a Young region, but an H2 region
+  // is to avoid scanning rem set cards in G1ScanInYoungSetter > G1ScanEvacuatedObjClosure  when traversing kids
+  G1HeapRegionAttr dest_attr = G1HeapRegionAttr(G1HeapRegionAttr::Young); 
+  
+  //precompact 
+
+  // Take a pointer from h2 region 
+  //##!! TODO
+  //This allocation should be in parallel. Like copy_to_survivor_space does
+  HeapWord* h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
+
+  std::cout << "  addr in H2 to be moved : " << h2_obj_addr << "\n";
+  
+  assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");
+  assert(Universe::is_in_h2( cast_to_oop(h2_obj_addr) ), "Pointer from H2 is not valid");
+  
+  // We're going to allocate linearly, so might as well prefetch ahead.
+  // Prefetch::write(h2_obj_addr, PrefetchCopyIntervalInBytes);
+
+  // Store the forwarding pointer into the mark word
+  const oop h2_obj = cast_to_oop(h2_obj_addr);
+  //returns NULL if succeded (meaning h2_obj_addr is the new location) 
+  //else someone else manage to set the forwarding ptr, to another h2 location. 
+  //Thus it return that new location of h2, which is not h2_obj_addr 
+  const oop forward_ptr = obj->forward_to_atomic( h2_obj, m , memory_order_relaxed);
+
+  if( forward_ptr == NULL ){
+    moveObjToH2( cast_from_oop<HeapWord*>(obj), h2_obj_addr , word_sz );
+  
+    //traverse the 1-st level kids
+    //----------------------------------
+
+    // Most objects are not arrays, so do one array check rather than
+    // checking for each array category for each object.
+    if (klass->is_array_klass()) {
+      if (klass->is_objArray_klass()) {
+        start_partial_objarray(dest_attr, obj, h2_obj);
+      } else {
+        // Nothing needs to be done for typeArrays.  Body doesn't contain
+        // any oops to scan, and the type in the klass will already be handled
+        // by processing the built-in module.
+        assert(klass->is_typeArray_klass(), "invariant");
+      }
+      return h2_obj;
+    }
+
+    G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
+    obj->oop_iterate_backwards(&_scanner, klass);
+    return h2_obj;
+
+    //----------------------------------
+
+ 
+  }else{
+    //##!! TODO
+    //undo allocation of h2_obj_addr (free the object, afou den to xrisimopiisame)
+    
+    //forward_ptr holds another h2 location, that some other thread has allocated
+    return forward_ptr;
+  }    
+
+}
+
+
+void G1ParScanThreadState::moveObjToH2(HeapWord *obj, HeapWord *h2_obj_addr, size_t size){
+  // Size is in words. Each word is 8 bytes. I use memcpy instead of
+  // memmove to avoid the extra copy of the data in the buffer.
+#if defined(SYNC)
+  Universe::teraHeap()->h2_write((char *)obj, (char *)h2_obj_addr, size);
+  // Change the value of teraflag in the new location of the object
+  oop(h2_obj_addr)->set_in_h2();
+  /* Initialize mark word of the destination */
+  oop(h2_obj_addr)->init_mark();
+
+#elif defined(FMAP)
+  // Change the value of teraflag in the new location of the object
+  oop(obj)->set_in_h2();
+  /* Initialize mark word of the destination */
+  oop(obj)->init_mark();
+  Universe::teraHeap()->h2_write((char *)obj, (char *)h2_obj_addr, size);
+
+#elif defined(ASYNC)
+  // Change the value of teraflag in the new location of the object
+  oop(obj)->set_in_h2();
+  /* Initialize mark word of the destination */
+  oop(obj)->init_mark();
+
+#if defined(PR_BUFFER)
+  Universe::teraHeap()->h2_promotion_buffer_insert((char *)obj, (char *)h2_obj_addr, size);
+#else
+  Universe::teraHeap()->h2_awrite((char *)obj, (char *)h2_obj_addr, size);
+#endif
+
+#else
+
+  
+
+  std::cout << "obj size " << cast_to_oop(obj)->size() << "\n";
+  std::cout << "obj klass size " << size << "\n";
+
+  // Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz );
+  memcpy(h2_obj_addr, obj, size * 8);
+
+  if (!H2LivenessAnalysis)
+    // Change the value of teraflag in the new location of the object
+    cast_to_oop(h2_obj_addr)->set_in_h2();
+
+  /* Initialize mark word of the destination */
+  cast_to_oop(h2_obj_addr)->init_mark();
+#endif // SYNC
+}
+#endif
+
 
 // Public not-inline entry point.
 ATTRIBUTE_FLATTEN

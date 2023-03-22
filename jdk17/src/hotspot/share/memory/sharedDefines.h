@@ -22,9 +22,7 @@
 
 #define TERA_CONC_MARKING
 
-#define TERA_EVACUATION //for minor and mix collections
-
-#define TERA_MINOR_GC            //< Enable Teraheap code for minor GC
+#define TERA_EVAC //for minor and mix collections
 
 #define TERA_CARDS               //< Enable Teraheap card table
 
@@ -73,10 +71,11 @@
  //#define SYNC				            //< Enable explicit I/O path for the writes
                                    // in TeraHeap during major GC
 
-#define ASYNC				              //< Asynchronous I/O path for the writes in
+// #define SYNC
+// #define ASYNC				              //< Asynchronous I/O path for the writes in
                                   // TeraHeap
 
-#define PR_BUFFER			            //< Enable promotion buffer for async I/O to
+//#define PR_BUFFER			            //< Enable promotion buffer for async I/O to
                                   // reduce the number of system calls 
 
 //#define FMAP				              //< When we use fastmap we need to ensure

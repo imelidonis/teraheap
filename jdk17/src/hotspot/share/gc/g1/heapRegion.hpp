@@ -365,13 +365,15 @@ public:
   // An upper bound on the number of live bytes in the region.
   size_t max_live_bytes() { return used() - garbage_bytes(); }
 
+
   void add_to_marked_bytes(size_t incr_bytes) {
     _next_marked_bytes = _next_marked_bytes + incr_bytes;
   }
 
 #ifdef TERA_CONC_MARKING
   void add_to_h2_marked_bytes(size_t incr_bytes) {
-    if( incr_bytes > 0 ) std::cout << "H2 liveness " << incr_bytes/8 << " added to region " << hrm_index() << "\n";
+    if( incr_bytes > 0 ) 
+      std::cout << "H2 liveness " << incr_bytes/8 << " added to region " << hrm_index() << "\n";
     _h2_marked_bytes = _h2_marked_bytes + incr_bytes;
   }
 

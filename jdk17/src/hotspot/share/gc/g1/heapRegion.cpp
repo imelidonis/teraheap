@@ -541,6 +541,15 @@ public:
     Log(gc, verify) log;
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
+
+#ifdef TERA_EVAC
+    //##!! if obj in H2
+    if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+        return;
+    }
+#endif
+
+
       bool failed = false;
       if (!_g1h->is_in(obj) || _g1h->is_obj_dead_cond(obj, _vo)) {
         MutexLocker x(ParGCRareEvent_lock,

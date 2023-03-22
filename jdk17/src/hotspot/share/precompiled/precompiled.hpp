@@ -36,7 +36,10 @@
 #include "classfile/systemDictionary.hpp"
 
 #include "gc/shared/collectedHeap.hpp"
+
+#ifdef TERA_EVAC
 #include "gc/teraHeap/teraHeap.hpp"
+#endif
 
 #include "gc/shared/gcCause.hpp"
 #include "logging/log.hpp"

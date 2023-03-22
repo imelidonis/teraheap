@@ -67,10 +67,9 @@ inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegi
 
   if (hr->obj_allocated_since_next_marking(obj)) { //this returns true, if the obj is above TAMPs
     //##!! TODO or not TODO
-    //if is_tera_traversal() then
-    // if ! obj->is_marked_move_h2() then 
+    //if is_tera_traversal()  &&  !obj->is_marked_move_h2() then 
     //     enable its tera flag in parallel (atomic operation)
-    //     if succeeded then count it in h2 liveness 
+    //     if succeeded then increase its h2 liveness only
     return false;
   }
 
@@ -183,9 +182,9 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
   if (scan) {
 
-    #ifdef TERA_CONC_MARKING
-      assert( !_cm_oop_closure->is_h2_flag_set(), "Closure flag should not be set. Afetr each tera oop iteration, it sould be un-set" );
-    #endif
+#ifdef TERA_CONC_MARKING
+    assert( !_cm_oop_closure->is_h2_flag_set(), "Closure flag should not be set. Afetr each tera oop iteration, it sould be un-set" );
+#endif
 
     if (task_entry.is_array_slice()) {
 
@@ -199,16 +198,19 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
     } else {
       oop obj = task_entry.obj();
 
+      
+#ifdef TERA_CONC_MARKING
+     
       //##!! If obj is in H2
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
-      //Correct:
-      // if(EnableTeraHeap && (Universe::teraHeap()->is_obj_in_h2(obj))) return;
-      //temp (simulating an obj in H2):
-      if (obj->is_in_h2()) {        
-        std::cout << obj->klass()->signature_name() << " (popped or scan by bitmap) is in H2 : " << (HeapWord*) obj << "\n" ;
-        // return;
+
+      if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+        Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+        return;
       }
+
+#endif
       
       if (G1CMObjArrayProcessor::should_be_sliced(obj)) {
         
@@ -232,7 +234,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
 #ifdef TERA_CONC_MARKING
           if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
-              std::cout << obj->klass()->signature_name() << " (popped or scan by bitmap) search under it : " << (HeapWord*) obj << "\n";
+              // std::cout << obj->klass()->signature_name() << " (popped or scan by bitmap) search under it : " << (HeapWord*) obj << "\n";
               
               //iterate this oop, in tera mode
               _cm_oop_closure->set_h2_flag(true); 
@@ -258,13 +260,10 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
 
 #ifdef TERA_CONC_MARKING
-    DEBUG_ONLY(
-      if(EnableTeraHeap) 
-        assert( !obj->is_in_h2() , "Object should not be in H2");
-    );
-
+    DEBUG_ONLY( if(EnableTeraHeap) assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); )
+    
     if ( EnableTeraHeap && obj->is_marked_move_h2()) {
-        std::cout << obj->klass()->signature_name() << " sarch under it\n";
+        // std::cout << obj->klass()->signature_name() << " sarch under it\n";
         
         //iterate this oop, in tera mode
         _cm_oop_closure->set_h2_flag(true); 
@@ -315,7 +314,6 @@ inline void G1CMTask::update_h2_liveness(oop const obj, const size_t obj_size) {
 }
 
 inline void G1ConcurrentMark::add_to_h2_liveness(uint worker_id, oop const obj, size_t size) {
-  std::cout << "worker id = " << worker_id << "\n";
   task(worker_id)->update_h2_liveness(obj, size);
 }
 #endif
@@ -334,17 +332,11 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   //  (2) Fence heap traversal to H2
   //  return false (did not add anything to the bitmap)
 
-
-  //##!! Simulated
-  if ( EnableTeraHeap && obj->is_in_h2()) {
-    //ce afto to simulation if apla den to kanoume push ke traverse. 
-    //den ginete mark, ara den ipologizete cto liveness tou reagion. 
-    //Omoc ginete kanonika evacuate cto mix collection, afou to endopizoume meso ton roots traversal
-    
-    //There should be no other objects with this type, bcs they should not be traveresed
-    std::cout << "\t" << obj->klass()->signature_name() << " is in H2 : "  << (HeapWord*) obj << "\n";
-      
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+    Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+    return false;
   }
+
 #endif
   
   //mark_in_next_bitmap() : 
@@ -356,24 +348,25 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 
 
 #ifdef TERA_CONC_MARKING
+  //##!! 
   //objs that are going to be moved in h2
-  //    (1) mark them on the bitmap: 
-  //        if they dont get transfered during mix gc
-  //        and the java application terminates, then the heap verifyer will detect
-  //        this as an error -obj found live, but bitmap says its dead-
+  //    (1) mark them on the bitmap (treat like H1 objs)
   //    (2) increase liveness
   //    (3) detect that the obj should be moved in h2
   //        --> enable its tera flag (if not already enabled from unsafe.cpp)
-  //        --> increase h2 liveness
+  //        --> increase h2 liveness (mark_in_next_bitmap before)
 
-  //##!! if its parent has tera flag enabled (to be moved in h2)
+  //if its parent has tera flag enabled (to be moved in h2)
   //        (1) enable the tera flag of this child obj too (if it's not already enabled)
-  //        (2) increase the h2 liveness of that region
+  //        (2) increase the h2 liveness of that region -mark_in_next_bitmap before-
+
   // if parent doesnt have its tera flag enabled, but this obj has its tera flag enabled
   // then this obj was previously visited by the unsafe class, and got it marked to be moved in h2 
   // (through a command of tha java application) but did not update the h2 liveness 
   // of that region bcs no concurrent marking was happening at the moment
-  //        (1) incease the h2 liveness of that region
+  //        (1) incease the h2 liveness of that region -mark_in_next_bitmap before-
+
+
   if( EnableTeraHeap && is_tera_traversal() ){
     if ( !obj->is_marked_move_h2() ) {
       //##!! JACK instead has the following if statment:
@@ -383,7 +376,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
                         Universe::teraHeap()->get_cur_obj_part_id());
       
       //All of the transitive closure should be marked and printed
-      std::cout << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n";
+      // std::cout << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n";
     }
   }
 #endif

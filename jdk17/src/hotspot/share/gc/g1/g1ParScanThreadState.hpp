@@ -180,6 +180,8 @@ private:
                                 oop obj,
                                 markWord old_mark);
 
+
+
   // This method is applied to the fields of the objects that have just been copied.
   template <class T> void do_oop_evac(T* p);
 
@@ -213,6 +215,11 @@ private:
 
 public:
   oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, markWord old_mark);
+
+#ifdef TERA_EVAC
+  void moveObjToH2(HeapWord *q, HeapWord *compaction_top, size_t size);
+  oop copy_to_h2_space(G1HeapRegionAttr region_attr, oop obj, markWord m);
+#endif
 
   inline void trim_queue();
   inline void trim_queue_partially();

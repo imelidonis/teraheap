@@ -81,92 +81,46 @@ class oopDesc {
   inline markWord* mark_addr() const;
 
 
+
 #ifdef TERA_FLAG
   // Mark an object with 'id' to be moved in H2. H2 allocator uses the
   // 'id' to locate objects with the same 'id' by to the same region.
   // 'id' is defined by the application.
-  void mark_move_h2(uint64_t rdd_id, uint64_t part_id) {
-	  _tera_flag = (part_id << 48);
-	  _tera_flag |= (rdd_id << 32);
-	  _tera_flag |= MOVE_TO_TERA;
-  }
+  inline void mark_move_h2(uint64_t rdd_id, uint64_t part_id);
 
   // Check if an object is marked to be moved in H2
-  bool is_marked_move_h2() {
-	  return (_tera_flag & 0xffffffff) == MOVE_TO_TERA;
-  }
+  inline bool is_marked_move_h2();
 
   // Mark this object that is located in TeraCache
-  void set_in_h2() {
-	  uint64_t part_id = (_tera_flag >> 48);
-	  uint64_t rdd_id = (_tera_flag >> 32) & 0xffff;
-	  uint64_t state = _tera_flag & 0xffffffff;
-
-	  _tera_flag = (part_id << 48);
-	  _tera_flag |= (rdd_id << 32);
-	  _tera_flag |= IN_TERA_CACHE;
-  }
-
-  //##!! Check if an object is in H2 (used for simulation)
-  //The obj is actualy in H1, but we set a flag simulating that its is in H2. needs to be removed
-  bool is_in_h2() {
-	  return (_tera_flag & 0xffffffff) == IN_TERA_CACHE;
-  }
+  inline void set_in_h2();
 
   // Get the state of the object
-  uint64_t get_obj_state() {
-	  // Get the object state. The state is saved in the lowes 32bit 
-	  return (_tera_flag & 0xffffffff);
-  }
-
+  inline uint64_t get_obj_state();
+  
   // Init the object state 
-  void init_obj_state() {
-	  _tera_flag = INIT_TF;
-  }
+  inline void init_obj_state();
 
   // Get the object group id
-  int get_obj_group_id() {
-	  return ((_tera_flag >> 32) & 0xffff);
-  }
+  inline int get_obj_group_id();
 
   // Get object partition Id
-  uint64_t get_obj_part_id() {
-	  return _tera_flag >> 48;
-  }
+  inline uint64_t get_obj_part_id();
 
-  bool is_live() {
-	  return ((_tera_flag & 0xffffffff) == LIVE_TERA_OBJ || (_tera_flag & 0xffffffff) == VISITED_TERA_OBJ || (_tera_flag & 0xffffffff) == MOVE_TO_TERA);
-  }
+  inline bool is_live();
 
-  void reset_live() {
-	  set_in_h2();
-  }
+  inline void reset_live();
 
-  void set_live() {
-	  uint64_t part_id = (_tera_flag >> 48);
-	  uint64_t rdd_id = (_tera_flag >> 32) & 0xffff;
-	  uint64_t state = _tera_flag & 0xffffffff;
+  inline void set_live();
 
-	  _tera_flag = (part_id << 48);
-	  _tera_flag |= (rdd_id << 32);
-	  _tera_flag |= LIVE_TERA_OBJ;
-  }
+  inline void set_visited();
 
-  void set_visited() {
-	  uint64_t part_id = (_tera_flag >> 48);
-	  uint64_t rdd_id = (_tera_flag >> 32) & 0xffff;
-	  uint64_t state = _tera_flag & 0xffffffff;
+  inline bool is_visited();
 
-	  _tera_flag = (part_id << 48);
-	  _tera_flag |= (rdd_id << 32);
-	  _tera_flag |= VISITED_TERA_OBJ;
-  }
-
-  bool is_visited() {
-	  return (_tera_flag & 0xffffffff) == VISITED_TERA_OBJ;
-  }
-
+  DEBUG_ONLY( 
+    bool is_in_h2() {	  return (_tera_flag & 0xffffffff) == IN_TERA_CACHE;  }
+  )
 #endif // TERA_FLAG
+
 
 
 

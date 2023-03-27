@@ -184,6 +184,7 @@ public:
 
   //##!! remove
   static long int h1,h2;
+  static bool lala;
 
 private:
   // Rebuilds the region sets / lists so that they are repopulated to

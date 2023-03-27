@@ -3969,4 +3969,10 @@ public final class Unsafe {
    */
    public native void h2Move(long label);
 
+   /**
+   * Mark object and move it in the next full GC in H2 - TeraHeap
+   *
+   * @param o object/array to update tera mark word
+   */
+   public native boolean inH2(Object o);
 }

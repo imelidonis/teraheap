@@ -935,6 +935,24 @@ UNSAFE_ENTRY(void, Unsafe_h2Move(JNIEnv *env, jobject unsafe, jlong label)) {
 } UNSAFE_END
 
 
+//do it like ShouldBeInitialized unsafe function
+UNSAFE_ENTRY(jboolean, Unsafe_inH2(JNIEnv *env, jobject unsafe, jobject obj)) {
+  if (!EnableTeraHeap) return false;
+  
+  oop o = JNIHandles::resolve_non_null(obj);
+
+  // If the object is already in TeraCache then do not mark its teraflag
+  if (Universe::is_in_h2(o)){
+    DEBUG_ONLY( if (!H2LivenessAnalysis) assert(o->is_in_h2(), "Obj should be flagged that is in h2" ); ) 
+    std::cout << "Obj h2 addr " << (HeapWord*) o << "\n";
+    return true;
+  }
+
+  return false;
+}
+UNSAFE_END
+
+
 /// JVM_RegisterUnsafeMethods
 
 #define ADR "J"
@@ -967,13 +985,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
 
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},
 
-
-    /*-------TERA HEAP----------*/
-    {CC "h2TagAndMoveRoot", CC "(" OBJ "JJ)V",  FN_PTR(Unsafe_h2TagAndMoveRoot)},
-    {CC "h2TagRoot",           CC "(" OBJ "JJ)V",               FN_PTR(Unsafe_h2TagRoot)},
-    {CC "h2Move",              CC "(J)V",                     FN_PTR(Unsafe_h2Move)},
-
-
     DECLARE_GETPUTOOP(Boolean, Z),
     DECLARE_GETPUTOOP(Byte, B),
     DECLARE_GETPUTOOP(Short, S),
@@ -982,6 +993,13 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     DECLARE_GETPUTOOP(Long, J),
     DECLARE_GETPUTOOP(Float, F),
     DECLARE_GETPUTOOP(Double, D),
+
+    /*-------TERA HEAP----------*/
+    {CC "h2TagAndMoveRoot", CC "(" OBJ "JJ)V",  FN_PTR(Unsafe_h2TagAndMoveRoot)},
+    {CC "h2TagRoot",           CC "(" OBJ "JJ)V",               FN_PTR(Unsafe_h2TagRoot)},
+    {CC "h2Move",              CC "(J)V",                     FN_PTR(Unsafe_h2Move)},
+    {CC "inH2", CC "(" OBJ ")Z",         FN_PTR(Unsafe_inH2)},
+    
 
     {CC "allocateMemory0",    CC "(J)" ADR,              FN_PTR(Unsafe_AllocateMemory0)},
     {CC "reallocateMemory0",  CC "(" ADR "J)" ADR,       FN_PTR(Unsafe_ReallocateMemory0)},

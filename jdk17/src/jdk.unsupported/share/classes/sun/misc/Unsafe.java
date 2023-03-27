@@ -1299,4 +1299,17 @@ public final class Unsafe {
   {
     theInternalUnsafe.h2Move(label);
   }
+
+   /**
+   * Mark object and move it in the next full GC in H2 - TeraHeap
+   *
+   * @param o object/array to update tera mark word
+   */
+
+  @ForceInline
+  public boolean inH2(Object o)
+  {
+    return theInternalUnsafe.inH2(o);
+  }
+
 }

@@ -50,7 +50,7 @@ inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
       DEBUG_ONLY(
       if( EnableTeraHeap && _g1h->collector_state()->in_mixed_phase() ){        
         if ( obj->is_marked_move_h2() ) {
-          std::cout << "Pushed H2-marked-obj in queue: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: "<< (HeapWord*)obj << "\n";
+          // std::cout << "Pushed H2-marked-obj in queue: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: "<< (HeapWord*)obj << "\n";
           assert(strcmp(obj->klass()->signature_name(), "LNode;") == 0 , "obj should be of type Node");
         }
       }
@@ -354,7 +354,7 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
       DEBUG_ONLY(
       if( EnableTeraHeap && _g1h->collector_state()->in_mixed_phase() ){
         if ( obj->is_marked_move_h2() ){
-          std::cout << "Evac root from H1 to H2: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: " << (HeapWord*)obj << "\n";
+          // std::cout << "Evac root from H1 to H2: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: " << (HeapWord*)obj << "\n";
           assert(strcmp(obj->klass()->signature_name(), "LNode;") == 0 , "obj should be of type Node");
         }
       }

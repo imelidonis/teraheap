@@ -117,6 +117,7 @@ size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 //##!!remove
 long int G1CollectedHeap::h1=0;
 long int G1CollectedHeap::h2=0;
+bool G1CollectedHeap::lala=false;
 
 // INVARIANTS/NOTES
 //
@@ -3033,10 +3034,17 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         // Actually do the work...
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 
-        if( collector_state()->in_mixed_phase() ){
+        if( collector_state()->in_mixed_phase() && h2 > 0 ){
           Universe::teraHeap()->h2_print_objects_per_region();
+          std::cout << "LNodes moved in H1=" << h1 << " ,H2="<<h2<<"\n";
           fprintf(stderr, "LNodes moved in H1=%ld , H2=%ld\n" , h1,h2 );
           h1=h2=0;
+          lala=true;
+          std::cout << "==============FINISHED A MIX GC=================\n";
+          fprintf(stderr, "==============FINISHED A MIX GC=================\n" );
+        }else if(  collector_state()->in_mixed_phase() ) {
+          std::cout << "==============FINISHED A MIX GC=================\n";
+          fprintf(stderr, "==============FINISHED A MIX GC=================\n" );
         }
        
        if (may_do_optional_evacuation) {

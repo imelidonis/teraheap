@@ -159,9 +159,9 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
     size_t _reclaimable_bytes_added;
 
     void add_region(HeapRegion* hr) {
-      std::cout << "Region added " << hr->hrm_index() << " with:\n"
-      << "  total live words " << hr->live_bytes() / 8 << "\n"
-      << "  h2 live "<< hr->h2_marked_bytes() /8 << "\n";
+      if ( hr->h2_marked_bytes() > 0 ) {  
+        std::cout << "Region added " << hr->hrm_index() << "\n";
+      }
 
       if (_cur_chunk_idx == _cur_chunk_end) {
         _array->claim_chunk(_cur_chunk_idx, _cur_chunk_end);
@@ -260,12 +260,15 @@ bool G1CollectionSetChooser::should_add(HeapRegion* hr) {
   
   if ( hr->h2_marked_bytes() > 0 ) {
   
-    // std::cout << hr->get_type_str() << " " << hr->hrm_index() << " :\n" 
-    // << "  marked  "<< hr->marked_bytes() /8
-    // << "\n  live    " << hr->live_bytes() /8
-    // << "\n  h2 live "<<hr->h2_marked_bytes() /8
-    // << "\n\n";
+    std::cout << "Should region be added? " << hr->get_type_str() << " " << hr->hrm_index() << " :\n" 
+    << "  marked  "<< hr->marked_bytes() /8
+    << "\n  live    " << hr->live_bytes() /8
+    << "\n  h2 live "<<hr->h2_marked_bytes() /8
+    << "\n  bellow threshold? " << region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes())
+    << "\n  rem set complete? " << hr->rem_set()->is_complete()
+    << "\n\n";
   }
+
 
   return !hr->is_young() &&
          !hr->is_pinned() &&

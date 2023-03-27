@@ -140,6 +140,10 @@ bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_by
 
 void G1RemSetTrackingPolicy::update_after_rebuild(HeapRegion* r) {
   assert(SafepointSynchronize::is_at_safepoint(), "should be at safepoint");
+//##!! index
+  if ( r->h2_marked_bytes() > 0 ) 
+    std::cout << "region " << r->hrm_index() << " is " << r->get_type_str() 
+    << "\nrem set is " << r->rem_set()->get_state_str() << "\n";
 
   if (r->is_old_or_humongous_or_archive()) {
     if (r->rem_set()->is_updating()) {

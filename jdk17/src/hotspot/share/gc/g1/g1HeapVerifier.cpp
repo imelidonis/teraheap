@@ -193,6 +193,14 @@ public:
 
   template <class T> void do_oop_work(T *p) {
     oop obj = RawAccess<>::oop_load(p);
+
+#ifdef TERA_EVAC
+    //##!! if obj in H2
+    if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+        return;
+    }
+#endif
+
     guarantee(obj == NULL || !_g1h->is_obj_dead_cond(obj, _vo),
               "Dead object referenced by a not dead object");
   }

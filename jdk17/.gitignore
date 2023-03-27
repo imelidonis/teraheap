@@ -16,5 +16,6 @@ NashornProfile.txt
 **/JTreport/**
 **/JTwork/**
 /src/utils/LogCompilation/target/
-hr_err*.log
-out*.txt
+/hs_err*.log
+/*/hs_err*.log
+/out*.txt

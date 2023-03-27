@@ -608,6 +608,16 @@ public:
     Log(gc, verify) log;
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
+
+      //##!! p->obj
+      //it checks that obj-region, contains in its rem set the ref p
+      //but if obj is in H2 region, then it wont even have a rem set
+#ifdef TERA_EVAC    
+      if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+          return;
+      }
+#endif 
+
       HeapRegion* from = _g1h->heap_region_containing((HeapWord*)p);
       HeapRegion* to = _g1h->heap_region_containing(obj);
       if (from != NULL && to != NULL &&

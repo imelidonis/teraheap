@@ -186,7 +186,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
       DEBUG_ONLY(
       if( EnableTeraHeap && _g1h->collector_state()->in_mixed_phase() ){
         if ( obj->is_marked_move_h2() ){ 
-          std::cout << "Evac from H1 to H2: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: " << (HeapWord*)obj << "\n";
+          // std::cout << "Evac from H1 to H2: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: " << (HeapWord*)obj << "\n";
           assert(strcmp(obj->klass()->signature_name(), "LNode;") == 0 , "obj should be of type Node");
         }
       }
@@ -535,6 +535,9 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   if (forward_ptr == NULL) {
     Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), obj_ptr, word_sz);
 
+    //##!! remove
+    assert(Universe::is_in_heap( cast_to_oop(obj_ptr) ), "Pointer from H1 is not valid");
+
     {
       const uint young_index = from_region->young_index_in_cset();
       assert((from_region->is_young() && young_index >  0) ||
@@ -620,7 +623,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   //This allocation should be in parallel. Like copy_to_survivor_space does
   HeapWord* h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
 
-  std::cout << "  addr in H2 to be moved : " << h2_obj_addr << "\n";
+  // std::cout << "  addr in H2 to be moved : " << h2_obj_addr << "\n";
   
   assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");
   assert(Universe::is_in_h2( cast_to_oop(h2_obj_addr) ), "Pointer from H2 is not valid");
@@ -656,7 +659,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
     }
 
     G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
-    obj->oop_iterate_backwards(&_scanner, klass);
+    h2_obj->oop_iterate_backwards(&_scanner, klass);
     return h2_obj;
 
     //----------------------------------
@@ -703,11 +706,6 @@ void G1ParScanThreadState::moveObjToH2(HeapWord *obj, HeapWord *h2_obj_addr, siz
 #endif
 
 #else
-
-  
-
-  std::cout << "obj size " << cast_to_oop(obj)->size() << "\n";
-  std::cout << "obj klass size " << size << "\n";
 
   // Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz );
   memcpy(h2_obj_addr, obj, size * 8);

@@ -102,7 +102,7 @@ intptr_t oopDesc::slow_identity_hash() {
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
 #ifdef TERA_EVAC
   if (EnableTeraHeap) {
-    if (!Universe::heap()->is_oop(obj) && !Universe::teraHeap()->is_obj_in_h2(obj)) {
+    if (!Universe::heap()->is_oop(obj) && !Universe::is_in_h2(obj)) {
       return false;
     }
   

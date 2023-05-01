@@ -1,16 +1,22 @@
-#ifndef SHARE_VM_GC_IMPLEMENTATION_TERAHEAP_TERAHEAP_HPP
-#define SHARE_VM_GC_IMPLEMENTATION_TERAHEAP_TERAHEAP_HPP
+#ifndef SHARE_GC_TERAHEAP_TERAHEAP_HPP
+#define SHARE_GC_TERAHEAP_TERAHEAP_HPP
 
 #include "gc/parallel/objectStartArray.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+// #include "gc/teraHeap//teraTimers.hpp"
+#include "utilities/stack.inline.hpp"
+//#include "gc/parallel/psCompactionManager.hpp"
 #include "memory/sharedDefines.h"
 #include "oops/oop.hpp"
+
 #include <regions.h>
 
 #ifdef BACK_REF_STAT
 #include <map>
 #include <tr1/tuple>
 #endif
+
+//class ParCompactionManager;
 
 class TeraHeap: public CHeapObj<mtInternal> {
 private:
@@ -32,6 +38,10 @@ private:
   // TeraHeap and point to objects in the heap. We adjust these pointers
   // during adjust phase of the Full GC.
   static Stack<oop *, mtGC> _tc_adjust_stack;
+
+#ifdef TERA_TIMERS
+  TeraTimers *teraTimer;
+#endif
 
   /*-----------------------------------------------
    * Statistics of TeraHeap
@@ -111,7 +121,7 @@ public:
   TeraHeap();
   
   // Get object start array for h2
-  ObjectStartArray *start_array() { return &_start_array; }
+  ObjectStartArray *h2_start_array() { return &_start_array; }
   
   // Return H2 start address
   char *h2_start_addr(void);
@@ -130,7 +140,16 @@ public:
   
   // Check if an object `ptr` belongs to the TeraHeap. If the object belongs
   // then the function returns true, otherwise it returns false.
+  bool is_in_h2(const void* p);
+  
+  // Check if an object `ptr` belongs to the TeraHeap. If the object belongs
+  // then the function returns true, otherwise it returns false.
   bool is_obj_in_h2(oop ptr);
+  
+  // Check if reference `p` which depicts the field of the object
+  // belongs to TeraHeap. If the object belongs then the function
+  // returns true, otherwise it returns false.
+  bool is_in_h2(HeapWord *p);
 
   // Check if reference `p` which depicts the field of the object
   // belongs to TeraHeap. If the object belongs then the function
@@ -183,10 +202,10 @@ public:
   // Add new object in the region
   char *h2_add_object(oop obj, size_t size);
 
-  // Pop the objects that are in `_tc_stack` and mark them as live
-  // object. These objects are located in the Java Heap and we need to
-  // ensure that they will be kept alive.
-  void h2_mark_back_references();
+  // Pop the objects that are in `_tc_stack`. These objects are
+  // located in the Java Heap and we need to ensure that they will be
+  // kept alive.
+  oop* h2_get_next_back_reference();
 
   // Increase forward ptrs from JVM heap to TeraHeap
   void h2_increase_fwd_ref();
@@ -195,8 +214,8 @@ public:
   // pointer adjustment phases of major GC.
   void h2_push_backward_reference(void *p, oop o);
 
-  // Adjust backwards pointers during major GC.
-  void h2_adjust_back_references();
+  // Get the next backward reference from the stack to adjust
+  oop* h2_adjust_next_back_reference();
 
   // Init the statistics counters of TeraHeap to zero when a Full GC
   // starts
@@ -336,6 +355,14 @@ public:
 
   // Get promote label value
   long get_promote_tag();
+  
+  // Check if the object `obj` is an instance of the following
+  // metadata class:
+  // - Instance Mirror Klass
+  // - Instance Reference Klass
+  // - Instance Class Loader Klass
+  // If yes return true, otherwise false
+  bool is_metadata(oop obj);
 
   bool h2_promotion_policy(oop obj, bool is_direct = false);
 
@@ -353,6 +380,25 @@ public:
   void set_low_promotion_threshold();
 #endif
 
+  // Check if the object with `addr` span multiple regions
+  int h2_continuous_regions(HeapWord *addr);
+
+  // Check where the object starts
+  bool h2_object_starts_in_region(HeapWord *obj);
+
+  // Move object with size 'size' from source address 'src' to the h2
+  // destination address 'dst' 
+  void h2_move_obj(HeapWord *src, HeapWord *dst, size_t size);
+
+  // Complete the transfer of the objects in H2
+  void h2_complete_transfers();
+
+  // Check if the group of regions in H2 is enabled
+  bool is_h2_group_enabled();
+
+#ifdef TERA_TIMERS
+  TeraTimers* getTeraTimer();
+#endif
 };
 
 #endif

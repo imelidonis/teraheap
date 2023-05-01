@@ -1608,18 +1608,9 @@ jint G1CollectedHeap::initialize() {
 
   initialize_reserved_region(heap_rs);
 
-  // Create the barrier set for the entire reserved region.
-  G1CardTable* ct = new G1CardTable(heap_rs.region());
-  ct->initialize();
-
-  G1BarrierSet* bs = new G1BarrierSet(ct);
-  bs->initialize();
-
-  assert(bs->is_a(BarrierSet::G1BarrierSet), "sanity");
-  BarrierSet::set_barrier_set(bs);
-  _card_table = ct;
 
 #ifdef TERA_CARDS
+  G1CardTable* ct;
   if (EnableTeraHeap) {
 
 	  _tera_heap_reserved = MemRegion(
@@ -1630,11 +1621,33 @@ jint G1CollectedHeap::initialize() {
       vm_shutdown_during_initialization(
           "H2 should be in greater addresses than H1");
 
-    Universe::teraHeap()->start_array()->th_initialize(_tera_heap_reserved);
-    Universe::teraHeap()->start_array()->th_set_covered_region(_tera_heap_reserved);
+    //##!! card table should be g1 or parallel ??
+    // G1CardTable* ct = new G1CardTable(heap_rs.region(), _tera_heap_reserved);
+    // ct->initialize();
+    // ct->th_card_table_initialize();
+    ct = new G1CardTable(heap_rs.region());
+    ct->initialize();
+    
+    
+    Universe::teraHeap()->h2_start_array()->th_initialize(_tera_heap_reserved);
+	  Universe::teraHeap()->h2_start_array()->th_set_covered_region(_tera_heap_reserved);
+
+  }else{
+    ct = new G1CardTable(heap_rs.region());
+    ct->initialize();
   }
+#else
+  // Create the barrier set for the entire reserved region.
+  G1CardTable* ct = new G1CardTable(heap_rs.region());
+  ct->initialize();
 #endif
 
+  G1BarrierSet* bs = new G1BarrierSet(ct);
+  bs->initialize();
+
+  assert(bs->is_a(BarrierSet::G1BarrierSet), "sanity");
+  BarrierSet::set_barrier_set(bs);
+  _card_table = ct;
 
 
   {

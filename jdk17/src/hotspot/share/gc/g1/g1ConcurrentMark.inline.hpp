@@ -368,7 +368,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 
 
   if( EnableTeraHeap && is_tera_traversal() ){
-    if ( !obj->is_marked_move_h2() ) {
+    if ( !obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj) ) {
       //##!! JACK instead has the following if statment:
       // if ( !(obj->is_marked_move_h2() || obj->is_instanceMirror() || obj->is_instanceRef()) )
       

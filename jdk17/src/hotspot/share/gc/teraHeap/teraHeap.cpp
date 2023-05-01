@@ -817,14 +817,14 @@ void TeraHeap::set_low_promotion_threshold() {
 }
 #endif
 
-int TeraHeap::h2_continuous_regions(HeapWord *addr){
-  assert(is_in_h2(addr), "Error");
-  return get_num_of_continuous_regions((char *)addr);
-}
+// int TeraHeap::h2_continuous_regions(HeapWord *addr){
+//   assert(is_in_h2(addr), "Error");
+//   return get_num_of_continuous_regions((char *)addr);
+// }
 
-bool TeraHeap::h2_object_starts_in_region(HeapWord *obj) {
-  return object_starts_from_region((char *)obj);
-}
+// bool TeraHeap::h2_object_starts_in_region(HeapWord *obj) {
+//   return object_starts_from_region((char *)obj);
+// }
 
 // Move object with size 'size' from source address 'src' to the h2
 // destination address 'dst' 

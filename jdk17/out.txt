@@ -1,1 +1,0 @@
-[0.170s][warning][gc] -XX:+PrintGCDetails is deprecated. Will use -Xlog:gc* instead.

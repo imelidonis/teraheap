@@ -121,6 +121,13 @@ public:
   bool queue_is_empty() const { return _task_queue->is_empty(); }
 #endif
 
+#ifdef TERA_CARDS
+  template <class T>
+  // h2->h2 update the dependency list
+  // h2->h1 update the h2 card table flag
+  void th_ref_update(T*p, oop obj, G1HeapRegionAttr region_attr );
+#endif
+
   void verify_task(narrowOop* task) const NOT_DEBUG_RETURN;
   void verify_task(oop* task) const NOT_DEBUG_RETURN;
   void verify_task(PartialArrayScanTask task) const NOT_DEBUG_RETURN;

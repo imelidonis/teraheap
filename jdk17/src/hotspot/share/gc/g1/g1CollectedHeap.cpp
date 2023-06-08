@@ -1443,6 +1443,9 @@ G1CollectedHeap::G1CollectedHeap() :
   _periodic_gc_task(NULL),
   _workers(NULL),
   _card_table(NULL),
+#ifdef TERA_CARDS
+  _th_card_table(NULL),
+#endif
   _collection_pause_end(Ticks::now()),
   _soft_ref_policy(),
   _old_set("Old Region Set", new OldRegionSetChecker()),
@@ -1608,9 +1611,18 @@ jint G1CollectedHeap::initialize() {
 
   initialize_reserved_region(heap_rs);
 
+  //G1 card table
+  G1CardTable* ct = new G1CardTable(heap_rs.region());
+  ct->initialize();
+  G1BarrierSet* bs = new G1BarrierSet(ct);
+  bs->initialize();
+  assert(bs->is_a(BarrierSet::G1BarrierSet), "sanity");
+  BarrierSet::set_barrier_set(bs);
+  _card_table = ct;
+
 
 #ifdef TERA_CARDS
-  G1CardTable* ct;
+  //tera card table
   if (EnableTeraHeap) {
 
 	  _tera_heap_reserved = MemRegion(
@@ -1621,34 +1633,20 @@ jint G1CollectedHeap::initialize() {
       vm_shutdown_during_initialization(
           "H2 should be in greater addresses than H1");
 
-    //##!! card table should be g1 or parallel ??
-    // G1CardTable* ct = new G1CardTable(heap_rs.region(), _tera_heap_reserved);
-    // ct->initialize();
-    // ct->th_card_table_initialize();
-    ct = new G1CardTable(heap_rs.region());
-    ct->initialize();
-    
+    _th_card_table = new PSCardTable( MemRegion() , _tera_heap_reserved);
+    _th_card_table->th_card_table_initialize();  
+
+    //clean all the cards 
+    _th_card_table->th_clean_cards(
+				  (HeapWord *) Universe::teraHeap()->h2_start_addr(), 
+				  (HeapWord *) Universe::teraHeap()->h2_end_addr() - 1);
     
     Universe::teraHeap()->h2_start_array()->th_initialize(_tera_heap_reserved);
 	  Universe::teraHeap()->h2_start_array()->th_set_covered_region(_tera_heap_reserved);
 
-  }else{
-    ct = new G1CardTable(heap_rs.region());
-    ct->initialize();
+    //barrier set for tera card table ???
   }
-#else
-  // Create the barrier set for the entire reserved region.
-  G1CardTable* ct = new G1CardTable(heap_rs.region());
-  ct->initialize();
 #endif
-
-  G1BarrierSet* bs = new G1BarrierSet(ct);
-  bs->initialize();
-
-  assert(bs->is_a(BarrierSet::G1BarrierSet), "sanity");
-  BarrierSet::set_barrier_set(bs);
-  _card_table = ct;
-
 
   {
     G1SATBMarkQueueSet& satbqs = bs->satb_mark_queue_set();
@@ -3033,6 +3031,14 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         // of the collection set!).
         _allocator->release_mutator_alloc_regions();
 
+        if( collector_state()->in_mixed_phase()  )
+          std::cerr << "\n===== MIXED gc ====\n";
+        else if( collector_state()->in_concurrent_start_gc() )
+          std::cerr << "\n===== Young gc + init marking ====\n";
+        else std::cerr << "\n===== YOUNG gc ====\n";
+
+        
+
         calculate_collection_set(evacuation_info, target_pause_time_ms);
 
         G1RedirtyCardsQueueSet rdcqs(G1BarrierSet::dirty_card_queue_set().allocator());
@@ -3045,24 +3051,25 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
         bool may_do_optional_evacuation = _collection_set.optional_region_length() != 0;
         // Actually do the work...
+        h1=h2=0; //##!! remove
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 
-        if( collector_state()->in_mixed_phase() && h2 > 0 ){
+        if( collector_state()->in_mixed_phase()){
           Universe::teraHeap()->h2_print_objects_per_region();
-          std::cout << "LNodes moved in H1=" << h1 << " ,H2="<<h2<<"\n";
-          fprintf(stderr, "LNodes moved in H1=%ld , H2=%ld\n" , h1,h2 );
+          std::cerr << "LNodes moved in H1=" << h1 << " ,H2="<<h2<<"\n";
           h1=h2=0;
           lala=true;
-          std::cout << "==============FINISHED A MIX GC=================\n";
-          fprintf(stderr, "==============FINISHED A MIX GC=================\n" );
-        }else if(  collector_state()->in_mixed_phase() ) {
-          std::cout << "==============FINISHED A MIX GC=================\n";
-          fprintf(stderr, "==============FINISHED A MIX GC=================\n" );
+          std::cerr << "==============MIX GC DONE=================\n";
         }
+
+#ifdef TERA_EVAC
+      if(EnableTeraHeap) may_do_optional_evacuation=false;
+#endif
        
        if (may_do_optional_evacuation) {
           evacuate_optional_collection_set(&per_thread_states);
         }
+        
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
         start_new_collection_set();
@@ -3611,6 +3618,21 @@ protected:
 
   virtual void evacuate_live_objects(G1ParScanThreadState* pss, uint worker_id) = 0;
 
+#ifdef TERA_CARDS
+  void scan_tera_roots(G1ParScanThreadState* pss, uint worker_id){
+    if ( ! EnableTeraHeap ) return;
+    if ( Universe::teraHeap()->h2_is_empty() ) return;
+
+    fprintf(stdout, "Scan h2 card table\n" );
+
+    
+    H2ToH1Closure cl(_g1h, pss, worker_id);
+    // cl.set_ref_discoverer(_g1h->ref_processor_stw());
+    _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards()  );
+
+  }
+#endif  
+
 public:
   G1EvacuateRegionsBaseTask(const char* name,
                             G1ParScanThreadStateSet* per_thread_states,
@@ -3646,6 +3668,11 @@ class G1EvacuateRegionsTask : public G1EvacuateRegionsBaseTask {
   bool _has_optional_evacuation_work;
 
   void scan_roots(G1ParScanThreadState* pss, uint worker_id) {
+#ifdef TERA_CARDS
+    // we firstly search the h2 card table
+    // bcs we want to scan the heap before we transfer data in it
+    if(EnableTeraHeap) scan_tera_roots(pss, worker_id);
+#endif 
     _root_processor->evacuate_roots(pss, worker_id);
     _g1h->rem_set()->scan_heap_roots(pss, worker_id, G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ObjCopy, _has_optional_evacuation_work);
     _g1h->rem_set()->scan_collection_set_regions(pss, worker_id, G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::CodeRoots, G1GCPhaseTimes::ObjCopy);

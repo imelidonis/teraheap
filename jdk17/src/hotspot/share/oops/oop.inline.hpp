@@ -58,6 +58,13 @@ markWord* oopDesc::mark_addr() const {
   // 'id' to locate objects with the same 'id' by to the same region.
   // 'id' is defined by the application.
 void oopDesc::mark_move_h2(uint64_t rdd_id, uint64_t part_id) { 
+  if( strcmp(klass()->signature_name(), "LNode;") != 0 && strcmp(klass()->signature_name(), "[B") != 0) {
+    std::cerr << "!!!!  TRYED TO GET MARKED " << klass()->signature_name() << "\n";
+    assert( false , "Marked things it shouldnt" );
+    return;
+  }
+ 
+  
   _tera_flag = (part_id << 48);
   _tera_flag |= (rdd_id << 32);
   _tera_flag |= MOVE_TO_TERA;

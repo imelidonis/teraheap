@@ -40,7 +40,10 @@ class G1ScanEvacuatedObjClosure;
 class G1CMTask;
 class ReferenceProcessor;
 
+class H2ToH1Closure;
+
 class G1ScanClosureBase : public BasicOopIterateClosure {
+  friend class H2ToH1Closure;
 protected:
   G1CollectedHeap* _g1h;
   G1ParScanThreadState* _par_scan_state;
@@ -53,6 +56,14 @@ protected:
 
   template <class T>
   inline void handle_non_cset_obj_common(G1HeapRegionAttr const region_attr, T* p, oop const obj);
+
+#ifdef TERA_CARDS
+  // Handle:
+  // h2 -> h1 (not in cset)
+  template <class T>  
+  inline void handle_non_cset_obj_common_tera(G1HeapRegionAttr const region_attr, T* p, oop const obj);
+#endif
+
 public:
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
@@ -185,7 +196,8 @@ class G1CMOopClosure : public MetadataVisitingOopIterateClosure {
 #ifdef TERA_CONC_MARKING
   //if the parent object is marked to be moved to H2
   //its children should be marked too
-  bool              _h2_flag;
+  bool _h2_flag;
+  unsigned short metadata_traversal; //ignore the metadata traversals when enabling tera flag
 #endif
 
 public:
@@ -195,8 +207,41 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
 #ifdef TERA_CONC_MARKING
+
   void set_h2_flag(bool v) { _h2_flag = v; }
-  bool is_h2_flag_set() { return _h2_flag; }
+  bool is_h2_flag_set() { return _h2_flag && metadata_traversal==0; }
+  
+  virtual void do_klass(Klass* k){
+    DEBUG_ONLY(
+       if( EnableTeraHeap ) 
+        assert( metadata_traversal==0 , "Sanity : Traversing metadata");
+    )
+
+    if( EnableTeraHeap ) {
+      metadata_traversal ++;
+      ClaimMetadataVisitingOopIterateClosure::do_klass(k);
+      metadata_traversal--;
+    }else{
+      ClaimMetadataVisitingOopIterateClosure::do_klass(k);
+    }
+  }
+
+
+  void do_cld(ClassLoaderData* cld) {
+    DEBUG_ONLY(
+       if( EnableTeraHeap ) 
+        assert( metadata_traversal==0 || metadata_traversal==1  , "Sanity : Traversing metadata");
+    )
+
+    if( EnableTeraHeap ) {
+      metadata_traversal++;
+      ClaimMetadataVisitingOopIterateClosure::do_cld(cld);
+      metadata_traversal--;
+    }else{
+      ClaimMetadataVisitingOopIterateClosure::do_cld(cld);
+    }
+  }
+
 #endif
 
 };
@@ -246,6 +291,46 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+};
+
+#ifdef TERA_CARDS
+//when scanning h2 non-clean cards, we try to find all the back pointers
+class H2ToH1Closure : public G1ScanClosureBase {
+
+  G1ConcurrentMark* _cm;
+  bool should_mark;
+  uint _worker_id;
+
+
+  inline void mark_object(oop obj);
+  inline void enable_tera_flag(oop obj);
+public:
+  H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, uint worker_id);
+  
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }  
+
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
+  void set_ref_discoverer(ReferenceDiscoverer* rd) {
+    set_ref_discoverer_internal(rd);
+  }
+};
+#endif
+
+//##!! remove
+class PrintFieldsClosure : public BasicOopIterateClosure {
+  G1CollectedHeap* _g1h;
+public:
+  PrintFieldsClosure(G1CollectedHeap* g1h){ g1h=_g1h; }
+
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(oop* p)          { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
+
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+
+//  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
 };
 
 #endif // SHARE_GC_G1_G1OOPCLOSURES_HPP

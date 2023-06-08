@@ -481,6 +481,18 @@ void G1CollectionSet::finalize_old_part(double time_remaining_ms) {
                                                   num_initial_old_regions,
                                                   num_optional_old_regions);
 
+    
+    //##!! remove
+    {
+      std::cerr << "OLD Regions in this mix gc:\n";
+      uint candidate_idx = candidates()->cur_idx();
+      for (uint i = 0; i < num_initial_old_regions; i++) {
+        HeapRegion* r = candidates()->at(candidate_idx + i);      
+        std::cerr << r->hrm_index() << ", ";    
+      }
+      std::cerr << "\n";
+    }    
+    
     // Prepare initial old regions.
     move_candidates_to_collection_set(num_initial_old_regions);
 

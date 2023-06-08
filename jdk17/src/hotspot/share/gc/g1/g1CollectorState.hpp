@@ -112,6 +112,10 @@ public:
 
   // Calculate GC Pause Type from internal state.
   G1GCPauseType young_gc_pause_type(bool concurrent_operation_is_full_mark) const;
+
+#ifdef TERA_CARDS
+  bool th_should_scan_old_cards() const { return _in_concurrent_start_gc || in_mixed_phase(); }
+#endif
 };
 
 #endif // SHARE_GC_G1_G1COLLECTORSTATE_HPP

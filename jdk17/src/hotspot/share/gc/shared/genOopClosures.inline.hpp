@@ -50,7 +50,6 @@ inline FastScanClosure<Derived>::FastScanClosure(DefNewGeneration* g) :
 template <typename Derived>
 template <typename T>
 inline void FastScanClosure<Derived>::do_oop_work(T* p) {
-  //##!! H2 ?
 
   T heap_oop = RawAccess<>::oop_load(p);
   // Should we copy the obj?
@@ -124,7 +123,6 @@ template <class T> inline void ScanWeakRefClosure::do_oop_work(T* p) {
   // weak references are sometimes scanned twice; must check
   // that to-space doesn't already contain this object
 
-  //##!! H2 ?
   if (cast_from_oop<HeapWord*>(obj) < _boundary && !_g->to()->is_in_reserved(obj)) {
     oop new_obj = obj->is_forwarded() ? obj->forwardee()
                                       : _g->copy_to_survivor_space(obj);

@@ -2056,6 +2056,7 @@ G1CMOopClosure::G1CMOopClosure(G1CollectedHeap* g1h,
 { 
 #ifdef TERA_CONC_MARKING
     _h2_flag = false;
+    metadata_traversal = false;
 #endif
 }
 

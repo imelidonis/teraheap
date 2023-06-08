@@ -49,7 +49,7 @@ inline void ClaimMetadataVisitingOopIterateClosure::do_cld(ClassLoaderData* cld)
 
 inline void ClaimMetadataVisitingOopIterateClosure::do_klass(Klass* k) {
   ClassLoaderData* cld = k->class_loader_data();
-  ClaimMetadataVisitingOopIterateClosure::do_cld(cld);
+  ClaimMetadataVisitingOopIterateClosure::do_cld(cld); //########
 }
 
 // Implementation of the non-virtual do_oop dispatch.
@@ -142,7 +142,7 @@ call_do_klass(void (Receiver::*)(Klass*), void (Base::*)(Klass*), OopClosureType
 template <typename Receiver, typename Base, typename OopClosureType>
 static typename EnableIf<!IsSame<Receiver, Base>::value, void>::type
 call_do_klass(void (Receiver::*)(Klass*), void (Base::*)(Klass*), OopClosureType* closure, Klass* k) {
-  closure->OopClosureType::do_klass(k);
+  closure->OopClosureType::do_klass(k); //#####
 }
 
 template <typename OopClosureType>

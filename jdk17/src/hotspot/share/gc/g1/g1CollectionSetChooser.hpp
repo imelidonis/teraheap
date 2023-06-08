@@ -47,6 +47,7 @@ public:
     return HeapRegion::GrainBytes * (size_t) G1MixedGCLiveThresholdPercent / 100;
   }
 
+  //returns the maximum live bytes a region can have, to be inlcuded in a mix gc
   static bool region_occupancy_low_enough_for_evac(size_t live_bytes) {
     return live_bytes < mixed_gc_live_threshold_bytes();
   }

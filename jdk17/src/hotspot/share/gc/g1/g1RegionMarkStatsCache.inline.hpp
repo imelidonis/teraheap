@@ -50,8 +50,8 @@ inline void G1RegionMarkStatsCache::evict(uint idx) {
     Atomic::add(&_target[cur->_region_idx]._live_words, cur->_stats._live_words);
 
 #ifdef TERA_CONC_MARKING   
-    if(EnableTeraHeap)
-      Atomic::add(&_target[cur->_region_idx]._h2_live_words, cur->_stats._h2_live_words);
+  if(EnableTeraHeap && cur->_stats._h2_live_words != 0)
+    Atomic::add(&_target[cur->_region_idx]._h2_live_words, cur->_stats._h2_live_words);
 #endif  
   }
   cur->clear();

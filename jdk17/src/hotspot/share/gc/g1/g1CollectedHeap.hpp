@@ -57,6 +57,10 @@
 #include "memory/memRegion.hpp"
 #include "utilities/stack.hpp"
 
+#ifdef TERA_CARDS
+  #include "gc/parallel/psCardTable.hpp"
+#endif
+
 // A "G1CollectedHeap" is an implementation of a java heap for HotSpot.
 // It uses the "Garbage First" heap organization and algorithm, which
 // may combine concurrent marking with parallel, incremental compaction of
@@ -160,6 +164,10 @@ private:
 
   WorkGang* _workers;
   G1CardTable* _card_table;
+
+#ifdef TERA_CARDS
+  PSCardTable* _th_card_table;
+#endif
 
   Ticks _collection_pause_end;
 
@@ -1206,6 +1214,12 @@ public:
   G1CardTable* card_table() const {
     return _card_table;
   }
+
+  #ifdef TERA_CARDS
+  PSCardTable* th_card_table() const {
+    return _th_card_table;
+  }
+  #endif
 
   // Iteration functions.
 

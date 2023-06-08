@@ -84,7 +84,8 @@ inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegi
 #ifdef TERA_CONC_MARKING
     if( EnableTeraHeap ){
 
-      if( task(worker_id)->is_tera_traversal() || obj->is_marked_move_h2()  ){
+      if( task(worker_id)->is_tera_traversal() || obj->is_marked_move_h2() ){
+        assert( !Universe::teraHeap()->is_metadata(obj) , "Metadata should have been filtered out");
         add_to_h2_liveness(worker_id, obj, obj->size());
         // return success; 
       }
@@ -199,17 +200,14 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       oop obj = task_entry.obj();
 
       
-#ifdef TERA_CONC_MARKING
-     
+#ifdef TERA_CONC_MARKING     
       //##!! If obj is in H2
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
-
       if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
         Universe::teraHeap()->mark_used_region((HeapWord*)obj);
         return;
       }
-
 #endif
       
       if (G1CMObjArrayProcessor::should_be_sliced(obj)) {
@@ -234,10 +232,10 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
 #ifdef TERA_CONC_MARKING
           if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
-              // std::cout << obj->klass()->signature_name() << " (popped or scan by bitmap) search under it : " << (HeapWord*) obj << "\n";
+              // std::cerr << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  (HeapWord*)obj << ")\n";              
               
               //iterate this oop, in tera mode
-              _cm_oop_closure->set_h2_flag(true); 
+              _cm_oop_closure->set_h2_flag(true);    
               _words_scanned += obj->oop_iterate_size(_cm_oop_closure); 
               _cm_oop_closure->set_h2_flag(false);
           }
@@ -331,12 +329,10 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   //  (1) set H2 region live bit
   //  (2) Fence heap traversal to H2
   //  return false (did not add anything to the bitmap)
-
   if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
     Universe::teraHeap()->mark_used_region((HeapWord*)obj);
     return false;
   }
-
 #endif
   
   //mark_in_next_bitmap() : 
@@ -368,9 +364,8 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 
 
   if( EnableTeraHeap && is_tera_traversal() ){
-    if ( !obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj) ) {
-      //##!! JACK instead has the following if statment:
-      // if ( !(obj->is_marked_move_h2() || obj->is_instanceMirror() || obj->is_instanceRef()) )
+    if ( !obj->is_marked_move_h2() ) {
+      assert( !Universe::teraHeap()->is_metadata(obj) , "Metadata should have been already filtered out");
       
       obj->mark_move_h2(Universe::teraHeap()->get_cur_obj_group_id(),
                         Universe::teraHeap()->get_cur_obj_part_id());
@@ -427,6 +422,11 @@ inline bool G1CMTask::deal_with_reference(T* p) {
   if (obj == NULL) {
     return false;
   }
+
+  if( is_tera_traversal() ){    
+    std::cerr << "\tmarked " << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")\n";
+  }
+  
   return make_reference_grey(obj);
 }
 

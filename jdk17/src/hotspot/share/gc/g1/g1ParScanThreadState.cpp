@@ -174,22 +174,17 @@ void G1ParScanThreadState::verify_task(ScannerTask task) const {
 
 template <class T>
 MAYBE_INLINE_EVACUATION
+// p (h1/h2) -> obj (h1 in cset)
+// p was pushed in the evacuation queue, and now its popped
 void G1ParScanThreadState::do_oop_evac(T* p) {
   // Reference should not be NULL here as such are never pushed to the task queue.
   oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
 
   //##!! assert( obj is not in H2 ) 
-  //we only push to the queues non H2 objects. do_oop_evac is called when popping from queues
 #ifdef TERA_EVAC
-      DEBUG_ONLY( if(EnableTeraHeap) assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); )
-
-      DEBUG_ONLY(
-      if( EnableTeraHeap && _g1h->collector_state()->in_mixed_phase() ){
-        if ( obj->is_marked_move_h2() ){ 
-          // std::cout << "Evac from H1 to H2: " << _g1h->heap_region_containing(obj)->get_type_str() << " " << _g1h->heap_region_containing(obj)->hrm_index() << "  obj: " << (HeapWord*)obj << "\n";
-          assert(strcmp(obj->klass()->signature_name(), "LNode;") == 0 , "obj should be of type Node");
-        }
-      }
+      DEBUG_ONLY( 
+        if(EnableTeraHeap) 
+          assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); 
       )
 #endif
 
@@ -232,7 +227,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
         && _g1h->collector_state()->in_mixed_phase() 
         && obj->is_marked_move_h2()
       ){         
-        obj = copy_to_h2_space(region_attr, obj, m);            
+        obj = copy_to_h2_space(region_attr, obj, m);        
     }else{
         obj = do_copy_to_survivor_space(region_attr, obj, m);
     }
@@ -243,18 +238,20 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 
   }
 
+  assert(obj != NULL, "Must be");
 
   RawAccess<IS_NOT_NULL>::oop_store(p, obj);
 
-  assert(obj != NULL, "Must be");
+#ifdef TERA_CARDS
+  if(EnableTeraHeap){
+    // h2(update status) -> h1/h2(newly evacuated)
+    if( Universe::teraHeap()->is_field_in_h2((void*) p) ){
+      fprintf(stdout, "in h2 ? %d\n", Universe::is_in_h2(obj));
+      th_ref_update( p, obj, region_attr );      
+    }
 
-  //##!! If obj is in H2 (meaning its forwrded and evacuated in H2)
-  //  assert ( in mix gc )  --> only in mix gcs we can evacuate in H2
-  //  back refs
-  //  return
-#ifdef TERA_EVAC
-  if( EnableTeraHeap && (Universe::is_in_h2(obj)) ) {
-    return;
+    //##!! If obj is in H2
+    if( Universe::is_in_h2(obj) ) return;    
   }
 #endif
 
@@ -535,8 +532,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   if (forward_ptr == NULL) {
     Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), obj_ptr, word_sz);
 
-    //##!! remove
-    assert(Universe::is_in_heap( cast_to_oop(obj_ptr) ), "Pointer from H1 is not valid");
+    
 
     {
       const uint young_index = from_region->young_index_in_cset();
@@ -574,6 +570,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
         // by processing the built-in module.
         assert(klass->is_typeArray_klass(), "invariant");
       }
+      
       return obj;
     }
 
@@ -639,7 +636,8 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   const oop forward_ptr = obj->forward_to_atomic( h2_obj, m , memory_order_relaxed);
 
   if( forward_ptr == NULL ){
-    moveObjToH2( cast_from_oop<HeapWord*>(obj), h2_obj_addr , word_sz );
+    moveObjToH2(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
+    
   
     //traverse the 1-st level kids
     //----------------------------------
@@ -717,6 +715,48 @@ void G1ParScanThreadState::moveObjToH2(HeapWord *obj, HeapWord *h2_obj_addr, siz
   /* Initialize mark word of the destination */
   cast_to_oop(h2_obj_addr)->init_mark();
 #endif // SYNC
+}
+#endif
+
+#ifdef TERA_CARDS
+
+// p->obj
+// p may be found through:
+//  (1) we have just evacuated an object and now we are scanning its fields ; p its one of its fields
+//  (2) h2 card table is been scanned, and we are iterating an object in h2
+//Here, we check the two followings:
+// (1) for every h2->h1 ref found, we change the h2 card flag to young/old (back refs)
+// (2) for every h2->h2 ref found, we update the dependency list
+template <class T>
+void G1ParScanThreadState::th_ref_update(T*p, oop obj, G1HeapRegionAttr region_attr ){
+ 
+  assert(EnableTeraHeap , "tera heap should be enabled for this function to be called");
+  assert( Universe::teraHeap()->is_field_in_h2((void*) p) , "references coming from h1 should have been filtered out" );
+
+  
+  if( Universe::teraHeap()->is_obj_in_h2(obj) ) {
+    //p (h2) -> obj (h2)
+    //check for dependency list update
+    Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj)); //this has a lock
+    return;
+  }
+
+
+  //p (h2) -> obj (h1)
+  //obj creates a back ref, because it cant be transfered to h2.
+  //Thus because obj is:
+  //  not in cset
+  //  or in cset but obj its metadata (or is just allocated after the cm marking => thus no tera flag is enabled and is included in the cset)
+  //  or in cset but we are in young gc      
+
+  std::cerr << "\tpopped from queue p:" << (HeapWord*)p << "  obj:" << (HeapWord*)obj << "\n";
+  assert( (Universe::teraHeap()->is_metadata(obj) && region_attr.is_in_cset())
+          || !region_attr.is_in_cset()
+          || _g1h->collector_state()->in_young_only_phase() ,
+          "Sanity check");
+
+  _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !_ct->is_in_young(obj) ); 
+
 }
 #endif
 

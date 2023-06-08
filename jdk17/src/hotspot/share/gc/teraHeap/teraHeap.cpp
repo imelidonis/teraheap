@@ -9,6 +9,7 @@
 #include "runtime/globals.hpp"
 #include "runtime/mutexLocker.hpp"
 
+
 char *TeraHeap::_start_addr = NULL;
 char *TeraHeap::_stop_addr = NULL;
 
@@ -38,6 +39,8 @@ TeraHeap::TeraHeap() {
 
   _start_addr = start_addr_mem_pool();
   _stop_addr = stop_addr_mem_pool();
+
+  std::cerr << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n";
 
   // Initilize counters for TeraHeap
   // These counters are used for experiments
@@ -295,23 +298,23 @@ void TeraHeap::h2_print_back_ref_stats() {
 // Add a new entry to `obj1` region dependency list that reference
 // `obj2` region
 void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2){
-	// if (is_in_the_same_group((char *) obj1, (char *) obj2)) 
-	// 	return;
-	// MutexLocker x(tera_heap_group_lock);
-    // references((char*) obj1, (char*) obj2);
+	if (is_in_the_same_group((char *) obj1, (char *) obj2)) 
+		return;
+	MutexLocker x(tera_heap_group_lock);
+    references((char*) obj1, (char*) obj2);
 }
 
 // Update backward reference stacks that we use in marking and pointer
 // adjustment phases of major GC.
 void TeraHeap::h2_push_backward_reference(void *p, oop o) {
-	// MutexLocker x(tera_heap_lock);
-	// _tc_stack.push((oop *)p);
-	// _tc_adjust_stack.push((oop *)p);
+	MutexLocker x(tera_heap_lock);
+	_tc_stack.push((oop *)p);
+	_tc_adjust_stack.push((oop *)p);
 	
-	// back_ptrs_per_mgc++;
+	back_ptrs_per_mgc++;
 
-	// assert(!_tc_stack.is_empty(), "Sanity Check");
-	// assert(!_tc_adjust_stack.is_empty(), "Sanity Check");
+	assert(!_tc_stack.is_empty(), "Sanity Check");
+	assert(!_tc_adjust_stack.is_empty(), "Sanity Check");
 }
 
 // Init the statistics counters of TeraHeap to zero when a Full GC
@@ -693,16 +696,16 @@ void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
   // Mark the H2 card table as dirty if obj is in H1 (backward
   // reference)
 	BarrierSet* bs = BarrierSet::barrier_set();
-  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-  CardTable* ct = ctbs->card_table();
+	CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+	CardTable* ct = ctbs->card_table();
 
-  size_t diff =  (HeapWord *)obj_field - obj_h1_addr;
-  assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(obj_h1_addr)->size()),
-         "Diff out of range: %lu", diff);
-  HeapWord *h2_obj_field = obj_h2_addr + diff;
-  assert(is_field_in_h2((void *) h2_obj_field), "Shoud be in H2");
+	size_t diff =  (HeapWord *)obj_field - obj_h1_addr;
+	assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(obj_h1_addr)->size()),
+			"Diff out of range: %lu", diff);
+	HeapWord *h2_obj_field = obj_h2_addr + diff;
+	assert(is_field_in_h2((void *) h2_obj_field), "Shoud be in H2");
 
-  ct->th_write_ref_field(h2_obj_field);
+	ct->th_write_ref_field(h2_obj_field);
 }
 
 // Set non promote label value
@@ -731,10 +734,11 @@ long TeraHeap::get_promote_tag() {
 // - Instance Reference Klass
 // - Instance Class Loader Klass
 // If yes return true, otherwise false
+//##!! It doesnt filter out the metadata in the obj header
 bool TeraHeap::is_metadata(oop obj) {
   if (obj->klass()->is_instance_klass()) {
     InstanceKlass *ik = (InstanceKlass *) obj->klass();
-    return (ik->is_mirror_instance_klass() || ik->is_reference_instance_klass() || ik->is_class_loader_instance_klass());
+	return (ik->is_mirror_instance_klass() || ik->is_reference_instance_klass() || ik->is_class_loader_instance_klass() );
   }
 
   if (obj->is_objArray()) {
@@ -817,14 +821,14 @@ void TeraHeap::set_low_promotion_threshold() {
 }
 #endif
 
-// int TeraHeap::h2_continuous_regions(HeapWord *addr){
-//   assert(is_in_h2(addr), "Error");
-//   return get_num_of_continuous_regions((char *)addr);
-// }
+int TeraHeap::h2_continuous_regions(HeapWord *addr){
+  assert(is_in_h2(addr), "Error");
+  return get_num_of_continuous_regions((char *)addr);
+}
 
-// bool TeraHeap::h2_object_starts_in_region(HeapWord *obj) {
-//   return object_starts_from_region((char *)obj);
-// }
+bool TeraHeap::h2_object_starts_in_region(HeapWord *obj) {
+  return object_starts_from_region((char *)obj);
+}
 
 // Move object with size 'size' from source address 'src' to the h2
 // destination address 'dst' 

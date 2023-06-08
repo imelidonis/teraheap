@@ -160,7 +160,7 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_maps_bounded(oop obj, OopCl
 template <typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
   if (Devirtualizer::do_metadata(closure)) {
-    Devirtualizer::do_klass(closure, this);
+    Devirtualizer::do_klass(closure, this); //######
   }
 
   oop_oop_iterate_oop_maps<T>(obj, closure);

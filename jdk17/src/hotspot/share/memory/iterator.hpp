@@ -149,6 +149,9 @@ public:
   ClaimingCLDToOopClosure(OopClosure* cl) : CLDToOopClosure(cl, claim) {}
 };
 
+
+
+
 class ClaimMetadataVisitingOopIterateClosure : public OopIterateClosure {
  protected:
   const int _claim;
@@ -162,6 +165,9 @@ class ClaimMetadataVisitingOopIterateClosure : public OopIterateClosure {
   virtual void do_klass(Klass* k);
   virtual void do_cld(ClassLoaderData* cld);
 };
+
+
+
 
 // The base class for all concurrent marking closures,
 // that participates in class unloading.

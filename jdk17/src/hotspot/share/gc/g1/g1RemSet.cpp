@@ -1877,7 +1877,7 @@ class G1RebuildRemSetTask: public AbstractGangTask {
 
       for (LiveObjIterator it(bitmap, top_at_mark_start, mr, hr->block_start(mr.start())); it.has_next(); it.move_to_next()) {
         oop obj = it.next();
-        size_t scanned_size = scan_for_references(obj, mr);
+        size_t scanned_size = scan_for_references(obj, mr); //it returns the obj size
         if (cast_from_oop<HeapWord*>(obj) < top_at_mark_start) {
           marked_words += scanned_size;
         }

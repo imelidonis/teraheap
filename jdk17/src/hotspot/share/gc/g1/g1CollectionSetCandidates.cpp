@@ -66,12 +66,12 @@ void G1CollectionSetCandidates::iterate(HeapRegionClosure* cl) {
 
 //##!! remove this func. is mine
 void G1CollectionSetCandidates::print() {
-  std::cout << "OLD candidates sorted : ";
+  std::cerr << "OLD candidates sorted : ";
   for (uint i = _front_idx; i < _num_regions; i++) {
     HeapRegion* r = _regions[i];
-    std::cout << r->hrm_index() << "  ";
+    std::cerr << r->hrm_index() << "  ";
   }
-  std::cout << "\n";
+  std::cerr << "\n";
 }
 
 void G1CollectionSetCandidates::iterate_backwards(HeapRegionClosure* cl) {

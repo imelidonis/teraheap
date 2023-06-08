@@ -75,13 +75,20 @@ CardTable::CardTable(MemRegion whole_heap, MemRegion th_whole_heap) :
   _guard_region(),
   _th_guard_region()
 {
-  assert((uintptr_t(_whole_heap.start())  & (card_size - 1))  == 0, "heap must start at card boundary");
-  assert((uintptr_t(_whole_heap.end()) & (card_size - 1))  == 0, "heap must end at card boundary");
-  
+
+  DEBUG_ONLY(
+    if( whole_heap.start() != NULL ){
+      assert((uintptr_t(_whole_heap.start())  & (card_size - 1))  == 0, "heap must start at card boundary");
+      assert((uintptr_t(_whole_heap.end()) & (card_size - 1))  == 0, "heap must end at card boundary");
+      
+      assert(card_size <= 512, "card_size must be less than 512");
+    }
+  )
+ 
+
   assert((uintptr_t(_th_whole_heap.start()) & (th_card_size - 1)) == 0,
          "heap must start at card boundary");
-
-  assert(card_size <= 512, "card_size must be less than 512"); // why?
+  
   assert(th_card_size <= (1 << TERA_CARD_SIZE),
          "TeraCache card_size  must be less equall %d", (1 << TERA_CARD_SIZE));
 }

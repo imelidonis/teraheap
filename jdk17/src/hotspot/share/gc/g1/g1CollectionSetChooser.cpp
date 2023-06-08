@@ -159,9 +159,22 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
     size_t _reclaimable_bytes_added;
 
     void add_region(HeapRegion* hr) {
-      if ( hr->h2_marked_bytes() > 0 ) {  
-        std::cout << "Region added " << hr->hrm_index() << "\n";
-      }
+      if ( hr->h2_marked_bytes() > 0 ) { 
+        double time =  G1CollectedHeap::heap()->policy()->predict_region_total_time_ms(hr, false);
+
+        //print results in bytes
+        //if you want them in words, do bytes/8
+        std::cerr << "Region added " << hr->get_type_str() << " " << hr->hrm_index() << " :" 
+        // << "\n  live    [bottom, TAMPs, top] : " << hr->live_bytes() 
+        << "\n  marked  [bottom,TAMPs]       : " << hr->marked_bytes()      
+        << "\n  h2 live [bottom, TAMPs]      : " << hr->h2_marked_bytes() 
+        << "\n  reclaimable bytes            : " << hr->reclaimable_bytes() 
+        << "\n  time for evac                : " << time
+        << "\n  gc efficiency (recl / time)  : " << hr->reclaimable_bytes() / time
+        // << "\n  bellow threshold ? " << region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes())
+        // << "\n  rem set complete? " << hr->rem_set()->is_complete()
+        << "\n\n";
+      }    
 
       if (_cur_chunk_idx == _cur_chunk_end) {
         _array->claim_chunk(_cur_chunk_idx, _cur_chunk_end);
@@ -257,23 +270,22 @@ uint G1CollectionSetChooser::calculate_work_chunk_size(uint num_workers, uint nu
 }
 
 bool G1CollectionSetChooser::should_add(HeapRegion* hr) {
-  
-  if ( hr->h2_marked_bytes() > 0 ) {
-  
-    std::cout << "Should region be added? " << hr->get_type_str() << " " << hr->hrm_index() << " :\n" 
-    << "  marked  "<< hr->marked_bytes() /8
-    << "\n  live    " << hr->live_bytes() /8
-    << "\n  h2 live "<<hr->h2_marked_bytes() /8
-    << "\n  bellow threshold? " << region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes())
-    << "\n  rem set complete? " << hr->rem_set()->is_complete()
-    << "\n\n";
-  }
 
+#ifdef TERA_CONC_MARKING
+  DEBUG_ONLY(
+    if(!EnableTeraHeap) assert(hr->h2_marked_bytes()==0 , "Tera Heap is not enabled. H2 marked objs should not be found");
+  )
 
   return !hr->is_young() &&
          !hr->is_pinned() &&
          region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes()) &&
          hr->rem_set()->is_complete();
+#else
+  return !hr->is_young() &&
+         !hr->is_pinned() &&
+         region_occupancy_low_enough_for_evac( hr->live_bytes() ) &&
+         hr->rem_set()->is_complete();
+#endif
 }
 
 // Closure implementing early pruning (removal) of regions meeting the

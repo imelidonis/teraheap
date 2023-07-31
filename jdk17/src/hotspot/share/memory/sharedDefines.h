@@ -16,6 +16,16 @@
  /************************************
   * Source code that we need to remove after testing
   ************************************/
+
+// #define MALAKIZOME //##!! remove
+// #define Tera_mark_young // leave ??
+
+//one of the two should only be enabled, or none
+// #define FORCE_OPT // force optional cset
+#define NO_OPT // no optional cset (not working correctly)
+
+#define stdprint std::cerr
+
 #define TERA_LOG				         //< Define logging for TeraHeap
 
 #define TERA_FLAG				         //< Define teraFlag word
@@ -41,6 +51,7 @@
 #define TERA_CARD_SIZE			 13   // This is the size of each card in
                                   // TeraCache card table. The size is in bit
                                   // e.g 9 = 512bytes
+                                  // 2^13 = 8K = 8*1024
 
 #define TERA_INTERPRETER	        //< Enable Interpreter to support TeraHeap
 

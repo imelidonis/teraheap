@@ -164,7 +164,7 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
 
         //print results in bytes
         //if you want them in words, do bytes/8
-        std::cerr << "Region added " << hr->get_type_str() << " " << hr->hrm_index() << " :" 
+        stdprint << "Region added " << hr->get_type_str() << " " << hr->hrm_index() << " :" 
         // << "\n  live    [bottom, TAMPs, top] : " << hr->live_bytes() 
         << "\n  marked  [bottom,TAMPs]       : " << hr->marked_bytes()      
         << "\n  h2 live [bottom, TAMPs]      : " << hr->h2_marked_bytes() 

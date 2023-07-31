@@ -51,6 +51,11 @@ class G1BarrierSet: public CardTableBarrierSet {
 
  public:
   G1BarrierSet(G1CardTable* table);
+
+#ifdef TERA_CARDS
+  G1BarrierSet(G1CardTable* table, CardTable* th_table);
+#endif
+
   ~G1BarrierSet() { }
 
   virtual bool card_mark_must_follow_store() const {

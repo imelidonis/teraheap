@@ -539,7 +539,7 @@ G1EvacPhaseWithTrimTimeTracker::G1EvacPhaseWithTrimTimeTracker(G1ParScanThreadSt
   _total_time(total_time),
   _trim_time(trim_time),
   _stopped(false) {
-
+    
   assert(_pss->trim_ticks().value() == 0, "Possibly remaining trim ticks left over from previous use");
 }
 

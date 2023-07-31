@@ -62,6 +62,23 @@ G1BarrierSet::G1BarrierSet(G1CardTable* card_table) :
   _shared_dirty_card_queue(&_dirty_card_queue_set)
 {}
 
+#ifdef TERA_CARDS
+G1BarrierSet::G1BarrierSet(G1CardTable* card_table, CardTable* th_table ) :
+  CardTableBarrierSet(make_barrier_set_assembler<G1BarrierSetAssembler>(),
+                      make_barrier_set_c1<G1BarrierSetC1>(),
+                      make_barrier_set_c2<G1BarrierSetC2>(),
+                      card_table,
+                      th_table,
+                      BarrierSet::FakeRtti(BarrierSet::G1BarrierSet)),
+  _satb_mark_queue_buffer_allocator("SATB Buffer Allocator", G1SATBBufferSize),
+  _dirty_card_queue_buffer_allocator("DC Buffer Allocator", G1UpdateBufferSize),
+  _satb_mark_queue_set(&_satb_mark_queue_buffer_allocator),
+  _dirty_card_queue_set(&_dirty_card_queue_buffer_allocator),
+  _shared_dirty_card_queue(&_dirty_card_queue_set)
+{}
+#endif
+
+
 void G1BarrierSet::enqueue(oop pre_val) {
   // Nulls should have been already filtered.
   assert(oopDesc::is_oop(pre_val, true), "Error");
@@ -106,6 +123,8 @@ void G1BarrierSet::write_ref_field_post_slow(volatile CardValue* byte) {
 }
 
 void G1BarrierSet::invalidate(MemRegion mr) {
+  // stdprint << "invalidate\n";
+
   if (mr.is_empty()) {
     return;
   }
@@ -123,9 +142,9 @@ void G1BarrierSet::invalidate(MemRegion mr) {
     for (; byte <= last_byte; byte++) {
       CardValue bv = *byte;
       if ((bv != G1CardTable::g1_young_card_val()) &&
-          (bv != G1CardTable::dirty_card_val())) {
+          (bv != G1CardTable::dirty_card_val())) { // if old and not dirty
         *byte = G1CardTable::dirty_card_val();
-        qset.enqueue(queue, byte);
+        qset.enqueue(queue, byte); // push in local queue for rem sets
       }
     }
   }

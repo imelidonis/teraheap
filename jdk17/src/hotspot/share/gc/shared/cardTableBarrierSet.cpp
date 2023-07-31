@@ -68,8 +68,29 @@ CardTableBarrierSet::CardTableBarrierSet(CardTable* card_table) :
                    make_barrier_set_c2<CardTableBarrierSetC2>(),
                    BarrierSet::FakeRtti(BarrierSet::CardTableBarrierSet)),
   _defer_initial_card_mark(false),
-  _card_table(card_table)
+  _card_table(card_table),
+#ifdef TERA_CARDS
+  _th_card_table(NULL)
+#endif
 {}
+
+
+#ifdef TERA_CARDS
+CardTableBarrierSet::CardTableBarrierSet(BarrierSetAssembler* barrier_set_assembler,
+                                         BarrierSetC1* barrier_set_c1,
+                                         BarrierSetC2* barrier_set_c2,
+                                         CardTable* card_table,
+                                         CardTable* th_card_table,
+                                         const BarrierSet::FakeRtti& fake_rtti) :
+  ModRefBarrierSet(barrier_set_assembler,
+                   barrier_set_c1,
+                   barrier_set_c2,
+                   fake_rtti.add_tag(BarrierSet::CardTableBarrierSet)),
+  _defer_initial_card_mark(false),
+  _card_table(card_table),
+  _th_card_table(th_card_table)
+{}
+#endif
 
 void CardTableBarrierSet::initialize() {
   initialize_deferred_card_mark_barriers();

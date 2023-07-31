@@ -193,6 +193,8 @@ public:
   //##!! remove
   static long int h1,h2;
   static bool lala;
+  static long count;
+  // static char state[5];
 
 private:
   // Rebuilds the region sets / lists so that they are repopulated to

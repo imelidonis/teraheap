@@ -28,8 +28,8 @@ uint64_t TeraHeap::heap_ct_trav_time[16];
 uint64_t TeraHeap::back_ptrs_per_mgc;
 
 uint64_t TeraHeap::obj_distr_size[3];
-long int TeraHeap::cur_obj_group_id;
-long int TeraHeap::cur_obj_part_id;
+// long int TeraHeap::cur_obj_group_id;
+// long int TeraHeap::cur_obj_part_id;
 
 // Constructor of TeraHeap
 TeraHeap::TeraHeap() {
@@ -40,7 +40,7 @@ TeraHeap::TeraHeap() {
   _start_addr = start_addr_mem_pool();
   _stop_addr = stop_addr_mem_pool();
 
-  std::cerr << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n";
+  stdprint << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n";
 
   // Initilize counters for TeraHeap
   // These counters are used for experiments
@@ -59,7 +59,7 @@ TeraHeap::TeraHeap() {
     obj_distr_size[i] = 0;
   }
 
-  cur_obj_group_id = 0;
+//   cur_obj_group_id = 0;
 
   obj_h1_addr = NULL;
   obj_h2_addr = NULL;
@@ -350,7 +350,7 @@ void TeraHeap::h2_print_objects_per_region() {
 		while (1) {
 			obj = cast_to_oop(obj_addr);
 
-			fprintf(stderr, "[PLACEMENT] OBJ = %p | RDD = %d | PART_ID = %lu\n", 
+			fprintf(stdout, "[PLACEMENT] OBJ = %p | RDD = %d | PART_ID = %lu\n", 
            cast_from_oop<HeapWord *>(obj), obj->get_obj_group_id(), obj->get_obj_part_id());
 
 			if (!check_if_valid_object(obj_addr + obj->size()))
@@ -398,12 +398,12 @@ void TeraHeap::h2_count_marked_objects(){
 
       obj_addr += obj->size();
     }
-    fprintf(stderr, "Region %d has %d live objects out of a total of %d\n", region_num, r_live_objects, r_total_objects);
-    fprintf(stderr, "Region %d has %ld GB live objects out of a total of %ld GB\n", region_num, r_live_objects_size, r_total_objects_size);
+    fprintf(stdout, "Region %d has %d live objects out of a total of %d\n", region_num, r_live_objects, r_total_objects);
+    fprintf(stdout, "Region %d has %ld GB live objects out of a total of %ld GB\n", region_num, r_live_objects_size, r_total_objects_size);
     region_num++;
     next_region = (HeapWord *) get_next_region();
   }
-  fprintf(stderr, "GLOBAL: %d live objects out of a total of %d\n", live_objects, total_objects);
+  fprintf(stdout, "GLOBAL: %d live objects out of a total of %d\n", live_objects, total_objects);
 }
 
 void TeraHeap::h2_reset_marked_objects() {
@@ -655,25 +655,25 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 
 // We save the current object group 'id' for tera-marked object to
 // promote this 'id' to its reference objects
-void TeraHeap::set_cur_obj_group_id(long int id) {
-	cur_obj_group_id = id;
-}
+// void TeraHeap::set_cur_obj_group_id(long int id) {
+// 	cur_obj_group_id = id;
+// }
 
-// Get the saved current object group id 
-long int TeraHeap::get_cur_obj_group_id(void) {
-	return cur_obj_group_id;
-}
+// // Get the saved current object group id 
+// long int TeraHeap::get_cur_obj_group_id(void) {
+// 	return cur_obj_group_id;
+// }
 
 // We save the current object partition 'id' for tera-marked object to
 // promote this 'id' to its reference objects
-void TeraHeap::set_cur_obj_part_id(long int id) {
-	cur_obj_part_id = id;
-}
+// void TeraHeap::set_cur_obj_part_id(long int id) {
+// 	cur_obj_part_id = id;
+// }
 
-// Get the saved current object partition id 
-long int TeraHeap::get_cur_obj_part_id(void) {
-	return cur_obj_part_id;
-}
+// // Get the saved current object partition id 
+// long int TeraHeap::get_cur_obj_part_id(void) {
+// 	return cur_obj_part_id;
+// }
 
 // If obj is in a different H2 region than the region enabled, they
 // are grouped 

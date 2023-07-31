@@ -41,6 +41,11 @@
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
+#ifdef TERA_EVAC
+    if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj))
+      return true;
+#endif
+
   return !_g1h->is_obj_ill(obj);
 }
 
@@ -65,11 +70,11 @@ inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegi
   assert(hr != NULL, "just checking");
   assert(hr->is_in_reserved(obj), "Attempting to mark object at " PTR_FORMAT " that is not contained in the given region %u", p2i(obj), hr->hrm_index());
 
-  if (hr->obj_allocated_since_next_marking(obj)) { //this returns true, if the obj is above TAMPs
+  if (hr->obj_allocated_since_next_marking(obj)) { //this returns true, if the obj is above TAMPs and doesnt need marking (considered live by default) -young regions have TAMPs==bottom
     //##!! TODO or not TODO
     //if is_tera_traversal()  &&  !obj->is_marked_move_h2() then 
     //     enable its tera flag in parallel (atomic operation)
-    //     if succeeded then increase its h2 liveness only
+    //     if old && succeeded then increase its h2 liveness only      
     return false;
   }
 
@@ -232,12 +237,12 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
 #ifdef TERA_CONC_MARKING
           if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
-              // std::cerr << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  (HeapWord*)obj << ")\n";              
+              // stdprint << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  (HeapWord*)obj << ")\n";              
               
               //iterate this oop, in tera mode
-              _cm_oop_closure->set_h2_flag(true);    
+              _cm_oop_closure->enable_tera_traversal(obj);    
               _words_scanned += obj->oop_iterate_size(_cm_oop_closure); 
-              _cm_oop_closure->set_h2_flag(false);
+              _cm_oop_closure->disable_tera_traversal();
           }
           else
 #endif
@@ -261,14 +266,14 @@ inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
     DEBUG_ONLY( if(EnableTeraHeap) assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); )
     
     if ( EnableTeraHeap && obj->is_marked_move_h2()) {
-        // std::cout << obj->klass()->signature_name() << " sarch under it\n";
+        // stdprint << obj->klass()->signature_name() << " sarch under it\n";
         
         //iterate this oop, in tera mode
-        _cm_oop_closure->set_h2_flag(true); 
+        _cm_oop_closure->enable_tera_traversal(obj); 
         obj->oop_iterate(_cm_oop_closure, mr);
-        _cm_oop_closure->set_h2_flag(false); 
+        _cm_oop_closure->disable_tera_traversal(); 
 
-        // std::cout << "Finished searching H2 obj\n";
+        // stdprint << "Finished searching H2 obj\n";
     }
     else
 #endif
@@ -367,11 +372,11 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
     if ( !obj->is_marked_move_h2() ) {
       assert( !Universe::teraHeap()->is_metadata(obj) , "Metadata should have been already filtered out");
       
-      obj->mark_move_h2(Universe::teraHeap()->get_cur_obj_group_id(),
-                        Universe::teraHeap()->get_cur_obj_part_id());
+      obj->mark_move_h2( _cm_oop_closure->get_cur_obj_group_id(),
+                         _cm_oop_closure->get_cur_obj_part_id());
       
       //All of the transitive closure should be marked and printed
-      // std::cout << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n";
+      // stdprint << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n";
     }
   }
 #endif
@@ -423,9 +428,9 @@ inline bool G1CMTask::deal_with_reference(T* p) {
     return false;
   }
 
-  if( is_tera_traversal() ){    
-    std::cerr << "\tmarked " << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")\n";
-  }
+  // if( is_tera_traversal() ){    
+  //   stdprint << "\tmarked " << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")\n";
+  // }
   
   return make_reference_grey(obj);
 }

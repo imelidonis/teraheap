@@ -60,6 +60,10 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   uint _tenuring_threshold;
   G1ScanEvacuatedObjClosure  _scanner;
 
+#ifdef Tera_mark_young
+  bool tera_marking = false; //tera marking while evacuating
+#endif
+
   uint _worker_id;
 
   // Remember the last enqueued card to avoid enqueuing the same card over and over;
@@ -107,6 +111,21 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   size_t* _obj_alloc_stat;
 
 public:
+
+#ifdef Tera_mark_young
+  void enable_tera_marking(){
+    tera_marking = true;
+  };
+  
+  void disable_tera_marking(){
+    tera_marking = false;
+  };
+
+  void is_tera_mark_enable(){
+    return tera_marking;
+  }
+#endif
+
   G1ParScanThreadState(G1CollectedHeap* g1h,
                        G1RedirtyCardsQueueSet* rdcqs,
                        uint worker_id,
@@ -231,6 +250,10 @@ public:
   inline void trim_queue();
   inline void trim_queue_partially();
   void steal_and_trim_queue(G1ScannerTasksQueueSet *task_queues);
+
+#ifdef TERA_CARDS
+  inline void th_trim_queue_partially();
+#endif
 
   Tickspan trim_ticks() const;
   void reset_trim_ticks();

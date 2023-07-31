@@ -197,6 +197,8 @@ class G1CMOopClosure : public MetadataVisitingOopIterateClosure {
   //if the parent object is marked to be moved to H2
   //its children should be marked too
   bool _h2_flag;
+  long int cur_obj_group_id;
+  long int cur_obj_part_id;
   unsigned short metadata_traversal; //ignore the metadata traversals when enabling tera flag
 #endif
 
@@ -208,8 +210,29 @@ public:
 
 #ifdef TERA_CONC_MARKING
 
-  void set_h2_flag(bool v) { _h2_flag = v; }
+  void enable_tera_traversal(oop obj) { 
+    _h2_flag = true; 
+    cur_obj_group_id = obj->get_obj_group_id();
+    cur_obj_part_id = obj->get_obj_part_id();
+  }
+
+  void disable_tera_traversal() { 
+    _h2_flag = false; 
+    cur_obj_group_id = 0;
+    cur_obj_part_id = 0;
+  }
+
   bool is_h2_flag_set() { return _h2_flag && metadata_traversal==0; }
+
+  // Get the saved current object group id 
+  long int get_cur_obj_group_id(void) {
+    return cur_obj_group_id;
+  }
+
+  // Get the saved current object partition id 
+  long int get_cur_obj_part_id(void) {
+    return cur_obj_part_id;
+  }
   
   virtual void do_klass(Klass* k){
     DEBUG_ONLY(
@@ -303,18 +326,31 @@ class H2ToH1Closure : public G1ScanClosureBase {
 
 
   inline void mark_object(oop obj);
-  inline void enable_tera_flag(oop obj);
+  inline void enable_tera_flag(void* p, oop obj);
 public:
   H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, uint worker_id);
   
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }  
+  inline void th_trim_queue_partially();
+  // virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
+  // void set_ref_discoverer(ReferenceDiscoverer* rd) {
+  //   set_ref_discoverer_internal(rd);
+  // }
+};
+#endif
 
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
-  void set_ref_discoverer(ReferenceDiscoverer* rd) {
-    set_ref_discoverer_internal(rd);
-  }
+// ##!! remove
+#ifdef TERA_EVAC
+class TeraFlagEnableClosure : public BasicOopIterateClosure {
+public:
+  TeraFlagEnableClosure(){}
+
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(oop* p)          { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
+
 };
 #endif
 
@@ -328,9 +364,6 @@ public:
   virtual void do_oop(oop* p)          { do_oop_work(p); }
   virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
 
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
-
-//  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
 };
 
 #endif // SHARE_GC_G1_G1OOPCLOSURES_HPP

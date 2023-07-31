@@ -54,6 +54,10 @@ protected:
   bool       _defer_initial_card_mark;
   CardTable* _card_table;
 
+#ifdef TERA_CARDS
+  CardTable* _th_card_table;
+#endif
+
   CardTableBarrierSet(BarrierSetAssembler* barrier_set_assembler,
                       BarrierSetC1* barrier_set_c1,
                       BarrierSetC2* barrier_set_c2,
@@ -65,6 +69,17 @@ protected:
   ~CardTableBarrierSet();
 
   CardTable* card_table() const { return _card_table; }
+
+#ifdef TERA_CARDS
+  CardTableBarrierSet(BarrierSetAssembler* barrier_set_assembler,
+                      BarrierSetC1* barrier_set_c1,
+                      BarrierSetC2* barrier_set_c2,
+                      CardTable* card_table,
+                      CardTable* th_card_table,
+                      const BarrierSet::FakeRtti& fake_rtti);
+
+  CardTable* th_card_table() const { return _th_card_table; }
+#endif
 
   virtual void initialize();
 

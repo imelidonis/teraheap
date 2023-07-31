@@ -244,13 +244,14 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 
 #ifdef TERA_CARDS
   if(EnableTeraHeap){
-    // h2(update status) -> h1/h2(newly evacuated)
-    if( Universe::teraHeap()->is_field_in_h2((void*) p) ){
-      fprintf(stdout, "in h2 ? %d\n", Universe::is_in_h2(obj));
-      th_ref_update( p, obj, region_attr );      
+    
+    // h2(update card table status) -> h1/h2(newly evacuated)
+    if( Universe::teraHeap()->is_field_in_h2((void*) p) ){      
+      th_ref_update( p, obj, region_attr );  
+      return;    // we dont keep h2 incoming ptrs in the rem sets
     }
 
-    //##!! If obj is in H2
+    // If obj is in H2, we dont have to update any rem set (H2 doesnt have rem sets)
     if( Universe::is_in_h2(obj) ) return;    
   }
 #endif
@@ -290,14 +291,34 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
   }
 
+#ifdef TERA_EVAC
+  //check if array is forwarded in h2
+  if( EnableTeraHeap && Universe::is_in_h2(to_array) ){    
+    G1ScanInYoungSetter x(&_scanner, true );
+
+    to_array->oop_iterate_range(&_scanner,
+                              step._index,
+                              step._index + _partial_objarray_chunk_size);
+  }else{
+    HeapRegion* hr = _g1h->heap_region_containing(to_array);
+    G1ScanInYoungSetter x(&_scanner, hr->is_young());
+
+    to_array->oop_iterate_range(&_scanner,
+                              step._index,
+                              step._index + _partial_objarray_chunk_size);
+  }
+#elif
   HeapRegion* hr = _g1h->heap_region_containing(to_array);
   G1ScanInYoungSetter x(&_scanner, hr->is_young());
+
   // Process claimed task.  The length of to_array is not correct, but
   // fortunately the iteration ignores the length field and just relies
   // on start/end.
   to_array->oop_iterate_range(&_scanner,
                               step._index,
                               step._index + _partial_objarray_chunk_size);
+#endif
+  
 }
 
 MAYBE_INLINE_EVACUATION
@@ -609,10 +630,6 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   Klass* klass = obj->klass();
   const size_t word_sz = obj->size_given_klass(klass);
 
-  //##!! change it. The destination is not a Young region, but an H2 region
-  // is to avoid scanning rem set cards in G1ScanInYoungSetter > G1ScanEvacuatedObjClosure  when traversing kids
-  G1HeapRegionAttr dest_attr = G1HeapRegionAttr(G1HeapRegionAttr::Young); 
-  
   //precompact 
 
   // Take a pointer from h2 region 
@@ -620,7 +637,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   //This allocation should be in parallel. Like copy_to_survivor_space does
   HeapWord* h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
 
-  // std::cout << "  addr in H2 to be moved : " << h2_obj_addr << "\n";
+  // stdprint << "  addr in H2 to be moved : " << h2_obj_addr << "\n";
   
   assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");
   assert(Universe::is_in_h2( cast_to_oop(h2_obj_addr) ), "Pointer from H2 is not valid");
@@ -641,6 +658,12 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   
     //traverse the 1-st level kids
     //----------------------------------
+
+    // The destination is not a Young region, but an H2 region
+    // in young regions we dont scan rem set cards in G1ScanInYoungSetter > G1ScanEvacuatedObjClosure  when traversing kids
+    // thus we say that is a young region
+    G1HeapRegionAttr dest_attr = G1HeapRegionAttr(G1HeapRegionAttr::Young); 
+  
 
     // Most objects are not arrays, so do one array check rather than
     // checking for each array category for each object.
@@ -746,14 +769,16 @@ void G1ParScanThreadState::th_ref_update(T*p, oop obj, G1HeapRegionAttr region_a
   //obj creates a back ref, because it cant be transfered to h2.
   //Thus because obj is:
   //  not in cset
-  //  or in cset but obj its metadata (or is just allocated after the cm marking => thus no tera flag is enabled and is included in the cset)
+  //  or in cset but obj its:
+  //    metadata 
+  //    allocated after the cm marking => thus no tera flag is enabled and is included in the cset
+  //    it was above TAMPs and thus it was not found during the CM. therefore it doesnt have its tera flag enabled
   //  or in cset but we are in young gc      
 
-  std::cerr << "\tpopped from queue p:" << (HeapWord*)p << "  obj:" << (HeapWord*)obj << "\n";
-  assert( (Universe::teraHeap()->is_metadata(obj) && region_attr.is_in_cset())
-          || !region_attr.is_in_cset()
-          || _g1h->collector_state()->in_young_only_phase() ,
-          "Sanity check");
+  // assert( (Universe::teraHeap()->is_metadata(obj) && region_attr.is_in_cset())
+  //         || !region_attr.is_in_cset()
+  //         || _g1h->collector_state()->in_young_only_phase() ,
+  //         "Sanity check");
 
   _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !_ct->is_in_young(obj) ); 
 

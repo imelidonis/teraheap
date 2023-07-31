@@ -61,13 +61,15 @@ void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, Decorat
   bool obj_int = type == T_OBJECT LP64_ONLY(&& UseCompressedOops);
   Register tmp = rax;
 
-  if (is_reference_type(type)) {
+  if (is_reference_type(type)) { // true if it is an oop or array
 #ifdef _LP64
     if (!checkcast) {
       if (!obj_int) {
+        // if its an array
         // Save count for barrier
-        count = r11;
+        count = r11; 
       } else if (disjoint) {
+        // if its an object
         // Use the saved dst in the disjoint case
         dst = r11;
       }

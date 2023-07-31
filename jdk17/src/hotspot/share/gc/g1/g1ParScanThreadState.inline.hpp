@@ -55,6 +55,18 @@ void G1ParScanThreadState::trim_queue_partially() {
   _trim_ticks += Ticks::now() - start;
 }
 
+#ifdef TERA_CARDS
+void G1ParScanThreadState::th_trim_queue_partially() {
+  if (!needs_partial_trimming()) {
+    return;
+  }
+
+  trim_queue_to_threshold(_stack_trim_lower_threshold);
+  assert(_task_queue->overflow_empty(), "invariant");
+  assert(_task_queue->size() <= _stack_trim_lower_threshold, "invariant");
+}
+#endif
+
 void G1ParScanThreadState::trim_queue() {
   trim_queue_to_threshold(0);
   assert(_task_queue->overflow_empty(), "invariant");

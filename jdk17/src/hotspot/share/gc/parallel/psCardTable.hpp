@@ -85,7 +85,9 @@ class PSCardTable: public CardTable {
   void h2_scavenge_contents_parallel( H2ToH1Closure* cl,
                                   uint stripe_number,
                                   uint stripe_total, 
-                                  bool scan_old);
+                                  bool scan_old
+                                  // ,G1ParScanThreadState* pss
+                                  );
 #endif //TERA_CARDS
 
   bool addr_is_marked_imprecise(void *addr);

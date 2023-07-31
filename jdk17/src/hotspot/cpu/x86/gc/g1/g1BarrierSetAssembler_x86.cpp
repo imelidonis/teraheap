@@ -40,7 +40,15 @@
 #include "gc/g1/c1/g1BarrierSetC1.hpp"
 #endif
 
+#ifdef TERA_CARDS
+#include "gc/teraHeap/teraHeap.hpp"
+#endif
+
 #define __ masm->
+
+#ifdef TERA_INTERPRETER
+  #define TIMES_OOP (UseCompressedOops ? Address::times_4 : Address::times_8)
+#endif
 
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count) {
@@ -99,6 +107,66 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
 void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                              Register addr, Register count, Register tmp) {
   __ pusha();             // push registers (overkill)
+
+// #ifdef TERA_INTERPRETER
+//   Label L_done;
+//   if (EnableTeraHeap){
+//     Label L_h1;
+
+//     // Get h2 start address
+//     AddressLiteral h2_start_addr((address)Universe::teraHeap()->h2_start_addr(), relocInfo::none);
+//     __ lea(tmp, h2_start_addr);
+        
+//     // Check if array is in h1 or h2 
+//     __ cmpptr(addr, tmp);
+//     __ jcc(Assembler::less, L_h1); 
+    
+//     //in h2
+//     BarrierSet *bs = BarrierSet::barrier_set();
+//     CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+//     CardTable* ct = ctbs->card_table();
+//     intptr_t th_disp = (intptr_t) ct->th_byte_map_base();
+
+//     Label L_loop;
+//     const Register end = count;
+//     assert_different_registers(addr, end);
+
+//     __ testl(count, count);
+//     __ jcc(Assembler::zero, L_done); // zero count - nothing to do
+
+// #ifdef _LP64
+//     __ leaq(end, Address(addr, count, TIMES_OOP, 0));  // end == addr+count*oop_size
+//     __ subptr(end, BytesPerHeapOop); // end - 1 to make inclusive
+      
+//     __ shrptr(addr, CardTable::th_card_shift);
+//     __ shrptr(end, CardTable::th_card_shift);
+//     __ subptr(end, addr); // end --> cards count
+
+    
+//     __ mov64(tmp, th_disp);
+//     __ addptr(addr, tmp);
+
+//     __ bind(L_loop);
+//     __ movb(Address(addr, count, Address::times_1), 0);
+//     __ decrement(count);
+//     __ jcc(Assembler::greaterEqual, L_loop);
+// #else
+//     __ lea(end,  Address(addr, count, Address::times_ptr, -wordSize));
+//     __ shrptr(addr, CardTable::th_card_shift);
+//     __ shrptr(end,   CardTable::th_card_shift);
+//     __ subptr(end, addr); // end --> count
+//     __ bind(L_loop);
+//     Address cardtable(addr, count, Address::times_1, th_disp);
+//     __ movb(cardtable, 0);
+//     __ decrement(count);
+//     __ jcc(Assembler::greaterEqual, L_loop);
+// #endif
+//     // in h1
+//     __ jmp(L_done);
+//     __ bind(L_h1);
+//   }
+// #endif
+  
 #ifdef _LP64
   if (c_rarg0 == count) { // On win64 c_rarg0 == rcx
     assert_different_registers(c_rarg1, addr);
@@ -108,12 +176,20 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
     assert_different_registers(c_rarg0, count);
     __ mov(c_rarg0, addr);
     __ mov(c_rarg1, count);
-  }
+  }  
+  
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry), 2);
+  // __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_array));
+  
 #else
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry),
                   addr, count);
 #endif
+
+// #ifdef TERA_INTERPRETER
+//   __ bind(L_done);
+// #endif
+
   __ popa();
 }
 
@@ -265,6 +341,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
                                                   Register thread,
                                                   Register tmp,
                                                   Register tmp2) {
+
   // Generated code assumes that buffer index is pointer sized.
   STATIC_ASSERT(in_bytes(SATBMarkQueue::byte_width_of_index()) == sizeof(intptr_t));
 #ifdef _LP64
@@ -280,43 +357,112 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   Label done;
   Label runtime;
 
-  // Does store cross heap regions?
+#ifdef TERA_INTERPRETER
+  if (EnableTeraHeap) {
+    Label L_in_h1;
+    Label L_in_h2;
+    
+    // check if the obj updated is in h2. if so then return. no need to keep it in rem set log
+    // if ( h2_store_check(masm, store_addr) ) return;
 
-  __ movptr(tmp, store_addr);
-  __ xorptr(tmp, new_val);
-  __ shrptr(tmp, HeapRegion::LogOfHRGrainBytes);
-  __ jcc(Assembler::equal, done);
+    AddressLiteral h2_start_addr((address)Universe::teraHeap()->h2_start_addr(), relocInfo::none);
+    // Push the teraCache address in r11
+    __ lea(tmp, h2_start_addr); // register tmp = h2 start addr
+
+    __ cmpptr(store_addr, tmp); 
+    __ jcc(Assembler::greaterEqual, L_in_h2); // if store_addr >= h2_start_addr the go to L_in_h2
+    __ jmp(L_in_h1); // else go to L_in_h1
+    
+    // IN H2
+    __ bind(L_in_h2);
+
+    CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
+    CardTable* ct = ctbs->th_card_table();
+
+    const Register obj = tmp;   // apla dinei alli onomasia sto tmp    
+    __ movptr(obj, store_addr); // obj = store_addr
+
+    __ shrptr(obj, CardTable::th_card_shift); // store_addr >> th_card_shift
+  
+
+    Address th_card_addr;
+  
+    // The calculation for byte_map_base is as follows:
+    // byte_map_base = _byte_map - (uintptr_t(low_bound) >> card_shift);
+    // So this essentially converts an address to a displacement and it will
+    // never need to be relocated. On 64bit however the value may be too
+    // large for a 32bit displacement.
+    intptr_t th_byte_map_base = (intptr_t)ct->th_byte_map_base();
+    if (__ is_simm32(th_byte_map_base)) {
+      th_card_addr = Address(noreg, obj, Address::times_1, th_byte_map_base);
+    } else {
+      // By doing it as an ExternalAddress 'byte_map_base' could be converted to a rip-relative
+      // displacement and done in a single instruction given favorable mapping and a
+      // smarter version of as_Address. However, 'ExternalAddress' generates a relocation
+      // entry and that entry is not properly handled by the relocation code.
+      AddressLiteral cardtable((address)th_byte_map_base, relocInfo::none);
+      Address index(noreg, obj, Address::times_1);
+      th_card_addr = __ as_Address(ArrayAddress(cardtable, index));
+    }
+
+    int dirty = CardTable::dirty_card_val();    
+   
+    __ cmpb(th_card_addr, dirty);
+    __ jcc(Assembler::equal, done);
+    __ movb(th_card_addr, dirty);    
+    __ jmp(done); //ok
+
+    __ bind(L_in_h1);
+  }
+#endif
+
+  // Does store cross heap regions?
+  // obj.x = y
+  // store_addr = obj.x
+  // new_val = y
+
+  __ movptr(tmp, store_addr); // tmp = store_addr
+  __ xorptr(tmp, new_val); // tmp = tmp XOR new_val
+  __ shrptr(tmp, HeapRegion::LogOfHRGrainBytes); // tmp = tmp >> LogOfHRGrainBytes
+  __ jcc(Assembler::equal, done); // if tmp==0 then store_val and new_val are in the same heap region => go to label done
 
   // crosses regions, storing NULL?
 
-  __ cmpptr(new_val, (int32_t) NULL_WORD);
-  __ jcc(Assembler::equal, done);
+  __ cmpptr(new_val, (int32_t) NULL_WORD); 
+  __ jcc(Assembler::equal, done); // if new_val == Null then go to label done
 
   // storing region crossing non-NULL, is card already dirty?
 
   const Register card_addr = tmp;
   const Register cardtable = tmp2;
 
-  __ movptr(card_addr, store_addr);
-  __ shrptr(card_addr, CardTable::card_shift);
+  __ movptr(card_addr, store_addr); 
+  __ shrptr(card_addr, CardTable::card_shift); // card_addr = card-idx of the store_addr
+  
   // Do not use ExternalAddress to load 'byte_map_base', since 'byte_map_base' is NOT
   // a valid address and therefore is not properly handled by the relocation code.
-  __ movptr(cardtable, (intptr_t)ct->card_table()->byte_map_base());
-  __ addptr(card_addr, cardtable);
+
+  __ movptr(cardtable, (intptr_t)ct->card_table()->byte_map_base()); // cardtable = card table start
+  __ addptr(card_addr, cardtable); // card_addr = card-addr of store_addr
 
   __ cmpb(Address(card_addr, 0), (int)G1CardTable::g1_young_card_val());
-  __ jcc(Assembler::equal, done);
+  __ jcc(Assembler::equal, done); // if card==young go to done
+  // we only dirty old cards
+  // bcs rem sets only hold old->young, old->old
+  // thus we only need to dirty and scan old regions to find outgoing ptrs
+  // in order to update the rem sets
 
   __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
-  __ cmpb(Address(card_addr, 0), (int)G1CardTable::dirty_card_val());
-  __ jcc(Assembler::equal, done);
+  __ cmpb(Address(card_addr, 0), (int)G1CardTable::dirty_card_val()); 
+  __ jcc(Assembler::equal, done); // if card==dirty go to done
 
 
   // storing a region crossing, non-NULL oop, card is clean.
   // dirty card and log.
 
-  __ movb(Address(card_addr, 0), (int)G1CardTable::dirty_card_val());
+  __ movb(Address(card_addr, 0), (int)G1CardTable::dirty_card_val()); // card = dirty
 
+  // pointer to the card is enqueued on the rem set log
   __ movptr(tmp2, queue_index);
   __ testptr(tmp2, tmp2);
   __ jcc(Assembler::zero, runtime);
@@ -331,6 +477,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ push(store_addr);
 #ifdef _LP64
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, r15_thread);
+  // __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_ref));
 #else
   __ push(thread);
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, thread);

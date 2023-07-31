@@ -1342,15 +1342,28 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
       log_debug(gc, ergo, cset)("Finish adding old regions to collection set (Region amount reached min).");
       break;
     } else {
+
       // Keep adding regions to old set until we reach the optional threshold
+#ifdef FORCE_OPT
+      if (time_remaining_ms > optional_threshold_ms || time_remaining_ms > 0) {
+#else
       if (time_remaining_ms > optional_threshold_ms) {
+
         predicted_old_time_ms += predicted_time_ms;
         num_initial_regions++;
       } else if (time_remaining_ms > 0) {
+#endif
+
+#ifdef NO_OPT
+        log_debug(gc, ergo, cset)("Finish adding old regions to collection set (Predicted time too high).");
+        break;
+#else
         // Keep adding optional regions until time is up.
         assert(num_optional_regions < max_optional_regions, "Should not be possible.");
         predicted_optional_time_ms += predicted_time_ms;
         num_optional_regions++;
+#endif
+
       } else {
         log_debug(gc, ergo, cset)("Finish adding old regions to collection set (Predicted time too high).");
         break;

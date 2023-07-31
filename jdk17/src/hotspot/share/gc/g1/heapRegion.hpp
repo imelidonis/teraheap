@@ -374,8 +374,8 @@ public:
   void add_to_h2_marked_bytes(size_t incr_bytes) {
     if( incr_bytes > 0 ){ 
       // words = incr_bytes/8
-      std::cerr << "H2 liveness " << incr_bytes << " added to region " << hrm_index() << "\n";
-      std::cerr << "Total liveness " << _next_marked_bytes << " added to region " << hrm_index() << "\n\n";
+      stdprint << "H2 liveness " << incr_bytes << " added to region " << hrm_index() << "\n";
+      stdprint << "Total liveness " << _next_marked_bytes << " added to region " << hrm_index() << "\n\n";
     }
     
     _h2_marked_bytes = _h2_marked_bytes + incr_bytes;

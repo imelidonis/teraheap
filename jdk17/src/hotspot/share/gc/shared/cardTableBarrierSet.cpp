@@ -98,6 +98,9 @@ void CardTableBarrierSet::initialize() {
 
 CardTableBarrierSet::~CardTableBarrierSet() {
   delete _card_table;
+#ifdef TERA_CARDS
+  delete _th_card_table;
+#endif
 }
 
 void CardTableBarrierSet::write_ref_array_work(MemRegion mr) {

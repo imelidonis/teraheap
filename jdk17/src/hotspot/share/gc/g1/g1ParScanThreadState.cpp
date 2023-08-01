@@ -246,7 +246,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   if(EnableTeraHeap){
     
     // h2(update card table status) -> h1/h2(newly evacuated)
-    if( Universe::teraHeap()->is_field_in_h2((void*) p) ){      
+    if( Universe::is_field_in_h2((void*) p) ){      
       th_ref_update( p, obj, region_attr );  
       return;    // we dont keep h2 incoming ptrs in the rem sets
     }
@@ -754,7 +754,7 @@ template <class T>
 void G1ParScanThreadState::th_ref_update(T*p, oop obj, G1HeapRegionAttr region_attr ){
  
   assert(EnableTeraHeap , "tera heap should be enabled for this function to be called");
-  assert( Universe::teraHeap()->is_field_in_h2((void*) p) , "references coming from h1 should have been filtered out" );
+  assert( Universe::is_field_in_h2((void*) p) , "references coming from h1 should have been filtered out" );
 
   
   if( Universe::teraHeap()->is_obj_in_h2(obj) ) {

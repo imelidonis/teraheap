@@ -85,7 +85,7 @@ inline void G1ScanClosureBase::handle_non_cset_obj_common(G1HeapRegionAttr const
 #ifdef TERA_CARDS
 template <class T>
 inline void G1ScanClosureBase::handle_non_cset_obj_common_tera(G1HeapRegionAttr const region_attr, T* p, oop const obj) {
-  assert(EnableTeraHeap && Universe::teraHeap()->is_field_in_h2((void*) p) , "Sanity check");
+  assert(EnableTeraHeap && Universe::is_field_in_h2((void*) p) , "Sanity check");
 
   //##! humongous + optional (??? -can not happen)
 
@@ -122,7 +122,7 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   // h1->h2 : Fence
   // h2->h2 : Update depedency list of tera && Fence
   if (EnableTeraHeap && (Universe::is_in_h2(obj))){     
-    if ( Universe::teraHeap()->is_field_in_h2((void*) p) ) 
+    if ( Universe::is_field_in_h2((void*) p) ) 
       Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
 
     //Fence heap traversal to H2
@@ -148,7 +148,7 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
     
 #ifdef TERA_CARDS   
     // h2->h1(out of cset)
-    if(EnableTeraHeap && Universe::teraHeap()->is_field_in_h2((void*) p) ){
+    if(EnableTeraHeap && Universe::is_field_in_h2((void*) p) ){
       handle_non_cset_obj_common_tera(region_attr, p, obj);
       return;
     }else
@@ -295,14 +295,14 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   //  (2) Fence heap traversal to H2
 #ifdef TERA_EVAC
   if (EnableTeraHeap){
-    // assert( !Universe::teraHeap()->is_field_in_h2((void*) p) ,"Sanity check");
+    // assert( !Universe::is_field_in_h2((void*) p) ,"Sanity check");
     if ( Universe::is_in_h2(obj) ) return;
   }
 
-  if( !Universe::teraHeap()->is_field_in_h2((void*) p) )    
+  if( !Universe::is_field_in_h2((void*) p) )    
     check_obj_during_refinement(p, obj);
   
-  assert(Universe::teraHeap()->is_field_in_h2((void*) p) || !_g1h->is_in_cset((HeapWord*)p),
+  assert(Universe::is_field_in_h2((void*) p) || !_g1h->is_in_cset((HeapWord*)p),
       "Oop originates from " PTR_FORMAT " (region: %u) which is in the collection set.",
       p2i(p), _g1h->addr_to_region((HeapWord*)p));  
   
@@ -413,7 +413,7 @@ inline void G1ScanRSForOptionalClosure::do_oop_work(T* p) {
 
 #ifdef TERA_EVAC
   // h2->h1
-  if ( EnableTeraHeap && Universe::teraHeap()->is_field_in_h2((void*) p) ) {
+  if ( EnableTeraHeap && Universe::is_field_in_h2((void*) p) ) {
     _scan_cl->do_oop_work(p);
     _scan_cl->trim_queue_partially();
     return;

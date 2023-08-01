@@ -48,7 +48,18 @@ inline void G1BarrierSet::write_ref_field_pre(T* field) {
 
 template <DecoratorSet decorators, typename T>
 inline void G1BarrierSet::write_ref_field_post(T* field, oop new_val) {
+
+#ifdef TERA_CARDSs
+  volatile CardValue* byte;
+  if( EnableTeraHeap && Universe::is_field_in_h2( (void*) field) ){
+    byte =  _th_card_table->byte_for(field);
+  }else{
+    byte =  _card_table->byte_for(field);
+  }
+#else
   volatile CardValue* byte = _card_table->byte_for(field);
+#endif
+
   if (*byte != G1CardTable::g1_young_card_val()) {
     // Take a slow path for cards in old
     write_ref_field_post_slow(byte);

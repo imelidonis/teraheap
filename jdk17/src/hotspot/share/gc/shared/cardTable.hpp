@@ -233,21 +233,6 @@ public:
   }
 #endif //TERA_CARDS
 
-#ifdef TERA_CARDS
-  bool is_field_in_tera_heap(const void *p) const {
-    assert(
-        _whole_heap.contains(p) || _th_whole_heap.contains(p),
-            "Attempt to access p = " PTR_FORMAT
-            " out of bounds of card marking arrays _whole_heap = [" PTR_FORMAT
-            "," PTR_FORMAT "] and _tc_whole_heap = [" PTR_FORMAT "," PTR_FORMAT
-            "]",
-            p2i(p), p2i(_whole_heap.start()), p2i(_whole_heap.end()),
-            p2i(_th_whole_heap.start()), p2i(_th_whole_heap.end()));
-
-    return !_whole_heap.contains(p);
-  }
-#endif //TERA_CARDS
-
   // The card table byte one after the card marking array
   // entry for argument address. Typically used for higher bounds
   // for loops iterating through the card table.

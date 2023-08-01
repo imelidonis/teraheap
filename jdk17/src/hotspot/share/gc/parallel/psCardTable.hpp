@@ -120,7 +120,7 @@ class PSCardTable: public CardTable {
   void inline_write_ref_field_gc(void* field, oop new_val, bool promote_to_oldgen=false) {
     CardValue* byte = byte_for(field);
 #ifdef TERA_CARDS
-    if (EnableTeraHeap && is_field_in_tera_heap(field)) {
+    if (EnableTeraHeap && Universe::is_field_in_h2(field)) {
       if (promote_to_oldgen) {
         Atomic::cmpxchg(byte, (CardValue)clean_card, (CardValue)oldergen_card);
         Atomic::cmpxchg(byte, (CardValue)dirty_card, (CardValue)oldergen_card);

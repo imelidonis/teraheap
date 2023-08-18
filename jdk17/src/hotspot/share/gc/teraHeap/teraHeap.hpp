@@ -17,11 +17,13 @@
 #endif
 
 //class ParCompactionManager;
+class PSCardTable;
 
 class TeraHeap: public CHeapObj<mtInternal> {
 private:
   static char *_start_addr; // TeraHeap start address of mmap region
   static char *_stop_addr;  // TeraHeap ends address of mmap region
+  static char *_top_snapshot; // TeraHeap top address snapshot
 
   ObjectStartArray _start_array; // Keeps track of where objects
                                         // start in a 2^CARD_SEGMENT_SIZE block
@@ -133,6 +135,19 @@ public:
   // end address of the last allocated object in the last region of
   // H2.
   char *h2_top_addr(void);
+
+  // Get the top allocated address of the H2. This address depicts the
+  // end address of the last allocated object in the last region of
+  // H2.
+  char *h2_top_addr_snapshot(void);
+
+  //its called in single threaded mode before the 
+  //h2_scavenge_contents_parallel where we scan the tera heap to find back refs
+  void h2_pre_scan(PSCardTable*);
+
+  //its called in single threaded mode after the 
+  //h2_scavenge_contents_parallel where we scan the tera heap to find back refs
+  void h2_post_scan(void);
   
   // Check if H2 is empty.
   // Return true if H2 is empty, false otherwise

@@ -119,6 +119,7 @@ long int G1CollectedHeap::h1=0;
 long int G1CollectedHeap::h2=0;
 bool G1CollectedHeap::lala=false;
 long G1CollectedHeap::count=0;
+int G1CollectedHeap::debug=0;
 // char G1CollectedHeap::state[]="";
 
 // INVARIANTS/NOTES
@@ -3040,10 +3041,10 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         _allocator->release_mutator_alloc_regions();
 
         if( collector_state()->in_mixed_phase()  )
-          stdprint << "\n===== MIXED gc ====\n";
+          stdprint << "\n#GC ===== MIXED gc ====\n";
         else if( collector_state()->in_concurrent_start_gc() )
-          stdprint << "\n===== Young gc + init marking ====\n";
-        else stdprint << "\n===== YOUNG gc ====\n";
+          stdprint << "\n#GC ===== Young gc + init marking ====\n";
+        else stdprint << "\n#GC ===== YOUNG gc ====\n";
 
         
 
@@ -3074,11 +3075,12 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
         if( collector_state()->in_mixed_phase()){
           // Universe::teraHeap()->h2_print_objects_per_region();
-          stdprint << "LNodes moved in H1=" << h1 << " ,H2="<<h2<<"\n";
+          stdprint << "Moved in H1=" << h1 << " , H2="<<h2<<"\n";
           h1=h2=0;
           lala=true;
-          stdprint << "==============MIX GC DONE=================\n";
         }
+        stdprint << "===============================(gc done)\n";
+
         
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
@@ -3742,13 +3744,26 @@ void G1CollectedHeap::evacuate_initial_collection_set(G1ParScanThreadStateSet* p
   Ticks start_processing = Ticks::now();
   {
     G1RootProcessor root_processor(this, num_workers);
+
     G1EvacuateRegionsTask g1_par_task(this,
                                       per_thread_states,
                                       _task_queues,
                                       &root_processor,
                                       num_workers,
                                       has_optional_evacuation_work);
+
+#ifdef TERA_CARDS 
+    if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )   
+      Universe::teraHeap()->h2_pre_scan(_th_card_table);
+#endif
+
     task_time = run_task_timed(&g1_par_task);
+
+#ifdef TERA_CARDS
+    if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )
+      Universe::teraHeap()->h2_post_scan();
+#endif
+    
     // Closing the inner scope will execute the destructor for the G1RootProcessor object.
     // To extract its code root fixup time we measure total time of this scope and
     // subtract from the time the WorkGang task took.

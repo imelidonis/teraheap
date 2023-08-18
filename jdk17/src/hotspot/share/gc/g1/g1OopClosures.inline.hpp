@@ -85,7 +85,9 @@ inline void G1ScanClosureBase::handle_non_cset_obj_common(G1HeapRegionAttr const
 #ifdef TERA_CARDS
 template <class T>
 inline void G1ScanClosureBase::handle_non_cset_obj_common_tera(G1HeapRegionAttr const region_attr, T* p, oop const obj) {
-  assert(EnableTeraHeap && Universe::is_field_in_h2((void*) p) , "Sanity check");
+  assert(EnableTeraHeap 
+  && Universe::is_field_in_h2((void*) p)
+  && !Universe::is_in_h2(obj)  , "Sanity check");
 
   //##! humongous + optional (??? -can not happen)
 
@@ -350,8 +352,9 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   // h2->h2
   if (Universe::teraHeap()->is_obj_in_h2(obj)) {
     Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
-    // stdprint << "at H2 : " ;    
-    // stdprint << "pss val=" << _par_scan_state->trim_ticks().value() << "\n";
+    
+    // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : ";
+    // stdprint << "at H2\n" ;    
 
 		return;	
   }
@@ -360,20 +363,23 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   
   if (region_attr.is_in_cset()) {
     // h2->h1 (in cset)
-    // stdprint <<  "at H1 IN cset : ";
-    // stdprint << "pss val=" << _par_scan_state->trim_ticks().value() << "\n";
+    // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : ";
+    // stdprint <<  "at H1 IN cset ";
 
 
     if( should_mark ){
+      // no marking during evacuation, thus no need to mark in cset objs
       enable_tera_flag( (void*) p, obj);
     }
+
+    // stdprint << " marked:" << obj->is_marked_move_h2() << "\n";
 
     prefetch_and_push(p, obj);
     // stdprint << "\tpushed in queue p:" << (HeapWord*)p << "  obj:" << (HeapWord*)obj << "\n";
 
   }else{
-    // stdprint << "at H1 OUT of cset : ";
-    // stdprint << "pss val=" << _par_scan_state->trim_ticks().value() << "\n";
+    // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : ";
+    // stdprint << "at H1 OUT of cset\n";
 
 
     // h2->h1 (out of cset)
@@ -646,6 +652,20 @@ inline void PrintFieldsClosure::do_oop_work(T* p) {
   if(!Universe::is_in_h2(obj)) 
     stdprint << "   idx:"<<  G1CollectedHeap::heap()->heap_region_containing(obj)->hrm_index();
   stdprint << "\n";
+  
+}
+template <class T>
+inline void PrintFieldsClosure_inline::do_oop_work(T* p) {
+  T heap_oop = RawAccess<>::oop_load(p);
+
+  if (CompressedOops::is_null(heap_oop)) {
+    return;
+  }
+
+  oop obj = CompressedOops::decode_not_null(heap_oop);
+
+  stdprint <<  obj->klass()->signature_name() << " h2:" << Universe::is_in_h2(obj) << " (" << (HeapWord*)obj << ")  ,  "; ;  
+
   
 }
 #endif // SHARE_GC_G1_G1OOPCLOSURES_INLINE_HPP

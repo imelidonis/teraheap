@@ -108,64 +108,64 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
                                                              Register addr, Register count, Register tmp) {
   __ pusha();             // push registers (overkill)
 
-// #ifdef TERA_INTERPRETER
-//   Label L_done;
-//   if (EnableTeraHeap){
-//     Label L_h1;
+#ifdef TERA_INTERPRETER
+  Label L_done;
+  if (EnableTeraHeap){
+    Label L_h1;
 
-//     // Get h2 start address
-//     AddressLiteral h2_start_addr((address)Universe::teraHeap()->h2_start_addr(), relocInfo::none);
-//     __ lea(tmp, h2_start_addr);
+    // Get h2 start address
+    AddressLiteral h2_start_addr((address)Universe::teraHeap()->h2_start_addr(), relocInfo::none);
+    __ lea(tmp, h2_start_addr);
         
-//     // Check if array is in h1 or h2 
-//     __ cmpptr(addr, tmp);
-//     __ jcc(Assembler::less, L_h1); 
+    // Check if array is in h1 or h2 
+    __ cmpptr(addr, tmp);
+    __ jcc(Assembler::less, L_h1); 
     
-//     //in h2
-//     BarrierSet *bs = BarrierSet::barrier_set();
-//     CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-//     CardTable* ct = ctbs->card_table();
-//     intptr_t th_disp = (intptr_t) ct->th_byte_map_base();
+    //in h2
+    BarrierSet *bs = BarrierSet::barrier_set();
+    CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+    CardTable* ct = ctbs->card_table();
+    intptr_t th_disp = (intptr_t) ct->th_byte_map_base();
 
-//     Label L_loop;
-//     const Register end = count;
-//     assert_different_registers(addr, end);
+    Label L_loop;
+    const Register end = count;
+    assert_different_registers(addr, end);
 
-//     __ testl(count, count);
-//     __ jcc(Assembler::zero, L_done); // zero count - nothing to do
+    __ testl(count, count);
+    __ jcc(Assembler::zero, L_done); // zero count - nothing to do
 
-// #ifdef _LP64
-//     __ leaq(end, Address(addr, count, TIMES_OOP, 0));  // end == addr+count*oop_size
-//     __ subptr(end, BytesPerHeapOop); // end - 1 to make inclusive
+#ifdef _LP64
+    __ leaq(end, Address(addr, count, TIMES_OOP, 0));  // end == addr+count*oop_size
+    __ subptr(end, BytesPerHeapOop); // end - 1 to make inclusive
       
-//     __ shrptr(addr, CardTable::th_card_shift);
-//     __ shrptr(end, CardTable::th_card_shift);
-//     __ subptr(end, addr); // end --> cards count
+    __ shrptr(addr, CardTable::th_card_shift);
+    __ shrptr(end, CardTable::th_card_shift);
+    __ subptr(end, addr); // end --> cards count
 
     
-//     __ mov64(tmp, th_disp);
-//     __ addptr(addr, tmp);
+    __ mov64(tmp, th_disp);
+    __ addptr(addr, tmp);
 
-//     __ bind(L_loop);
-//     __ movb(Address(addr, count, Address::times_1), 0);
-//     __ decrement(count);
-//     __ jcc(Assembler::greaterEqual, L_loop);
-// #else
-//     __ lea(end,  Address(addr, count, Address::times_ptr, -wordSize));
-//     __ shrptr(addr, CardTable::th_card_shift);
-//     __ shrptr(end,   CardTable::th_card_shift);
-//     __ subptr(end, addr); // end --> count
-//     __ bind(L_loop);
-//     Address cardtable(addr, count, Address::times_1, th_disp);
-//     __ movb(cardtable, 0);
-//     __ decrement(count);
-//     __ jcc(Assembler::greaterEqual, L_loop);
-// #endif
-//     // in h1
-//     __ jmp(L_done);
-//     __ bind(L_h1);
-//   }
-// #endif
+    __ bind(L_loop);
+    __ movb(Address(addr, count, Address::times_1), 0);
+    __ decrement(count);
+    __ jcc(Assembler::greaterEqual, L_loop);
+#else
+    __ lea(end,  Address(addr, count, Address::times_ptr, -wordSize));
+    __ shrptr(addr, CardTable::th_card_shift);
+    __ shrptr(end,   CardTable::th_card_shift);
+    __ subptr(end, addr); // end --> count
+    __ bind(L_loop);
+    Address cardtable(addr, count, Address::times_1, th_disp);
+    __ movb(cardtable, 0);
+    __ decrement(count);
+    __ jcc(Assembler::greaterEqual, L_loop);
+#endif
+    // in h1
+    __ jmp(L_done);
+    __ bind(L_h1);
+  }
+#endif
   
 #ifdef _LP64
   if (c_rarg0 == count) { // On win64 c_rarg0 == rcx
@@ -179,16 +179,16 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
   }  
   
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry), 2);
-  // __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_array));
+  __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_array));
   
 #else
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry),
                   addr, count);
 #endif
 
-// #ifdef TERA_INTERPRETER
-//   __ bind(L_done);
-// #endif
+#ifdef TERA_INTERPRETER
+  __ bind(L_done);
+#endif
 
   __ popa();
 }

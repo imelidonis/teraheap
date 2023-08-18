@@ -246,8 +246,8 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   if(EnableTeraHeap){
     
     // h2(update card table status) -> h1/h2(newly evacuated)
-    if( Universe::is_field_in_h2((void*) p) ){      
-      th_ref_update( p, obj, region_attr );  
+    if( Universe::is_field_in_h2((void*) p) ){
+      th_ref_update( p, obj, region_attr ); 
       return;    // we dont keep h2 incoming ptrs in the rem sets
     }
 
@@ -553,6 +553,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   if (forward_ptr == NULL) {
     Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), obj_ptr, word_sz);
 
+    // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
     
 
     {
@@ -618,11 +619,15 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
 #ifdef TERA_EVAC
 MAYBE_INLINE_EVACUATION
+#include "runtime/mutexLocker.hpp"
+
 oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
                                                     oop const obj,
                                                     markWord const m){
   
   G1CollectedHeap::h2++; //##!! remove
+
+  MutexLocker x(tera_heap_lock); //objs are moved in tera without parallelism
   
   assert(region_attr.is_in_cset(),
          "Unexpected region attr type: %s", region_attr.get_type_str());
@@ -654,7 +659,20 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
 
   if( forward_ptr == NULL ){
     moveObjToH2(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
-    
+
+
+    //##!! remove mine
+    // {
+    //   stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
+    //   << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
+
+    //   PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
+    //   h2_obj->oop_iterate_backwards(&cl); 
+
+    //   stdprint << "\n";
+    // }
+
+
   
     //traverse the 1-st level kids
     //----------------------------------
@@ -778,8 +796,7 @@ void G1ParScanThreadState::th_ref_update(T*p, oop obj, G1HeapRegionAttr region_a
   // assert( (Universe::teraHeap()->is_metadata(obj) && region_attr.is_in_cset())
   //         || !region_attr.is_in_cset()
   //         || _g1h->collector_state()->in_young_only_phase() ,
-  //         "Sanity check");
-
+  //         "Sanity check"); 
   _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !_ct->is_in_young(obj) ); 
 
 }

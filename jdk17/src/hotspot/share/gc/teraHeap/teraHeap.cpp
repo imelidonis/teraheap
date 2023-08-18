@@ -12,6 +12,7 @@
 
 char *TeraHeap::_start_addr = NULL;
 char *TeraHeap::_stop_addr = NULL;
+char *TeraHeap::_top_snapshot = NULL;
 
 Stack<oop *, mtGC> TeraHeap::_tc_stack;
 Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
@@ -877,3 +878,23 @@ TeraTimers* TeraHeap::getTeraTimer() {
   return teraTimer;
 }
 #endif
+
+
+#include "gc/parallel/psCardTable.hpp" 
+
+char * TeraHeap::h2_top_addr_snapshot(void){
+	return _top_snapshot;
+}
+
+
+void TeraHeap::h2_pre_scan(PSCardTable* th_card_table){
+	assert(_top_snapshot == NULL , "top of tera heap snapshot should be zero");
+	_top_snapshot = h2_top_addr();
+
+    CardTable::CardValue* top_card = th_card_table->byte_for( (HeapWord *)_top_snapshot );
+	*top_card = CardTable::dirty_card_val();
+}
+
+void TeraHeap::h2_post_scan(void){
+	_top_snapshot = NULL;
+}

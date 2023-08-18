@@ -114,6 +114,67 @@ class PSCardTable: public CardTable {
 	  return card_is_clean(value);
 #endif
   }
+
+
+    //##!! remove
+  const char* card_flag(const void *p){
+    CardValue* card = byte_for(p);
+    char* result = NEW_RESOURCE_ARRAY( char, 8);
+
+    if( card_is_oldgen(*card) ){
+      int i=0;
+      result[i++] = 'o';
+      result[i++] = 'l';
+      result[i++] = 'd';
+      result[i++] = '\0';
+      return result;
+    }else if( card_is_newgen(*card) ){
+      int i=0;
+      result[i++] = 'y';
+      result[i++] = 'o';
+      result[i++] = 'u';
+      result[i++] = 'n';
+      result[i++] = 'g';
+      result[i++] = '\0';      
+      return result;
+    }else if( card_is_dirty(*card) ){
+      int i=0;
+      result[i++] = 'd';
+      result[i++] = 'i';
+      result[i++] = 'r';
+      result[i++] = 't';
+      result[i++] = 'y';
+      result[i++] = '\0';
+      return result;
+    }else if( card_is_verify(*card) ){
+      int i=0;
+      result[i++] = 'v';
+      result[i++] = 'e';
+      result[i++] = 'r';
+      result[i++] = 'i';
+      result[i++] = 'f';
+      result[i++] = 'y';
+      result[i++] = '\0';
+      return result;
+    }else  if( card_is_clean(*card) ){
+      int i=0;
+      result[i++] = 'c';
+      result[i++] = 'l';
+      result[i++] = 'e';
+      result[i++] = 'a';
+      result[i++] = 'n';
+      result[i++] = '\0';      
+      return result;
+    }else{ 
+      int i=0;
+      result[i++] = 'i';
+      result[i++] = 'd';
+      result[i++] = 'k';
+      result[i++] = '\0';
+      return result;
+    };
+  }
+
 #endif
 
   // Card marking
@@ -122,6 +183,8 @@ class PSCardTable: public CardTable {
 #ifdef TERA_CARDS
     if (EnableTeraHeap && Universe::is_field_in_h2(field)) {
       if (promote_to_oldgen) {
+        // h2->h1 : if h1 is old => promote_to_oldgen=true
+        //          if h1 is young => promote_to_oldgen=false
         Atomic::cmpxchg(byte, (CardValue)clean_card, (CardValue)oldergen_card);
         Atomic::cmpxchg(byte, (CardValue)dirty_card, (CardValue)oldergen_card);
         return;

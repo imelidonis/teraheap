@@ -39,10 +39,6 @@ H2ToH1Closure::H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, ui
 
       // set_ref_discoverer_internal(NULL);
 
-      if(should_mark){
-        fprintf(stdout,"Young + init marking\n");
-      }
-      
 }
 #endif
 

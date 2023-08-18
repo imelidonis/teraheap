@@ -952,14 +952,15 @@ UNSAFE_ENTRY(jboolean, Unsafe_inH2(JNIEnv *env, jobject unsafe, jobject obj)) {
 
   PrintFieldsClosure cl(G1CollectedHeap::heap());
 
-  stdprint <<  "Java Iterate  " << o->klass()->signature_name() << "  (" << (HeapWord*)o << ")   "
+  stdprint <<  "Java Iterate  " << o->klass()->signature_name() 
+  << "  (" << (HeapWord*)o << ")   "
   << "h2:" << Universe::is_in_h2(o);  
   if(!Universe::is_in_h2(o)) 
     stdprint << "   idx:"<<  G1CollectedHeap::heap()->heap_region_containing(o)->hrm_index();
   
   stdprint << "   marked:" << o->is_marked_move_h2();
   stdprint << "\n";
-  // o->oop_iterate_backwards(&cl); 
+  o->oop_iterate_backwards(&cl); 
 
   
 

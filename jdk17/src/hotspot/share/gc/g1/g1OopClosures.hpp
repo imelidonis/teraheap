@@ -366,4 +366,15 @@ public:
 
 };
 
+class PrintFieldsClosure_inline : public BasicOopIterateClosure {
+  G1CollectedHeap* _g1h;
+public:
+  PrintFieldsClosure_inline(G1CollectedHeap* g1h){ g1h=_g1h; }
+
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(oop* p)          { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
+
+};
+
 #endif // SHARE_GC_G1_G1OOPCLOSURES_HPP

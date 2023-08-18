@@ -359,7 +359,9 @@ void PSCardTable::h2_scavenge_contents_parallel(
                             ) {
                      
   ObjectStartArray* start_array = Universe::teraHeap()->h2_start_array();
-  HeapWord* space_top = (HeapWord *)Universe::teraHeap()->h2_top_addr();
+  HeapWord* space_top = (HeapWord *)Universe::teraHeap()->h2_top_addr_snapshot();
+
+  assert(space_top != NULL , "snapshot of the tera heap top should have been taken");
   
 	int ssize = TeraStripeSize; // Naked constant!  Default work unit = 8M
 	int dirty_card_count = 0;
@@ -396,6 +398,25 @@ void PSCardTable::h2_scavenge_contents_parallel(
 	// The value 512 of ssize corresponds to 8M because the size of 1 card is
 	// 16K.
 	size_t slice_width = ssize * stripe_total;
+
+  //##!! mine
+  for (CardValue* card = start_card; card < end_card; card ++) {
+    stdprint << "Card " << addr_for(card) << " ";
+    stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
+    if( card_is_oldgen(*card) )
+          stdprint << "old\n";
+        else if( card_is_newgen(*card) )
+          stdprint << "young\n";
+        else if( card_is_dirty(*card) )
+          stdprint << "dirty\n";
+        else if( card_is_verify(*card) )
+          stdprint << "verify\n";
+        else  if( card_is_clean(*card) )
+          stdprint << "clean\n";
+        else stdprint << "idk\n";
+  }
+
+
 
   // scan until the top of the tera heap is met
 	for (CardValue* slice = start_card; slice < end_card; slice += slice_width) {
@@ -561,6 +582,11 @@ void PSCardTable::h2_scavenge_contents_parallel(
           //   fprintf(stdout, "clean ");
           // else fprintf(stdout, "idk ");
 
+          if( first_unclean_card == end_card - 1 ){ 
+            first_unclean_card++;
+            continue;
+          }
+
 					*first_unclean_card++ = clean_card;
 				}
 
@@ -581,8 +607,8 @@ void PSCardTable::h2_scavenge_contents_parallel(
         
           //##!!
           if(!m->klass()->is_typeArray_klass()){ //if its typeArray then it doesnt have refs in it. No need to scan it
-            // fprintf(stdout, "ITERATE AN OBJ IN H2  ");
-            // stdprint << m->klass()->signature_name() << "  " << (HeapWord*)m << "\n";
+            stdprint << "ITERATE AN OBJ IN H2  : ";
+            stdprint << m->klass()->signature_name() << "  " << (HeapWord*)m << "\n";
             m->oop_iterate_backwards(cl);
 
             // fprintf(stdout, "DONE ITERATING\n\n");  

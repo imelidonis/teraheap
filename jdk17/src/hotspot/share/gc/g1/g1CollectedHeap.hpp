@@ -194,6 +194,7 @@ public:
   static long int h1,h2;
   static bool lala;
   static long count;
+  static int debug;
   // static char state[5];
 
 private:

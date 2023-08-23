@@ -226,7 +226,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
     if( EnableTeraHeap  
         && _g1h->collector_state()->in_mixed_phase() 
         && obj->is_marked_move_h2()
-      ){         
+      ){    
         obj = copy_to_h2_space(region_attr, obj, m);        
     }else{
         obj = do_copy_to_survivor_space(region_attr, obj, m);
@@ -628,7 +628,12 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   G1CollectedHeap::h2++; //##!! remove
 
   MutexLocker x(tera_heap_lock); //objs are moved in tera without parallelism
-  
+
+  //Two diff refs may point to the same obj that is going to be evacuated in h2.
+  //If both refs are popped and they are now executing copy_to_h2_space() for the same obj
+  //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
+  if (obj->is_forwarded()) return obj->forwardee(); 
+
   assert(region_attr.is_in_cset(),
          "Unexpected region attr type: %s", region_attr.get_type_str());
 
@@ -641,6 +646,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   //##!! TODO
   //This allocation should be in parallel. Like copy_to_survivor_space does
   HeapWord* h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
+
 
   // stdprint << "  addr in H2 to be moved : " << h2_obj_addr << "\n";
   
@@ -657,20 +663,23 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   //Thus it return that new location of h2, which is not h2_obj_addr 
   const oop forward_ptr = obj->forward_to_atomic( h2_obj, m , memory_order_relaxed);
 
+  
+
+  
   if( forward_ptr == NULL ){
     moveObjToH2(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
 
 
     //##!! remove mine
-    // {
-    //   stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
-    //   << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
+    {
+      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
+      // << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
 
-    //   PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
-    //   h2_obj->oop_iterate_backwards(&cl); 
+      // PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
+      // h2_obj->oop_iterate_backwards(&cl); 
 
-    //   stdprint << "\n";
-    // }
+      // stdprint << "\n";
+    }
 
 
   
@@ -707,7 +716,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   }else{
     //##!! TODO
     //undo allocation of h2_obj_addr (free the object, afou den to xrisimopiisame)
-    
+    assert(false, "Should never reach here");
     //forward_ptr holds another h2 location, that some other thread has allocated
     return forward_ptr;
   }    

@@ -508,7 +508,7 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
       if( EnableTeraHeap  
           && _g1h->collector_state()->in_mixed_phase() 
           && obj->is_marked_move_h2()
-        ){         
+        ){   
           forwardee = _par_scan_state->copy_to_h2_space(state, obj, m);            
       }else{
 

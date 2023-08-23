@@ -400,22 +400,23 @@ void PSCardTable::h2_scavenge_contents_parallel(
 	size_t slice_width = ssize * stripe_total;
 
   //##!! mine
-  for (CardValue* card = start_card; card < end_card; card ++) {
-    stdprint << "Card " << addr_for(card) << " ";
-    stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
-    if( card_is_oldgen(*card) )
-          stdprint << "old\n";
-        else if( card_is_newgen(*card) )
-          stdprint << "young\n";
-        else if( card_is_dirty(*card) )
-          stdprint << "dirty\n";
-        else if( card_is_verify(*card) )
-          stdprint << "verify\n";
-        else  if( card_is_clean(*card) )
-          stdprint << "clean\n";
-        else stdprint << "idk\n";
+  if( stripe_number == 0){
+    for (CardValue* card = start_card; card < end_card; card ++) {
+      stdprint << "Card " << addr_for(card) << " ";
+      stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
+      if( card_is_oldgen(*card) )
+            stdprint << "old\n";
+          else if( card_is_newgen(*card) )
+            stdprint << "young\n";
+          else if( card_is_dirty(*card) )
+            stdprint << "dirty\n";
+          else if( card_is_verify(*card) )
+            stdprint << "verify\n";
+          else  if( card_is_clean(*card) )
+            stdprint << "clean\n";
+          else stdprint << "idk\n";
+    }
   }
-
 
 
   // scan until the top of the tera heap is met
@@ -603,16 +604,17 @@ void PSCardTable::h2_scavenge_contents_parallel(
           // stdprint << "Scan obj for back refs\n";
 
 					assert(oopDesc::is_oop_or_null(m), "check for header");
-
+          
+          // stdprint << "ITERATE AN OBJ IN H2  : " << (HeapWord*)m << " " ;
+          // stdprint << m->klass()->signature_name() << " size=" << m->size()  << "  thread=" <<  stripe_number << "\n";
         
           //##!!
           if(!m->klass()->is_typeArray_klass()){ //if its typeArray then it doesnt have refs in it. No need to scan it
-            stdprint << "ITERATE AN OBJ IN H2  : ";
-            stdprint << m->klass()->signature_name() << "  " << (HeapWord*)m << "\n";
+           
             m->oop_iterate_backwards(cl);
 
             // fprintf(stdout, "DONE ITERATING\n\n");  
-            cl->th_trim_queue_partially();
+            // cl->th_trim_queue_partially();
            
           }
 
@@ -643,9 +645,7 @@ void PSCardTable::h2_scavenge_contents_parallel(
       //##!!
       fprintf(stdout,"\n" );
 		}
-	}
-
-  
+	} 
   
 }
 #endif

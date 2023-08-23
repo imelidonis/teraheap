@@ -647,7 +647,12 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 		++obj_distr_size[count];
 	}
 
-  pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id());
+	// char* prev_top = h2_top_addr();
+	
+  	
+	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id());
+
+	// assert( (HeapWord*)h2_top_addr() == (HeapWord*)(prev_top + (size*8)) , "Top is not correct" );
 
 	_start_array.th_allocate_block((HeapWord *)pos);
 
@@ -886,15 +891,45 @@ char * TeraHeap::h2_top_addr_snapshot(void){
 	return _top_snapshot;
 }
 
+#include "gc/g1/g1CollectedHeap.inline.hpp"
+
 
 void TeraHeap::h2_pre_scan(PSCardTable* th_card_table){
 	assert(_top_snapshot == NULL , "top of tera heap snapshot should be zero");
 	_top_snapshot = h2_top_addr();
 
-    CardTable::CardValue* top_card = th_card_table->byte_for( (HeapWord *)_top_snapshot );
-	*top_card = CardTable::dirty_card_val();
+
+	CardTable::CardValue* top_card = th_card_table->byte_for( (HeapWord *)_top_snapshot );
+	
+	// if( !th_card_table->th_card_is_clean(*top_card, scan_old) )
+	// 	*top_card = CardTable::dirty_card_val();	
 }
 
 void TeraHeap::h2_post_scan(void){
+
+	// if( h2_is_empty() ) return;
+
+  stdprint << "AFTER:\n";
+
+  CardTable::CardValue* start_card = G1CollectedHeap::heap()->th_card_table()->byte_for(h2_start_addr());
+  CardTable::CardValue* end_card = G1CollectedHeap::heap()->th_card_table()->byte_for(h2_top_addr());
+  
+  for (CardTable::CardValue* card = start_card; card < end_card+1; card ++) {
+	stdprint << "Card " << G1CollectedHeap::heap()->th_card_table()->addr_for(card) << " its ";
+	// stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
+	if( G1CollectedHeap::heap()->th_card_table()->card_is_oldgen(*card) )
+		stdprint << "old\n";
+		else if( G1CollectedHeap::heap()->th_card_table()->card_is_newgen(*card) )
+		stdprint << "young\n";
+		else if( G1CollectedHeap::heap()->th_card_table()->card_is_dirty(*card) )
+		stdprint << "dirty\n";
+		else if( G1CollectedHeap::heap()->th_card_table()->card_is_verify(*card) )
+		stdprint << "verify\n";
+		else  if( G1CollectedHeap::heap()->th_card_table()->card_is_clean(*card) )
+		stdprint << "clean\n";
+		else stdprint << "idk\n";
+    }
+  
+
 	_top_snapshot = NULL;
 }

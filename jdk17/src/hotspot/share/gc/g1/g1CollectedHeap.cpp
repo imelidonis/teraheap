@@ -3689,8 +3689,6 @@ class G1EvacuateRegionsTask : public G1EvacuateRegionsBaseTask {
 
   void scan_roots(G1ParScanThreadState* pss, uint worker_id) {
 
-    G1CollectedHeap::count++; //!!## remove
-
 #ifdef TERA_CARDS
     // we firstly search the h2 card table
     // bcs we want to scan the heap before we transfer data in it
@@ -3751,6 +3749,9 @@ void G1CollectedHeap::evacuate_initial_collection_set(G1ParScanThreadStateSet* p
                                       &root_processor,
                                       num_workers,
                                       has_optional_evacuation_work);
+
+    G1CollectedHeap::count++; //!!## remove
+    stdprint << "GC count " << G1CollectedHeap::count << "\n";
 
 #ifdef TERA_CARDS 
     if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )   

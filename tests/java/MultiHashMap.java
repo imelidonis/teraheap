@@ -34,13 +34,7 @@ public class MultiHashMap {
 		}
 	}
 
-	public static void gc()
-	{
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
+
 
 	public static void main(String[] args) {
 		int num_elements = 100000;
@@ -60,15 +54,18 @@ public class MultiHashMap {
 			}
 
 			h_map.put(str, array);
+			
 		}
 
-		gc();
+
+		GC.move_to_old();
+		GC.gc();
 
 		h_map.entrySet().forEach(entry -> {
 			num += entry.getKey().hashCode();
 			ArrayList<Integer> arr = entry.getValue();
 
-			gc();
+			GC.gc();
 			for (int i = 0; i < 5000; i++)
 			{
 				num += arr.get(i).hashCode();

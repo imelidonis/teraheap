@@ -29,8 +29,9 @@ public class Test_WeakHashMap {
         Map map = new HashMap();  
         map.put(a, "aaa");  
         map.put(b, "bbb");  
-  
-        System.gc();  
+
+        GC.move_to_old();  
+        GC.gc();  
           
         weakmap.put(a, "aaa");  
         weakmap.put(b, "bbb");  
@@ -40,7 +41,9 @@ public class Test_WeakHashMap {
         a=null;  
         b=null;  
           
-        System.gc();  
+        GC.move_to_old();
+        GC.gc();  
+
         Iterator i = map.entrySet().iterator();  
         while (i.hasNext()) {  
             Map.Entry en = (Map.Entry)i.next();  
@@ -52,6 +55,8 @@ public class Test_WeakHashMap {
             Map.Entry en = (Map.Entry)j.next();  
             System.out.println("weakmap:"+en.getKey()+":"+en.getValue());  
               
-        }  
+        } 
+
+        GC.move_to_old(); 
     }  
 }       

@@ -32,12 +32,6 @@ public class MultiList {
 		}
 	}
 
-	public static void gc() {
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
 	
 	public static void calcHashCodeInteger(LinkedList<Integer> list, int num_elements) {
 		long sum = 0;
@@ -73,13 +67,16 @@ public class MultiList {
 		for (int i = 0; i < num_elements; i++)
 			list.add(i);
 
-		gc();
+		GC.move_to_old();
+		GC.gc();
 
         System.out.println("First Element = " + list.getFirst());
         System.out.println("Last Element = " + list.getLast());
         
         for (int i = 0; i < num_elements; i++)
 			list2.add(new String("Hello TeraHeap " + i));
+
+		GC.move_to_old();
 
 		calcHashCodeString(list2, num_elements);
 		calcHashCodeInteger(list, num_elements);
@@ -89,13 +86,14 @@ public class MultiList {
 
 		list2 = null;
 
-		gc();
+		GC.gc();
 
         
 		for (int i = 0; i < num_elements; i++)
 			list3.add(i);
-		
-		gc();
+			
+		GC.move_to_old();
+		GC.gc();
 		
 		System.out.println("First Element = " + list3.getFirst());
         System.out.println("Last Element = " + list3.getLast());
@@ -103,7 +101,7 @@ public class MultiList {
 		calcHashCodeInteger(list, num_elements);
 		calcHashCodeInteger(list3, num_elements);
 
-		gc();
+		GC.gc();
 
 		mem_info("Memory After");
     }

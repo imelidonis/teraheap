@@ -30,12 +30,6 @@ public class Rehashing {
 		}
 	}
 
-	public static void gc() {
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
 
 	public static void main(String[] args) {
 		int num_elements = 1000000;
@@ -51,34 +45,38 @@ public class Rehashing {
 		people.put("Steve", 30);
 		people.put("Angie", 33);
 
-		gc();
+		GC.move_to_old();
+		GC.gc();
 
 		sum = 0;
 		for (String i : people.keySet())
 			sum += people.get(i);
 
-		gc();
+		GC.gc();
 
 		for (int i = 0; i < num_elements/2; i++)
 			people.put("Rafail " + i, 100);
 
-		gc();
+		GC.move_to_old();
+		GC.gc();
 
 		for (int i = 0; i < num_elements/2; i++) {
 			people.put("Pavlos " + i, 100);
 		}
 
-		gc();
+		GC.move_to_old();
+		GC.gc();
 
 		for (String i : people.keySet())
 			sum += people.get(i);
 
-		gc();
+		GC.move_to_old();
+		GC.gc();
 
 		for (int i = 0; i < num_elements/2; i++)
 			people.put("Iacovos " + i , 100);
 
-		gc();
+		GC.gc();
 
 		sum = 0;
 		for (String i : people.keySet())

@@ -12,7 +12,7 @@ import java.util.ArrayList;
 
 import java.lang.reflect.Field;
 
-public class Array_List {
+public class Array_mine {
 	private static final sun.misc.Unsafe _UNSAFE;
 
 	static {
@@ -47,8 +47,7 @@ public class Array_List {
 
 	public static void main (String[] args)
 	{
-		int num_elements =10000000;
-		// int num_elements = Integer.parseInt(args[0]);
+		int num_elements = Integer.parseInt(args[0]);
 
 		long sum = 0;
 
@@ -65,16 +64,25 @@ public class Array_List {
 
 		GC.gc();
 		calcHashCode(arl, num_elements);
-
-        GC.gc();
-		calcHashCode(arl, num_elements);
-
-		GC.gc();
-		calcHashCode(arl, num_elements);
-
-		GC.gc();
 		
 		for (int i = 0; i < num_elements; i++)
+			arl.add(new String("Hello World its me giannos " + i));
+
+		GC.move_to_old(); //here trim error 
+		
+		GC.gc();
+		calcHashCode(arl, num_elements);
+
+        for (int i = 0; i < num_elements; i++)
+			arl.add(new String("Hello World its me giannos " + i));
+
+		GC.move_to_old(); //here trim error 
+		
+		GC.gc();
+		calcHashCode(arl, num_elements);
+
+
+        for (int i = 0; i < num_elements; i++)
 			arl.add(new String("Hello World its me giannos " + i));
 
 		GC.move_to_old(); //here trim error 

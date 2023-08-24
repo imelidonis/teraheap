@@ -31,14 +31,6 @@ public class Array {
 		}
 	}
 
-	public static void gc()
-	{
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
-
 	public static void main(String args[]) throws Exception {
 	  int num_elements = 2000000;
 	  long sum;
@@ -49,17 +41,19 @@ public class Array {
 	  int[] array2 = new int[2000000];
 	  _UNSAFE.h2TagAndMoveRoot(array2, 1, 0);
 
-	  gc();
+	  GC.move_to_old();
+
+	  GC.gc();
 
 	  for (int i = 0; i < num_elements; i++)
 	      array1[i] = i*2;
 	  
-	  gc();
+	  GC.gc();
 	  
 	  for (int i = 0; i < num_elements; i++)
 	      array1[i] = i;
 	  
-	  gc();
+	  GC.gc();
 	  
 	  sum = 0;
 	  for (int i = 0; i < num_elements; i++)
@@ -68,12 +62,12 @@ public class Array {
 	  for (int i = 0; i < num_elements; i++)
 	      array2[i] = i*4;
 	  
-	  gc();
+	  GC.gc();
 	  
 	  for (int i = 0; i < num_elements; i++)
 	      array2[i] = 333;
 	  
-	  gc();
+	  GC.gc();
 	  
 	  sum = 0;
 	  for (int i = 0; i < num_elements; i++)

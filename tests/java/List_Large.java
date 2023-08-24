@@ -31,14 +31,6 @@ public class List_Large {
 			System.out.println(memoryPoolMXBean.getUsage().getUsed());
 		}
 	}
-
-	public static void gc()
-	{
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
 	
 	public static void calcHashCode(LinkedList<Integer> list, int num_elements) {
 		long sum = 0;
@@ -52,6 +44,8 @@ public class List_Large {
 	public static void main(String[] args) {
 		int num_elements = 100000;
 
+		// int num_elements = Integer.parseInt(args[0]);		
+
 		mem_info("Memory Before");
 
 		LinkedList<Integer> list1 = new LinkedList<Integer>(); 
@@ -63,29 +57,34 @@ public class List_Large {
 		for (int i = 0; i < num_elements; i++)
 			list1.add(i);
 
+		GC.move_to_old();
 		mem_info("Memory After");
-		gc();
+		GC.gc();
 
 		calcHashCode(list1, num_elements);
 
 		System.out.println("First Element = " + list1.getFirst());
 		System.out.println("Last Element = " + list1.getLast());
 		
-		gc();
+		GC.gc();
 
 		list1 = null;
 
 		mem_info("Memory After");
-		gc();
+		GC.gc();
 		
 		for (int i = 0; i < num_elements; i++)
 			list2.add(i);
 
+		GC.move_to_old();
+
 		calcHashCode(list2, num_elements);
-		gc();
+		GC.gc();
 		
 		calcHashCode(list2, num_elements);
-		gc();
+		GC.gc();
+
+		calcHashCode(list2, num_elements);
 
 		mem_info("Memory After");
 	}

@@ -56,13 +56,7 @@ class Test_Reflection
 		}
 	}
 
-	public static void gc()
-	{
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
+
 
 	public static void main(String args[]) throws Exception 
 	{ 
@@ -98,7 +92,8 @@ class Test_Reflection
 		// invokes the method at runtime 
 		methodcall1.invoke(obj, 19); 
 		
-		gc();
+		GC.move_to_old();
+		GC.gc();
 
 		// creates object of the desired field by providing 
 		// the name of field as argument to the 
@@ -109,14 +104,15 @@ class Test_Reflection
 		// of the access specifier used with the field 
 		field.setAccessible(true); 
 		
-		gc();
+		GC.gc();
 
 		// takes object and the new value to be assigned 
 		// to the field as arguments 
 
 		field.set(obj, "JAVA"); 
 		
-		gc();
+		GC.move_to_old();
+		GC.gc();
 
 		// Creates object of desired method by providing the 
 		// method name as argument to the getDeclaredMethod 
@@ -127,13 +123,14 @@ class Test_Reflection
 		
 		field.set(obj, "Jack Kolokasis 1991"); 
 
-		gc();
-		gc();
+		GC.move_to_old();
+		GC.gc();
+		GC.gc();
 
 		// invokes the method at runtime 
 		methodcall2.invoke(obj); 
 
-		gc();
+		GC.gc();
 		
 		mem_info("Memory End");
 	} 

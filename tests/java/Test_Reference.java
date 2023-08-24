@@ -33,12 +33,6 @@ public class Test_Reference {
 
     }
 	
-	public static void gc() {
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
 
     public static void main(String[] args) {
 		Bean bean = new Bean("songli", 67);
@@ -50,7 +44,9 @@ public class Test_Reference {
 			referent[i] = new Bean("mybean:" + i, 100);// Throw Exception 
 
 		System.out.println(referent[1000].toString());
-		System.gc();
+
+		GC.move_to_old();
+		GC.gc();
 
 		Reference<Bean>[] soft_referent = new SoftReference[20000]; 
 		for (int i=0; i < soft_referent.length; i++)
@@ -59,6 +55,7 @@ public class Test_Reference {
 		WeakReference<Bean>[] weakReference = new WeakReference[2000];
 		_UNSAFE.h2TagAndMoveRoot(weakReference, 0, 0);
 
-		System.gc();
+		GC.move_to_old();
+		GC.gc();
 	}
 }

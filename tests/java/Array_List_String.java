@@ -9,10 +9,10 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.LinkedList;
 import java.util.ArrayList;
+
 import java.lang.reflect.Field;
 
-public class Groupping 
-{ 
+public class Array_List_String { 
 	private static final sun.misc.Unsafe _UNSAFE;
 
 	static {
@@ -25,8 +25,9 @@ public class Groupping
 		}
 	}
 
-	public static void mem_info(String str)
-	{
+	
+
+	public static void mem_info(String str) {
 		System.out.println("=========================================");
 		System.out.println(str + "\n");
 		System.out.println("=========================================");
@@ -36,65 +37,78 @@ public class Groupping
 		}
 	}
 
-	public static void gc()
-	{
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		GC.gc();
-		System.out.println("=========================================");
-	}
-	
-	public static void calcHashCode(LinkedList<String> list, int num_elements) {
+	public static void calcHashCode(ArrayList<Integer> arl, int num_elements) {
 		long sum = 0;
 
 		for (int i = 0; i < num_elements; i++)
-			sum += list.get(i).hashCode();
+			sum += arl.get(i).hashCode();
 
 		System.out.println("Hashcode Element = " + sum);
 	}
 
 	public static void main (String[] args) 
 	{		 
-		int num_elements = 20000;
-		int num_elements_2 = 10000000;
+		// int num_elements =10000000;
+		// int num_elements =1 000 000;
+		int num_elements = Integer.parseInt(args[0]);		
+
+
+		long sum = 0;
 
 		mem_info("Memory Before");
 
-		LinkedList<Integer> list = new LinkedList<Integer>();
-		_UNSAFE.h2TagAndMoveRoot(list, 0, 0);
+		ArrayList<String> arl = new ArrayList<String>();
+		_UNSAFE.h2TagAndMoveRoot(arl, 0, 0);
 
+		
+		for (int i = 0; i < num_elements/2; i++){
+			arl.add("Bangalore" + i);
+		}		
 		GC.move_to_old();
-        
-		long x = 0;
-		// Traverse all the data of the list
-		for (int i = 0; i < num_elements; i++)
-			list.add(new Integer(i));
-
-		GC.move_to_old();
-        GC.gc();
-
-        for (int i = 0; i < num_elements; i++)
-            list.remove();
-
-        GC.gc();
-		LinkedList<String> list2 = new LinkedList<String>();
-		_UNSAFE.h2TagAndMoveRoot(list2, 1, 0);
-        
-        for (int i = 0; i < num_elements_2; i++)
-            list2.add(new String("Hello World " + i));
-
-		GC.move_to_old();
-
-        GC.gc();
-		calcHashCode(list2, num_elements);
-
 		GC.gc();
-		calcHashCode(list2, num_elements);
 
+
+		
+		for (int i = 0; i < num_elements/2; i++){
+			arl.add("Ammochostos " + i);
+		}		
+		GC.move_to_old();
 		GC.gc();
-		calcHashCode(list2, num_elements);
+		GC.gc();
 
-		mem_info("Memory After");
+
+
+		for (int i = num_elements/2; i < num_elements; i++){
+			arl.add("Apostolos Andreas" + i);
+		}
+		GC.move_to_old();
+		GC.gc(); 
+
+
+
+		for (int i = num_elements/2; i < num_elements; i++){
+			arl.add("Moires" + i); 
+		}
+		GC.gc();
+
+
+
+
+		for (int i = num_elements/2; i < num_elements; i++)
+			arl.add("Paphos" + i);		
+		GC.move_to_old();
+		GC.gc();
+		GC.gc();
+
+
+		for (int i = num_elements/2; i < num_elements; i++){
+			arl.add("Karpasia" + i);
+		}
+		arl.add("Mia milia");
+
+		// GC.move_to_old();
+		GC.gc(); // something fucked ? yes here
+
+		System.out.println(arl);
 	} 
-} 
-
+}

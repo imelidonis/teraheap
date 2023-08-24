@@ -1,14 +1,25 @@
 #!/usr/bin/env bash
 
 PARALLEL_GC_THREADS=16
-STRIPE_SIZE=32768
+STRIPE_SIZE=2048 # h2 region size / h2 card size (see sharedDefines.h in allocatpr and hotspot)
+				  # REGION_SIZE (16M) / TERA_CARD_SIZE (8K)
 
-JAVA="$(pwd)/../jdk8u345/build/linux-x86_64-normal-server-release/jdk/bin/java"
+# JAVA="$(pwd)/../jdk17/build/linux-x86_64-server-slowdebug/jdk/bin/java"
+JAVA="$(pwd)/../jdk17/build/plus-linux/jdk/bin/java"
+# JAVA="$(pwd)/../jdk17/build/sith5/jdk/bin/java"
+# JAVA="java"
 
-EXEC=("Array" "Array_List" "Array_List_Int" "List_Large" "MultiList" \
-	"Simple_Lambda" "Extend_Lambda" "Test_Reflection" "Test_Reference" \
-	"HashMap" "Rehashing" "Clone" "Groupping" "MultiHashMap" \
-	"Test_WeakHashMap" "ClassInstance")
+
+# FLAGS="-Xbootclasspath/a:/home1/public/mariach/benches/mine/H2/wbextra.jar -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:G1HeapRegionSize=1m -XX:InitiatingHeapOccupancyPercent=100 -XX:-G1UseAdaptiveIHOP -XX:G1MixedGCCountTarget=4 -XX:G1HeapWastePercent=0 -XX:G1MixedGCLiveThresholdPercent=100 -XX:MaxGCPauseMillis=30000"
+FLAGS="-XX:+EnableTeraHeap  -XX:TeraHeapSize=4294967296 -XX:TeraStripeSize=32768 -Xbootclasspath/a:/home1/public/mariach/benches/mine/H2/wbextra.jar -XX:+UnlockExperimentalVMOptions -XX:-UseCompressedClassPointers -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:G1HeapRegionSize=1m -XX:InitiatingHeapOccupancyPercent=100 -XX:-G1UseAdaptiveIHOP -XX:G1MixedGCCountTarget=4 -XX:G1HeapWastePercent=0 -XX:G1MixedGCLiveThresholdPercent=100 -XX:MaxGCPauseMillis=30000"
+
+
+# EXEC=("Array" "Array_List" "Array_List_Int" "List_Large" "MultiList" \
+# 	"Simple_Lambda" "Extend_Lambda" "Test_Reflection" "Test_Reference" \
+# 	"HashMap" "Rehashing" "Clone" "Groupping" "MultiHashMap" \
+# 	"Test_WeakHashMap" "ClassInstance")
+
+EXEC=("HashMap")
 
 # Export Enviroment Variables
 export_env_vars() {
@@ -22,23 +33,39 @@ export_env_vars() {
 }
 
 # Run tests using only interpreter mode
+# function interpreter_mode() {
+# 	${JAVA} \
+# 		-XX:+UnlockDiagnosticVMOptions -XX:+PrintAssembly -XX:+PrintInterpreter -XX:+PrintNMethods \
+# 		-Djava.compiler=NONE \
+# 		-XX:+ShowMessageBoxOnError \
+# 		-XX:+UseG1GC \
+# 		-XX:ParallelGCThreads=${PARALLEL_GC_THREADS} \
+# 		-XX:-UseCompiler \
+# 		-XX:+EnableTeraHeap \
+# 		-XX:TeraHeapSize=${TERACACHE_SIZE} \
+# 		-Xmx${MAX}g \
+# 		-Xms${XMS}g \
+# 		-XX:-UseCompressedOops \
+# 		-XX:+TeraHeapStatistics \
+# 		-XX:TeraStripeSize=${STRIPE_SIZE} \
+# 		-Xlogth:llarge_teraCache.txt $1 > err 2>&1 > out
+# }
+
+PAR=1
 function interpreter_mode() {
-	${JAVA} \
-		-XX:+UnlockDiagnosticVMOptions -XX:+PrintAssembly -XX:+PrintInterpreter -XX:+PrintNMethods \
+	${JAVA} ${FLAGS} \
 		-Djava.compiler=NONE \
-		-XX:+ShowMessageBoxOnError \
-		-XX:+UseParallelGC \
-		-XX:ParallelGCThreads=${PARALLEL_GC_THREADS} \
-		-XX:-UseParallelOldGC \
+		-XX:+UseG1GC \
+		-XX:ParallelGCThreads=${PAR} \
+		-XX:InitialTenuringThreshold=5 \
+		-XX:MaxTenuringThreshold=7 \
 		-XX:-UseCompiler \
-		-XX:+EnableTeraHeap \
-		-XX:TeraHeapSize=${TERACACHE_SIZE} \
 		-Xmx${MAX}g \
 		-Xms${XMS}g \
 		-XX:-UseCompressedOops \
-		-XX:+TeraHeapStatistics \
-		-XX:TeraStripeSize=${STRIPE_SIZE} \
-		-Xlogth:llarge_teraCache.txt $1 > err 2>&1 > out
+		-XX:ErrorFile=out/$1_hs_err_th${PAR}.log \
+		-cp ./bin $1 > out/$1_out_th${PAR} 2>&1
+		# 100000
 }
 
 # Run tests using only C1 compiler
@@ -49,9 +76,8 @@ function c1_mode() {
 		-XX:+PrintNMethods -XX:+PrintCompilation \
 		-XX:+ShowMessageBoxOnError -XX:+LogCompilation \
 		-XX:TieredStopAtLevel=3\
-		-XX:+UseParallelGC \
+		-XX:+UseG1GC \
 		-XX:ParallelGCThreads=${PARALLEL_GC_THREADS} \
-		-XX:-UseParallelOldGC \
 		-XX:+EnableTeraHeap \
 		-XX:TeraHeapSize=${TERACACHE_SIZE} \
 		-Xmx${MAX}g \
@@ -68,9 +94,8 @@ function c2_mode() {
 		-XX:+UnlockDiagnosticVMOptions -XX:+PrintAssembly \
 		-XX:+PrintNMethods -XX:+PrintCompilation \
 		-XX:+ShowMessageBoxOnError -XX:+LogCompilation \
-		-XX:+UseParallelGC \
+		-XX:+UseG1GC \
 		-XX:ParallelGCThreads=${PARALLEL_GC_THREADS} \
-		-XX:-UseParallelOldGC \
 		-XX:+EnableTeraCache \
 		-XX:TeraCacheSize=${TERACACHE_SIZE} \
 		-Xmx${MAX}g \
@@ -86,9 +111,8 @@ function run_tests() {
 	${JAVA} \
 		-server \
 		-XX:+ShowMessageBoxOnError \
-		-XX:+UseParallelGC \
+		-XX:+UseG1GC \
 		-XX:ParallelGCThreads=${PARALLEL_GC_THREADS} \
-		-XX:-UseParallelOldGC \
 		-XX:+EnableTeraHeap \
 		-XX:TeraHeapSize=${TERACACHE_SIZE} \
 		-Xmx${MAX}g \
@@ -104,9 +128,8 @@ function run_tests_debug() {
 	gdb --args ${JAVA} \
 		-server \
 		-XX:+ShowMessageBoxOnError \
-		-XX:+UseParallelGC \
+		-XX:+UseG1GC \
 		-XX:ParallelGCThreads=${PARALLEL_GC_THREADS} \
-		-XX:-UseParallelOldGC \
 		-XX:+EnableTeraHeap \
 		-XX:TeraHeapSize=${TERACACHE_SIZE} \
 		-Xmx${MAX}g \
@@ -140,23 +163,23 @@ do
 	TERACACHE_SIZE=$(echo $(( (${MAX}-${XMS})*1024*1024*1024 )))
 	case $1 in
 		1)
-			export_env_vars
+			# export_env_vars
 			interpreter_mode "$exec_file"
 			;;
 		2)
-			export_env_vars
+			# export_env_vars
 			c1_mode $exec_file
 			;;
 		3)
-			export_env_vars
+			# export_env_vars
 			c2_mode $exec_file
 			;;
 		4)
-			export_env_vars
+			# export_env_vars
 			run_tests_debug $exec_file
 			;;
 		*)
-			export_env_vars
+			# export_env_vars
 			run_tests "$exec_file"
 			;;
 	esac

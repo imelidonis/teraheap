@@ -48,14 +48,6 @@ class Simple_Lambda
 		}
 	}
 
-	public static void gc()
-	{
-		System.out.println("=========================================");
-		System.out.println("Call GC");
-		System.gc();
-		System.out.println("=========================================");
-	}
-
 	public static void main(String args[]) 
 	{ 
 		// lambda expression to implement above 
@@ -65,7 +57,9 @@ class Simple_Lambda
 		_UNSAFE.h2TagAndMoveRoot(fobj, 0, 0);
 		
 		mem_info("Memory Before");
-		gc();
+
+		GC.move_to_old();
+		GC.gc();
 
 		// This calls above lambda expression and prints 10. 
 		fobj.abstractFun(5); 
@@ -73,11 +67,12 @@ class Simple_Lambda
 		
 		mem_info("Memory After");
 		
-		gc();
+		GC.move_to_old();
+		GC.gc();
 		
 		fobj.abstractFun(20000); 
 
-		gc();
+		GC.gc();
 
 		mem_info("Memory After");
 	} 

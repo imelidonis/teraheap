@@ -117,6 +117,8 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   
   oop obj = CompressedOops::decode_not_null(heap_oop);
 
+  // stdprint <<  obj->klass()->signature_name() << " h2:" << Universe::is_in_h2(obj) << " (" << (HeapWord*)obj << ")  ,  "; 
+
 
 //##!! If obj is in H2
 //no need to set H2 region live bit : to kanoume mono gia ta roots otan eimste se CM

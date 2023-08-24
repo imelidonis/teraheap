@@ -142,15 +142,29 @@ void G1ParScanThreadState::verify_task(narrowOop* task) const {
   assert(task != NULL, "invariant");
   assert(UseCompressedOops, "sanity");
   oop p = RawAccess<>::oop_load(task);
-  assert(_g1h->is_in_reserved(p),
+
+#ifdef TERA_EVAC
+  assert(_g1h->is_in_reserved(p)
+        ||  ( EnableTeraHeap && Universe::is_in_h2(p)) ,
          "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));
+#else
+  assert(_g1h->is_in_reserved(p),
+         "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));    
+#endif     
 }
 
 void G1ParScanThreadState::verify_task(oop* task) const {
   assert(task != NULL, "invariant");
   oop p = RawAccess<>::oop_load(task);
+
+#ifdef TERA_EVAC
+  assert(_g1h->is_in_reserved(p)
+        ||  ( EnableTeraHeap && Universe::is_in_h2(p)) ,
+         "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));
+#else
   assert(_g1h->is_in_reserved(p),
          "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));
+#endif
 }
 
 void G1ParScanThreadState::verify_task(PartialArrayScanTask task) const {
@@ -553,7 +567,6 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   if (forward_ptr == NULL) {
     Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), obj_ptr, word_sz);
 
-    // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
     
 
     {
@@ -606,8 +619,25 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       _string_dedup_requests.add(old);
     }
 
+
+    //##!! remove mine
+    {
+      stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
+      // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")  :  "
+      // << obj->klass()->signature_name() << "  :  Childs  :  ";
+
+      // PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
+      // obj->oop_iterate_backwards(&cl); 
+
+      // stdprint << "\n";
+    }
+
     G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
     obj->oop_iterate_backwards(&_scanner, klass);
+
+    //##!! remove mine
+    // stdprint << "\n";
+
     return obj;
 
   } else {
@@ -669,19 +699,6 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   if( forward_ptr == NULL ){
     moveObjToH2(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
 
-
-    //##!! remove mine
-    {
-      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
-      // << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
-
-      // PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
-      // h2_obj->oop_iterate_backwards(&cl); 
-
-      // stdprint << "\n";
-    }
-
-
   
     //traverse the 1-st level kids
     //----------------------------------
@@ -706,8 +723,28 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
       return h2_obj;
     }
 
+
+
+     //##!! remove mine
+    {
+      stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
+      << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
+
+      // PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
+      // h2_obj->oop_iterate_backwards(&cl); 
+
+      // stdprint << "\n";
+    }
+
+
+
     G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
     h2_obj->oop_iterate_backwards(&_scanner, klass);
+
+    //##!! remove mine
+    // stdprint << "\n";
+
+
     return h2_obj;
 
     //----------------------------------

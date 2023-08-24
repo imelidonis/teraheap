@@ -614,7 +614,7 @@ void PSCardTable::h2_scavenge_contents_parallel(
             m->oop_iterate_backwards(cl);
 
             // fprintf(stdout, "DONE ITERATING\n\n");  
-            // cl->th_trim_queue_partially();
+            cl->th_trim_queue_partially();
            
           }
 

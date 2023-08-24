@@ -145,7 +145,7 @@ public:
 
   //its called in single threaded mode before the 
   //h2_scavenge_contents_parallel where we scan the tera heap to find back refs
-  void h2_pre_scan(PSCardTable*);
+  void h2_pre_scan(PSCardTable*,bool);
 
   //its called in single threaded mode after the 
   //h2_scavenge_contents_parallel where we scan the tera heap to find back refs

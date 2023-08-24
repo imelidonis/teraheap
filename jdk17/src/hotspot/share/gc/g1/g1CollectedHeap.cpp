@@ -3755,7 +3755,7 @@ void G1CollectedHeap::evacuate_initial_collection_set(G1ParScanThreadStateSet* p
 
 #ifdef TERA_CARDS 
     if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )   
-      Universe::teraHeap()->h2_pre_scan(_th_card_table);
+      Universe::teraHeap()->h2_pre_scan(_th_card_table, collector_state()->th_should_scan_old_cards());
 #endif
 
     task_time = run_task_timed(&g1_par_task);

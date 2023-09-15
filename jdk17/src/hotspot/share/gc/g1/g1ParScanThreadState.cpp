@@ -194,12 +194,9 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   // Reference should not be NULL here as such are never pushed to the task queue.
   oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
 
-  //##!! assert( obj is not in H2 ) 
 #ifdef TERA_EVAC
-      DEBUG_ONLY( 
-        if(EnableTeraHeap) 
-          assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); 
-      )
+  // In this case somebody else already did all the work (move obj to h2 and adjust its reference ptr)
+  if( EnableTeraHeap && Universe::is_in_h2(obj) ) return; 
 #endif
 
   // Although we never intentionally push references outside of the collection
@@ -606,6 +603,8 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
         assert(klass->is_typeArray_klass(), "invariant");
       }
       
+      // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
+
       return obj;
     }
 
@@ -622,7 +621,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
     //##!! remove mine
     {
-      stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
+      // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
       // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")  :  "
       // << obj->klass()->signature_name() << "  :  Childs  :  ";
 
@@ -654,8 +653,6 @@ MAYBE_INLINE_EVACUATION
 oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
                                                     oop const obj,
                                                     markWord const m){
-  
-  G1CollectedHeap::h2++; //##!! remove
 
   MutexLocker x(tera_heap_lock); //objs are moved in tera without parallelism
 
@@ -663,6 +660,9 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   //If both refs are popped and they are now executing copy_to_h2_space() for the same obj
   //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
   if (obj->is_forwarded()) return obj->forwardee(); 
+
+  G1CollectedHeap::h2++; //##!! remove
+
 
   assert(region_attr.is_in_cset(),
          "Unexpected region attr type: %s", region_attr.get_type_str());
@@ -727,8 +727,10 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
 
      //##!! remove mine
     {
-      stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
-      << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
+      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")\n";
+
+      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
+      // << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
 
       // PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
       // h2_obj->oop_iterate_backwards(&cl); 

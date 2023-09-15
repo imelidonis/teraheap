@@ -66,6 +66,14 @@ public:
     T heap_oop = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
+
+#ifdef TERA_EVAC
+    //##!! if obj in H2
+    if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
+        return;
+    }
+#endif
+     
       if (_g1h->is_obj_dead_cond(obj, _vo)) {
         Log(gc, verify) log;
         log.error("Root location " PTR_FORMAT " points to dead obj " PTR_FORMAT " in region " HR_FORMAT,

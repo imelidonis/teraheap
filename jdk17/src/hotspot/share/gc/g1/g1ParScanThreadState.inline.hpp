@@ -35,6 +35,22 @@
 
 inline void G1ParScanThreadState::push_on_queue(ScannerTask task) {
   verify_task(task);
+
+  DEBUG_ONLY(
+    if( _g1h->collector_state()->in_mixed_phase() ){
+      oop obj;
+      if(task.is_oop_ptr()){
+        obj =  RawAccess<IS_NOT_NULL>::oop_load( task.to_oop_ptr() );
+        assert( !Universe::is_in_h2(obj) , "ERROR: h2 obj pushed on queue. Field " PTR_FORMAT " is pointing to an object in H2 " PTR_FORMAT , p2i(task.to_oop_ptr()),  p2i(obj)); 
+
+      }else if(task.is_partial_array_task()){
+        obj =  task.to_partial_array_task().to_source_array();
+        assert( !Universe::is_in_h2(obj) , "ERROR: h2 obj pushed on queue. Slice of an h2 obj array " PTR_FORMAT , p2i(obj)); 
+
+      }
+    }
+  )
+
   _task_queue->push(task);
 }
 

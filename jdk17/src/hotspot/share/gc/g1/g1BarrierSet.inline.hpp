@@ -49,12 +49,14 @@ inline void G1BarrierSet::write_ref_field_pre(T* field) {
 template <DecoratorSet decorators, typename T>
 inline void G1BarrierSet::write_ref_field_post(T* field, oop new_val) {
 
-#ifdef TERA_CARDS
+#ifdef TERA_INTERPRETER
   volatile CardValue* byte;
   if( EnableTeraHeap ){
     if( Universe::is_field_in_h2( (void*) field) ){
       byte =  _th_card_table->byte_for(field);
       *byte = CardTable::dirty_card_val();
+      //##!! remove
+      // stdprint << "BARRIER : change ref in h2 - Card " << _th_card_table->addr_for((const CardValue*)byte) << " is dirtied\n";
     }else{
     
       //forward pointer (no need to dirty any card)

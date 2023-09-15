@@ -213,7 +213,7 @@ class ObjectStartArray : public CHeapObj<mtGC> {
 
 #ifdef TERA_CARDS
   void th_allocate_block(HeapWord* p) {
-    assert(_covered_region.contains(p), "Must be in covered region");
+    assert(_covered_region.contains(p), "Allocated space must be in H2 but is not " PTR_FORMAT , p2i(p) );
     int* block = th_block_for_addr(p);
     HeapWord* block_base = th_addr_for_block(block);
     size_t offset = pointer_delta(p, block_base, sizeof(HeapWord*));

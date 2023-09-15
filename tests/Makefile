@@ -12,8 +12,8 @@
 ####################################################
 
 JAVA_REPO := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))../../jdk17
-# JAVA_COMP=$(JAVA_REPO)/build/linux-x86_64-server-slowdebug/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar
-JAVA_COMP=$(JAVA_REPO)/build/plus-linux/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar -classpath /home1/public/mariach/TeraHeap/teraheap/tests/java/bin/
+# JAVA_COMP=$(JAVA_REPO)/build/base-linux/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar
+JAVA_COMP=$(JAVA_REPO)/build/base-linux/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar -classpath /home1/public/mariach/TeraHeap/teraheap/tests/java/bin/
 # JAVAC=$(JAVA_REPO)/build/sith5/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar
 # JAVAC=javac
 

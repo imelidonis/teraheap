@@ -909,7 +909,18 @@ double G1Policy::predict_base_elapsed_time_ms(size_t pending_cards) const {
 size_t G1Policy::predict_bytes_to_copy(HeapRegion* hr) const {
   size_t bytes_to_copy;
   if (!hr->is_young()) {
+#ifdef TERA_CONC_MARKING
+   
+    //bytes to copy in H1
+    //the other bytes are reclaimamble bytes = garbage + h2 live bytes
+    if(EnableTeraHeap)
+      bytes_to_copy = hr->max_live_bytes() - hr->h2_marked_bytes();
+    else 
+      bytes_to_copy = hr->max_live_bytes();
+
+#else
     bytes_to_copy = hr->max_live_bytes();
+#endif
   } else {
     bytes_to_copy = (size_t) (hr->used() * hr->surv_rate_prediction(_predictor));
   }
@@ -1305,7 +1316,11 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
 
   double optional_threshold_ms = time_remaining_ms * optional_prediction_fraction();
 
+#ifdef FORCE_OPT
+  const uint min_old_cset_length = 1; //must be one or above, so we will traverse the h2 ct for sure
+#else
   const uint min_old_cset_length = calc_min_old_cset_length(candidates);
+#endif
   const uint max_old_cset_length = MAX2(min_old_cset_length, calc_max_old_cset_length());
   const uint max_optional_regions = max_old_cset_length - min_old_cset_length;
   bool check_time_remaining = use_adaptive_young_list_length();

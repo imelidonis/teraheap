@@ -909,6 +909,7 @@ UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject 
 
   // If the object is already in TeraCache then do not mark its teraflag
   if (Universe::is_in_h2(o)) return;
+  if( Universe::teraHeap()->is_metadata(o) ) return;
 
   // Initialize object's teraflag
   o->mark_move_h2(label, partId);
@@ -923,6 +924,7 @@ UNSAFE_ENTRY(void, Unsafe_h2TagRoot(JNIEnv *env, jobject unsafe, jobject obj, jl
 
   // If the object is already in TeraCache then do not mark its teraflag
   if (Universe::is_in_h2(o)) return;
+  if( Universe::teraHeap()->is_metadata(o) ) return;
 
   // Initialize object's teraflag
   o->mark_move_h2(Universe::teraHeap()->get_non_promote_tag(), partId);

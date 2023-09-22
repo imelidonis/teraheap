@@ -349,14 +349,12 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   }
   oop obj = CompressedOops::decode_not_null(o);
   
-  // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")  :  ";
 
   // h2->h2
   if (Universe::teraHeap()->is_obj_in_h2(obj)) {
     Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
     
-    // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : ";
-    // stdprint << "at H2\n" ;    
+    // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") :  at H2\n" ;    
 
 		return;	
   }
@@ -365,12 +363,23 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   
   if (region_attr.is_in_cset()) {
     // h2->h1 (in cset)
-    // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : ";
-    // stdprint <<  "at H1 IN cset ";
+
+    // {
+    //   const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
+    //   stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : at H1 ";
+     
+    //   if (hr->is_young()) stdprint << "YOUNG (in cset)\n";
+    //   else if (hr->is_old()) stdprint << "OLD (in cset)\n";
+    //   else if (hr->is_humongous()) stdprint << "HUMONGOUS (in cset)\n";
+
+    // }
 
 
+    if( Universe::teraHeap()->is_metadata(obj) ) stdprint<<"\tkid in cset - metadata\n";
     if( should_mark ){
-      // no marking during evacuation, thus no need to mark in cset objs
+      // Here we dont mark the obj as live. Only the objs outside the cset are marked
+      // Objs in cset are evacuated objs that will be scanned again during the CM root region scan, in order to find live old objs.
+      // We enable the tera flag of the young obj in order to follow the transitive closure in the old gen (if any)
       enable_tera_flag( (void*) p, obj);
     }
 
@@ -380,14 +389,23 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
     // stdprint << "\tpushed in queue p:" << (HeapWord*)p << "  obj:" << (HeapWord*)obj << "\n";
 
   }else{
-    // stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : ";
-    // stdprint << "at H1 OUT of cset\n";
 
+    // {
+    //   const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
+    //   stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : at H1 ";
+     
+    //   if (hr->is_young()) stdprint << "YOUNG (out of cset)\n";
+    //   else if (hr->is_old()) stdprint << "OLD (out of cset)\n";
+    //   else if (hr->is_humongous()) stdprint << "HUMONGOUS (out of cset)\n";
+
+    // }
 
     // h2->h1 (out of cset)
     // meaning obj is not in young (bcs its excluded from the cset)
     handle_non_cset_obj_common_tera(region_attr, p, obj);
 	
+    // if( Universe::teraHeap()->is_metadata(obj) ) stdprint<<"\tkid OUT of cset - metadata\n";
+
     if( should_mark ){
       enable_tera_flag( (void*) p, obj);
       mark_object(obj);

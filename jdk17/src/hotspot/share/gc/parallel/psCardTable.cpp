@@ -359,7 +359,9 @@ void PSCardTable::h2_scavenge_contents_parallel(
                             ) {
                      
   ObjectStartArray* start_array = Universe::teraHeap()->h2_start_array();
-  HeapWord* space_top = (HeapWord *)Universe::teraHeap()->h2_top_addr_snapshot();
+  HeapWord* space_top = (HeapWord *)Universe::teraHeap()->h2_top_addr();
+
+  // HeapWord* space_top = (HeapWord *)Universe::teraHeap()->h2_top_addr_snapshot();
 
   assert(space_top != NULL , "snapshot of the tera heap top should have been taken");
   
@@ -400,23 +402,30 @@ void PSCardTable::h2_scavenge_contents_parallel(
 	size_t slice_width = ssize * stripe_total;
 
   //##!! mine
-  if( stripe_number == 0){
-    for (CardValue* card = start_card; card < end_card; card ++) {
-      stdprint << "Card " << addr_for(card) << " ";
-      stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
-      if( card_is_oldgen(*card) )
-            stdprint << "old\n";
-          else if( card_is_newgen(*card) )
-            stdprint << "young\n";
-          else if( card_is_dirty(*card) )
-            stdprint << "dirty\n";
-          else if( card_is_verify(*card) )
-            stdprint << "verify\n";
-          else  if( card_is_clean(*card) )
-            stdprint << "clean\n";
-          else stdprint << "idk\n";
-    }
-  }
+  // stdprint 
+  // << "Last obj moved to H2 (" << (HeapWord*) Universe::teraHeap()->_last_obj 
+  // << ")  in Card :  " << addr_for( byte_for(Universe::teraHeap()->_last_obj) )
+  // << "\n"; 
+
+  // if( stripe_number == 0 ){
+  //   stdprint << "Top is obj " << space_top << " in Card " << addr_for(byte_for(space_top)) << "\n";
+
+  //   for (CardValue* card = start_card; card < end_card; card ++) {
+  //     stdprint << "Card " << addr_for(card) << " ";
+  //     stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
+  //     if( card_is_oldgen(*card) )
+  //           stdprint << "old\n";
+  //         else if( card_is_newgen(*card) )
+  //           stdprint << "young\n";
+  //         else if( card_is_dirty(*card) )
+  //           stdprint << "dirty\n";
+  //         else if( card_is_verify(*card) )
+  //           stdprint << "verify\n";
+  //         else  if( card_is_clean(*card) )
+  //           stdprint << "clean\n";
+  //         else stdprint << "idk\n";
+  //   }
+  // }
 
 
   // scan until the top of the tera heap is met
@@ -431,6 +440,13 @@ void PSCardTable::h2_scavenge_contents_parallel(
 		if (worker_end_card > end_card) {
 			worker_end_card = end_card;
 		}
+
+    // stdprint 
+    // << "start_card: " << addr_for(start_card)
+    // << "  -  end card: " << addr_for(end_card)
+    // << "\nworker_start_card: " << addr_for(worker_start_card)
+    // << "  -  worker_end_card: " << addr_for(worker_end_card)
+    // << "\n";
 	
 		// We do not want to scan objects more than once. In order to accomplish
 		// this, we assert that any object with an object head inside our
@@ -464,11 +480,15 @@ void PSCardTable::h2_scavenge_contents_parallel(
 		assert(worker_start_card <= end_card, "worker start card beyond end card");
 		assert(worker_end_card <= end_card, "worker end card beyond end card");
 
+
+
     // this thread scans from worker_start_card to worker_end_card 
     // those cards are in the threads' stripe
 		CardValue* current_card = worker_start_card;
 		while (current_card < worker_end_card) {
 			
+
+
       //##!!
       // fprintf(stdout, "Skip clean cards:\n ");
       // skip any clean cards (no back refs here)
@@ -484,14 +504,17 @@ void PSCardTable::h2_scavenge_contents_parallel(
         current_card++;
 			}
 
+
+
       //dirty card found
 			CardValue* first_unclean_card = current_card;
-
 			// Find last dirty card in sequence
 			while (current_card < worker_end_card && !th_card_is_clean(*current_card, scan_old)) {
-				while (current_card < worker_end_card && !th_card_is_clean(*current_card, scan_old)) {
+				
+        while (current_card < worker_end_card && !th_card_is_clean(*current_card, scan_old)) {
 					current_card++;
         }
+        
         if (current_card < worker_end_card) {
           // Some objects may be large enough to span several cards. If such
           // an object has more than one dirty card, separated by a clean card,
@@ -522,14 +545,17 @@ void PSCardTable::h2_scavenge_contents_parallel(
 				}
 			}
       
+
+
+
       // This is the next clean card, after a series of dirty cards
 			CardValue* following_clean_card = current_card;
       if (first_unclean_card < worker_end_card && Universe::teraHeap()->check_if_valid_object(addr_for(first_unclean_card))) {
         oop* p = NULL;
         if (Universe::teraHeap()->is_start_of_region(addr_for(first_unclean_card))){
-          p = (oop*) addr_for(first_unclean_card);
+          p = (oop*) addr_for(first_unclean_card); // p= the obj is at the beggining of the card 
         } else {
-          p = (oop*) start_array->th_object_start(addr_for(first_unclean_card));
+          p = (oop*) start_array->th_object_start(addr_for(first_unclean_card)); // p= the obj overlaps over 2 cards. we scroll back from the start of he card, to find he begining of he obj 
         }
         assert((HeapWord*)p <= addr_for(first_unclean_card), "checking");
 
@@ -583,19 +609,21 @@ void PSCardTable::h2_scavenge_contents_parallel(
           //   fprintf(stdout, "clean ");
           // else fprintf(stdout, "idk ");
 
-          if( first_unclean_card == end_card - 1 ){ 
-            first_unclean_card++;
-            continue;
-          }
+          // if( first_unclean_card == end_card - 1 ){ 
+          //   // stdprint << "Card skipped clean (snapshot top) " << addr_for(first_unclean_card) << "\n";
+          //   first_unclean_card++;
+          //   continue;
+          // }
 
 					*first_unclean_card++ = clean_card;
 				}
 
-        //##!!
-        fprintf(stdout,"\n");
+        //##!!        
+        // stdprint << "H2 ITERATION will scan until addr : " << (HeapWord*)to << "\n";
+        // stdprint << "\n";
 
         // p : the first obj in the dirty card sequence
-        // to: the first obj in the clean card (after the dirty card sequence)
+        // to: the following-obj after the top-obj
         // traverse all the objects in between and find all the back ptrs
 				while (p < to) {          
 					oop m = cast_to_oop(p);
@@ -603,18 +631,18 @@ void PSCardTable::h2_scavenge_contents_parallel(
           //##!!
           // stdprint << "Scan obj for back refs\n";
 
+          // stdprint << "ITERATE AN OBJ IN H2  : (" << (HeapWord*)m << ")  size:" << m->size() << "  " << m->klass()->signature_name() << "\n";
+          assert(!Universe::teraHeap()->is_metadata(m), "its metadata");
+
 					assert(oopDesc::is_oop_or_null(m), "check for header");
-          
-          // stdprint << "ITERATE AN OBJ IN H2  : " << (HeapWord*)m << " " ;
-          // stdprint << m->klass()->signature_name() << " size=" << m->size()  << "  thread=" <<  stripe_number << "\n";
-        
+         
           //##!!
           if(!m->klass()->is_typeArray_klass()){ //if its typeArray then it doesnt have refs in it. No need to scan it
            
             m->oop_iterate_backwards(cl);
 
             // fprintf(stdout, "DONE ITERATING\n\n");  
-            cl->th_trim_queue_partially();
+            // cl->th_trim_queue_partially();
            
           }
 
@@ -622,12 +650,14 @@ void PSCardTable::h2_scavenge_contents_parallel(
 
           if (!Universe::teraHeap()->check_if_valid_object((HeapWord *)p + m->size()))
             break;
-
+          
 					p += m->size();
 
 				}
 
 				last_scanned = p;
+        // stdprint << "H2 ITERATION finished. Last scanned obj is (" << (HeapWord*)last_scanned << ")\n";
+
 			}
 			// "current_card" is still the "following_clean_card" or
 			// the current_card is >= the worker_end_card so the
@@ -643,7 +673,7 @@ void PSCardTable::h2_scavenge_contents_parallel(
 			current_card++;
 
       //##!!
-      fprintf(stdout,"\n" );
+      // fprintf(stdout,"\n" );
 		}
 	} 
   

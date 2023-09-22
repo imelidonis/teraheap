@@ -142,8 +142,8 @@ void G1RemSetTrackingPolicy::update_after_rebuild(HeapRegion* r) {
   assert(SafepointSynchronize::is_at_safepoint(), "should be at safepoint");
 //##!! index
   if ( r->h2_marked_bytes() > 0 ) 
-    stdprint << "region " << r->hrm_index() << " is " << r->get_type_str() 
-    << "\nrem set is " << r->rem_set()->get_state_str() << "\n";
+    // stdprint << "region " << r->hrm_index() << " is " << r->get_type_str() 
+    // << "\nrem set is " << r->rem_set()->get_state_str() << "\n";
 
   if (r->is_old_or_humongous_or_archive()) {
     if (r->rem_set()->is_updating()) {

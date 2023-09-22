@@ -720,6 +720,9 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
         // by processing the built-in module.
         assert(klass->is_typeArray_klass(), "invariant");
       }
+
+      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
+
       return h2_obj;
     }
 
@@ -727,7 +730,8 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
 
      //##!! remove mine
     {
-      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")\n";
+      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
+
 
       // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
       // << h2_obj->klass()->signature_name() << "  :  Childs  :  ";

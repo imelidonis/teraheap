@@ -179,7 +179,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
   }  
   
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry), 2);
-  __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_array));
+  // __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_array));
   
 #else
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry),
@@ -477,6 +477,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ push(store_addr);
 #ifdef _LP64
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, r15_thread);
+  // __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_ref), card_addr, store_addr);
   // __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_ref));
 #else
   __ push(thread);

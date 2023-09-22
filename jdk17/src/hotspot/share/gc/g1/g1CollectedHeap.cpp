@@ -117,10 +117,7 @@ size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 //##!! remove
 long int G1CollectedHeap::h1=0;
 long int G1CollectedHeap::h2=0;
-bool G1CollectedHeap::lala=false;
 long G1CollectedHeap::count=0;
-int G1CollectedHeap::debug=0;
-// char G1CollectedHeap::state[]="";
 
 // INVARIANTS/NOTES
 //
@@ -3040,11 +3037,11 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         // of the collection set!).
         _allocator->release_mutator_alloc_regions();
 
-        if( collector_state()->in_mixed_phase()  )
-          stdprint << "\n#GC ===== MIXED gc ====\n";
-        else if( collector_state()->in_concurrent_start_gc() )
-          stdprint << "\n#GC ===== Young gc + init marking ====\n";
-        else stdprint << "\n#GC ===== YOUNG gc ====\n";
+        // if( collector_state()->in_mixed_phase()  )
+        //   stdprint << "\n#GC ===== MIXED gc ====\n";
+        // else if( collector_state()->in_concurrent_start_gc() )
+        //   stdprint << "\n#GC ===== Young gc + init marking ====\n";
+        // else stdprint << "\n#GC ===== YOUNG gc ====\n";
 
         
 
@@ -3063,23 +3060,50 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 #ifdef NO_OPT
       if(EnableTeraHeap) assert( may_do_optional_evacuation==false , "opt cset should not be triggered" );
 #endif
+
+#ifdef TERA_CARDS 
+        G1CollectedHeap::count++; //!!## remove
+        // stdprint << "GC count " << G1CollectedHeap::count << "\n";
+
+        // if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )   
+        //   Universe::teraHeap()->h2_pre_scan(_th_card_table, collector_state()->th_should_scan_old_cards());
+#endif
         
         // Actually do the work...
         h1=h2=0; //##!! remove
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
+
+#ifdef TERA_CARDS
+        // if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )
+        //   Universe::teraHeap()->h2_post_scan();
+
+        // if(h2>0){ //##!! remove mine
+        //   Universe::teraHeap()->h2_print_objects_per_region();
+        // }
+#endif
+           
        
        if (may_do_optional_evacuation) {
-          stdprint << "-----------> Opt cset is evac\n";
+          // stdprint << "Moved in H1=" << h1 << " , H2="<<h2<<"\n";
+          // h1=h2=0;
+
+          // stdprint << "-----------> Opt cset is evac\n";
           evacuate_optional_collection_set(&per_thread_states);
+          
+          // Universe::teraHeap()->h2_print_objects_per_region();
+          // stdprint << "Moved in H1=" << h1 << " , H2="<<h2<<"\n";
+          // h1=h2=0;        
         }
 
-        if( collector_state()->in_mixed_phase()){
-          // Universe::teraHeap()->h2_print_objects_per_region();
-          stdprint << "Moved in H1=" << h1 << " , H2="<<h2<<"\n";
-          h1=h2=0;
-          lala=true;
-        }
-        stdprint << "===============================(gc done)\n";
+        
+      //  if( collector_state()->in_mixed_phase() && !may_do_optional_evacuation){
+      //     // Universe::teraHeap()->h2_print_objects_per_region();
+      //     stdprint << "Moved in H1=" << h1 << " , H2="<<h2<<"\n";
+      //     h1=h2=0;
+      //   }
+
+        
+        // stdprint << "===============================(gc done)\n";
 
         
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
@@ -3598,6 +3622,35 @@ void G1CollectedHeap::pre_evacuate_collection_set(G1EvacuationInfo& evacuation_i
   NOT_PRODUCT(set_evacuation_failure_alot_for_current_gc();)
 }
 
+#ifdef TERA_CARDS
+class ScanH2CardTable : public AbstractGangTask{
+protected:
+  G1CollectedHeap* _g1h;
+  G1ParScanThreadStateSet* _per_thread_states;
+  uint _num_workers;
+
+public:
+  ScanH2CardTable(G1ParScanThreadStateSet* per_thread_states,
+                  uint num_workers) :
+    AbstractGangTask("Scan H2 Cards"),
+    _g1h(G1CollectedHeap::heap()),
+    _per_thread_states(per_thread_states),
+    _num_workers(num_workers)
+  { }
+
+  void work(uint worker_id) {
+    if ( ! EnableTeraHeap ) return;
+    if ( Universe::teraHeap()->h2_is_empty() ) return;
+    
+    G1ParScanThreadState* pss = _per_thread_states->state_for_worker(worker_id);
+    ResourceMark rm; //so you can print c_strings
+
+    H2ToH1Closure cl(_g1h, pss, worker_id);
+    _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );
+  }
+};
+#endif
+
 class G1EvacuateRegionsBaseTask : public AbstractGangTask {
 protected:
   G1CollectedHeap* _g1h;
@@ -3646,7 +3699,7 @@ protected:
     if ( ! EnableTeraHeap ) return;
     if ( Universe::teraHeap()->h2_is_empty() ) return;
 
-    stdprint <<  "Scan h2 card table\n";
+    // stdprint <<  "Scan h2 card table\n";
     
     H2ToH1Closure cl(_g1h, pss, worker_id);
     _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );
@@ -3689,7 +3742,7 @@ class G1EvacuateRegionsTask : public G1EvacuateRegionsBaseTask {
 
   void scan_roots(G1ParScanThreadState* pss, uint worker_id) {
 
-#ifdef TERA_CARDS
+#ifdef TERA_CARDSs
     // we firstly search the h2 card table
     // bcs we want to scan the heap before we transfer data in it
     if(EnableTeraHeap) scan_tera_roots(pss, worker_id);
@@ -3743,6 +3796,13 @@ void G1CollectedHeap::evacuate_initial_collection_set(G1ParScanThreadStateSet* p
   {
     G1RootProcessor root_processor(this, num_workers);
 
+#ifdef TERA_CARDS
+    ScanH2CardTable scan_h2(per_thread_states,
+                            num_workers);
+
+    workers()->run_task(&scan_h2);
+#endif
+
     G1EvacuateRegionsTask g1_par_task(this,
                                       per_thread_states,
                                       _task_queues,
@@ -3750,21 +3810,8 @@ void G1CollectedHeap::evacuate_initial_collection_set(G1ParScanThreadStateSet* p
                                       num_workers,
                                       has_optional_evacuation_work);
 
-    G1CollectedHeap::count++; //!!## remove
-    stdprint << "GC count " << G1CollectedHeap::count << "\n";
-
-#ifdef TERA_CARDS 
-    if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )   
-      Universe::teraHeap()->h2_pre_scan(_th_card_table, collector_state()->th_should_scan_old_cards());
-#endif
-
     task_time = run_task_timed(&g1_par_task);
 
-#ifdef TERA_CARDS
-    if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )
-      Universe::teraHeap()->h2_post_scan();
-#endif
-    
     // Closing the inner scope will execute the destructor for the G1RootProcessor object.
     // To extract its code root fixup time we measure total time of this scope and
     // subtract from the time the WorkGang task took.

@@ -164,16 +164,16 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
 
         //print results in bytes
         //if you want them in words, do bytes/8
-        stdprint << "Region added " << hr->get_type_str() << " " << hr->hrm_index() << " :" 
+        // stdprint << "Region added " << hr->get_type_str() << " " << hr->hrm_index() << " :" 
         // << "\n  live    [bottom, TAMPs, top] : " << hr->live_bytes() 
-        << "\n  marked  [bottom,TAMPs]       : " << hr->marked_bytes()      
-        << "\n  h2 live [bottom, TAMPs]      : " << hr->h2_marked_bytes() 
-        << "\n  reclaimable bytes            : " << hr->reclaimable_bytes() 
-        << "\n  time for evac                : " << time
-        << "\n  gc efficiency (recl / time)  : " << hr->reclaimable_bytes() / time
+        // << "\n  marked  [bottom,TAMPs]       : " << hr->marked_bytes()      
+        // << "\n  h2 live [bottom, TAMPs]      : " << hr->h2_marked_bytes() 
+        // << "\n  reclaimable bytes            : " << hr->reclaimable_bytes() 
+        // << "\n  time for evac                : " << time
+        // << "\n  gc efficiency (recl / time)  : " << hr->reclaimable_bytes() / time
         // << "\n  bellow threshold ? " << region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes())
         // << "\n  rem set complete? " << hr->rem_set()->is_complete()
-        << "\n\n";
+        // << "\n\n";
       }    
 
       if (_cur_chunk_idx == _cur_chunk_end) {

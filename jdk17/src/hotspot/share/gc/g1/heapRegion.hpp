@@ -358,8 +358,17 @@ public:
   size_t reclaimable_bytes() {
     size_t known_live_bytes = live_bytes();
     assert(known_live_bytes <= capacity(), "sanity");
-    //##!! we reclaim the bytes that will be transfered in H2 as well
-    return capacity() - (known_live_bytes - _h2_marked_bytes);
+#ifdef TERA_CONC_MARKING
+    // known_live_bytes = h1 live + h2 live
+    // the reclaimable space for this region is: garbage + h2 live bytes
+    if(EnableTeraHeap)
+      return capacity() - (known_live_bytes - _h2_marked_bytes);
+    else
+      return capacity() - known_live_bytes;
+
+#else
+    return capacity() - known_live_bytes;
+#endif
   }
 
   // An upper bound on the number of live bytes in the region.
@@ -374,8 +383,8 @@ public:
   void add_to_h2_marked_bytes(size_t incr_bytes) {
     if( incr_bytes > 0 ){ 
       // words = incr_bytes/8
-      stdprint << "H2 liveness " << incr_bytes << " added to region " << hrm_index() << "\n";
-      stdprint << "Total liveness " << _next_marked_bytes << " added to region " << hrm_index() << "\n\n";
+      // stdprint << "H2 liveness " << incr_bytes << " added to region " << hrm_index() << "\n";
+      // stdprint << "Total liveness " << _next_marked_bytes << " added to region " << hrm_index() << "\n\n";
     }
     
     _h2_marked_bytes = _h2_marked_bytes + incr_bytes;

@@ -49,7 +49,7 @@ template <typename T, class OopClosureType>
 void InstanceMirrorKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
   InstanceKlass::oop_oop_iterate<T>(obj, closure);
   
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   DEBUG_ONLY(if (EnableTeraHeap) { assert(!Universe::is_in_h2(obj), "Object is in TeraCache"); })
 #endif
 

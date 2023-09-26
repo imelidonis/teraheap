@@ -150,7 +150,7 @@ inline bool G1CollectedHeap::is_marked_next(oop obj) const {
 }
 
 inline bool G1CollectedHeap::is_in_cset(oop obj) {
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   DEBUG_ONLY(
   if(EnableTeraHeap)
     assert( !Universe::teraHeap()->is_obj_in_h2(obj) , "Should not be in h2" );
@@ -160,7 +160,7 @@ inline bool G1CollectedHeap::is_in_cset(oop obj) {
 }
 
 inline bool G1CollectedHeap::is_in_cset(HeapWord* addr) {
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   DEBUG_ONLY(
   if(EnableTeraHeap)
     assert( !Universe::teraHeap()->is_obj_in_h2( cast_to_oop(addr) ) , "Should not be in h2" );
@@ -174,7 +174,7 @@ bool G1CollectedHeap::is_in_cset(const HeapRegion* hr) {
 }
 
 bool G1CollectedHeap::is_in_cset_or_humongous(const oop obj) {
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   DEBUG_ONLY(
   if(EnableTeraHeap)
     assert( !Universe::teraHeap()->is_obj_in_h2(obj) , "Should not be in h2" );
@@ -184,7 +184,7 @@ bool G1CollectedHeap::is_in_cset_or_humongous(const oop obj) {
 }
 
 G1HeapRegionAttr G1CollectedHeap::region_attr(const void* addr) const {
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   DEBUG_ONLY(
   if(EnableTeraHeap)
     assert( !Universe::teraHeap()->is_obj_in_h2( cast_to_oop(addr) ) , "Should not be in h2" );
@@ -198,7 +198,6 @@ G1HeapRegionAttr G1CollectedHeap::region_attr(uint idx) const {
 }
 
 void G1CollectedHeap::register_humongous_region_with_region_attr(uint index) {
-  //##!! if its already 
   _region_attr.set_humongous(index, region_at(index)->rem_set()->is_tracked());
 }
 

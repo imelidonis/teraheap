@@ -12,7 +12,6 @@
 
 char *TeraHeap::_start_addr = NULL;
 char *TeraHeap::_stop_addr = NULL;
-char *TeraHeap::_top_snapshot = NULL;
 
 Stack<oop *, mtGC> TeraHeap::_tc_stack;
 Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
@@ -41,9 +40,7 @@ TeraHeap::TeraHeap() {
   _start_addr = start_addr_mem_pool();
   _stop_addr = stop_addr_mem_pool();
 
-  _top_snapshot = _start_addr;
-
-  stdprint << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n";
+  TERA_REMOVE( stdprint << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n"; )
 
   // Initilize counters for TeraHeap
   // These counters are used for experiments
@@ -884,72 +881,3 @@ TeraTimers* TeraHeap::getTeraTimer() {
 }
 #endif
 
-
-#include "gc/parallel/psCardTable.hpp" 
-
-char * TeraHeap::h2_top_addr_snapshot(void){
-	return _top_snapshot;
-}
-
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-
-
-void TeraHeap::h2_pre_scan(PSCardTable* th_card_table, bool scan_old){
-	_top_snapshot = h2_top_addr();
-
-
-	//dirty all cards in card table	
-	// if( G1CollectedHeap::count > 40 ){
-		// CardTable::CardValue* start_card = th_card_table->byte_for(h2_start_addr());
-		// CardTable::CardValue* top_card = th_card_table->byte_for((HeapWord *)_top_snapshot);
-		
-		// for (CardTable::CardValue* card = start_card; card <= top_card; card ++) {
-		// 	if ( th_card_table->card_is_dirty(*card) ){
-      	// 		// stdprint << "BARRIER : change ref in h2 - Card " << th_card_table->addr_for(card) << " is dirtied\n";
-		// 		continue;
-		// 	}
-		// 	*card = CardTable::dirty_card_val();
-		// }
-
-	// }else{
-		//dirty only the last card (top snapshot)
-		CardTable::CardValue* top_card = th_card_table->byte_for( (HeapWord *)_top_snapshot );
-		if( !th_card_table->th_card_is_clean(*top_card, scan_old) ){ // !th_card_is_clean : the card should be scanned
-			*top_card = CardTable::dirty_card_val();
-		}
-	// }	
-}
-
-void TeraHeap::h2_post_scan(void){
-
-// if( G1CollectedHeap::count > 50 ){
-//   stdprint << "AFTER:\n";
-
-//   CardTable::CardValue* start_card = G1CollectedHeap::heap()->th_card_table()->byte_for(h2_start_addr());
-//   CardTable::CardValue* end_card = G1CollectedHeap::heap()->th_card_table()->byte_for(h2_top_addr());
-//   CardTable::CardValue* prev_top = G1CollectedHeap::heap()->th_card_table()->byte_for(_top_snapshot);
-  
-  
-//   for (CardTable::CardValue* card = start_card; card < end_card+1; card ++) {
-// 	stdprint << "Card " << G1CollectedHeap::heap()->th_card_table()->addr_for(card) << " its ";
-// 	// stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
-// 	if( G1CollectedHeap::heap()->th_card_table()->card_is_oldgen(*card) )
-// 	stdprint << "old";
-// 	else if( G1CollectedHeap::heap()->th_card_table()->card_is_newgen(*card) )
-// 	stdprint << "young";
-// 	else if( G1CollectedHeap::heap()->th_card_table()->card_is_dirty(*card) )
-// 	stdprint << "dirty";
-// 	else if( G1CollectedHeap::heap()->th_card_table()->card_is_verify(*card) )
-// 	stdprint << "verify";
-// 	else  if( G1CollectedHeap::heap()->th_card_table()->card_is_clean(*card) )
-// 	stdprint << "clean";
-// 	else stdprint << "idk";
-
-// 	if( prev_top == card ) 
-// 		stdprint << "  ------->  TOP";
-	
-// 	stdprint << "\n";
-//   }
-// }
-	
-}

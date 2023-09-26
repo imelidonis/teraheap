@@ -94,7 +94,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Not used by all GCs
   MemRegion _reserved;
 
-#ifdef TERA_CARDS
+#ifdef TERA_MAINTENANCE
   MemRegion _tera_heap_reserved;
 #endif
 

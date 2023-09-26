@@ -1008,16 +1008,8 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
     // Distribute the given words across the humongous object starting with hr and
     // note end of marking.
     void distribute_marked_bytes(HeapRegion* hr, size_t marked_words) {
+      
       uint const region_idx = hr->hrm_index();
-
-
-      Thread *thread = Thread::current();
-      ResourceMark rm(thread);
-      oop obj = cast_to_oop(hr->bottom());
-      const char *str = obj->klass()->signature_name();
-      bool h2 = Universe::is_in_h2(obj);
-      size_t const h2_marked_words_2 = _cm->h2_live_words(region_idx);
-
       size_t const obj_size_in_words = (size_t)cast_to_oop(hr->bottom())->size();
       uint const num_regions_in_humongous = (uint)G1CollectedHeap::humongous_obj_size_in_regions(obj_size_in_words);
 

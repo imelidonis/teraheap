@@ -190,9 +190,12 @@ private:
 public:
   void prepare_region_for_full_compaction(HeapRegion* hr);
 
-  //##!! remove
-  static long int h1,h2;
-  static long count;
+
+
+TERA_REMOVE(  static long int h1; )
+TERA_REMOVE(  static long int h2; )
+TERA_REMOVE(  static long count; )
+
 
 private:
   // Rebuilds the region sets / lists so that they are repopulated to

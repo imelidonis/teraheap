@@ -96,7 +96,7 @@ public:
 
   void verify() const PRODUCT_RETURN;
 
-  void print(); //##!! remove. its mine
+TERA_REMOVE( void print(); )
 };
 
 #endif /* SHARE_GC_G1_G1COLLECTIONSETCANDIDATES_HPP */

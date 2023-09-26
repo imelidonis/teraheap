@@ -111,21 +111,6 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   size_t* _obj_alloc_stat;
 
 public:
-
-#ifdef Tera_mark_young
-  void enable_tera_marking(){
-    tera_marking = true;
-  };
-  
-  void disable_tera_marking(){
-    tera_marking = false;
-  };
-
-  void is_tera_mark_enable(){
-    return tera_marking;
-  }
-#endif
-
   G1ParScanThreadState(G1CollectedHeap* g1h,
                        G1RedirtyCardsQueueSet* rdcqs,
                        uint worker_id,
@@ -242,7 +227,7 @@ private:
 public:
   oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, markWord old_mark);
 
-#ifdef TERA_EVAC
+#ifdef TERA_EVAC_MOVE
   void moveObjToH2(HeapWord *q, HeapWord *compaction_top, size_t size);
   oop copy_to_h2_space(G1HeapRegionAttr region_attr, oop obj, markWord m);
 #endif
@@ -250,10 +235,6 @@ public:
   inline void trim_queue();
   inline void trim_queue_partially();
   void steal_and_trim_queue(G1ScannerTasksQueueSet *task_queues);
-
-#ifdef TERA_CARDS
-  inline void th_trim_queue_partially();
-#endif
 
   Tickspan trim_ticks() const;
   void reset_trim_ticks();

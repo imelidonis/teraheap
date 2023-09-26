@@ -36,9 +36,6 @@ H2ToH1Closure::H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, ui
       _cm = _g1h->concurrent_mark(); 
       should_mark = _g1h->collector_state()->in_concurrent_start_gc();
       _worker_id = worker_id;  
-
-      // set_ref_discoverer_internal(NULL);
-
 }
 #endif
 

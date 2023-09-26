@@ -40,7 +40,7 @@
 #include "gc/g1/c1/g1BarrierSetC1.hpp"
 #endif
 
-#ifdef TERA_CARDS
+#ifdef TERA_INTERPRETER
 #include "gc/teraHeap/teraHeap.hpp"
 #endif
 

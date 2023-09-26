@@ -116,7 +116,7 @@ class PSCardTable: public CardTable {
   }
 
 
-    //##!! remove
+TERA_REMOVE(
   const char* card_flag(const void *p){
     CardValue* card = byte_for(p);
     char* result = NEW_RESOURCE_ARRAY( char, 8);
@@ -174,6 +174,7 @@ class PSCardTable: public CardTable {
       return result;
     };
   }
+)
 
 #endif
 

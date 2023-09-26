@@ -873,34 +873,6 @@ UNSAFE_ENTRY(jint, Unsafe_GetLoadAverage0(JNIEnv *env, jobject unsafe, jdoubleAr
 
 //----------Tera Cache----------------
 
-//##!! This are the temporary unsafe functions, in order for the Hello.java benchmark to work
-//##!! they are used bcs we do not actually move the h2 objs to the h2, we just set a flag to simulate that
-// UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject obj, jlong label, jlong partId)) {
-//   oop o = JNIHandles::resolve_non_null(obj);
-
-//   // If the object is already in TeraCache then do not mark its teraflag
-//   if ( o->is_in_h2() )
-//     return;
-
-//   // Initialize object's teraflag
-//   o->mark_move_h2(label, partId);
-//   o->set_in_h2();
-
-// } UNSAFE_END
-
-
-// UNSAFE_ENTRY(void, Unsafe_h2TagRoot(JNIEnv *env, jobject unsafe, jobject obj, jlong label, jlong partId)){  
-//   oop o = JNIHandles::resolve_non_null(obj);
-
-//   // If the object is already in TeraCache then do not mark its teraflag
-//   if ( o->is_in_h2() )
-//     return;
-
-//   // Initialize object's teraflag
-//   o->mark_move_h2(label, partId);
-// } UNSAFE_END
-
-//##!! This are the real/correct unsafe functions
 UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject obj, jlong label, jlong partId)) {
   
   if (!EnableTeraHeap) return;
@@ -936,6 +908,8 @@ UNSAFE_ENTRY(void, Unsafe_h2Move(JNIEnv *env, jobject unsafe, jlong label)) {
   Universe::teraHeap()->set_non_promote_tag(label+1);
 } UNSAFE_END
 
+
+
 #include "gc/g1/g1CollectedHeap.inline.hpp" //##!! remove
 #include "gc/g1/g1OopClosures.inline.hpp" //##!! remove
 
@@ -952,8 +926,6 @@ UNSAFE_ENTRY(jboolean, Unsafe_inH2(JNIEnv *env, jobject unsafe, jobject obj)) {
   //   return true;
   // }
 
-  PrintFieldsClosure cl(G1CollectedHeap::heap());
-
   stdprint <<  "Java Iterate  " << o->klass()->signature_name() 
   << "  (" << (HeapWord*)o << ")   "
   << "h2:" << Universe::is_in_h2(o);  
@@ -962,8 +934,11 @@ UNSAFE_ENTRY(jboolean, Unsafe_inH2(JNIEnv *env, jobject unsafe, jobject obj)) {
   
   stdprint << "   marked:" << o->is_marked_move_h2();
   stdprint << "\n";
-  o->oop_iterate_backwards(&cl); 
 
+  TERA_REMOVE(
+    PrintFieldsClosure cl(G1CollectedHeap::heap()); 
+    o->oop_iterate_backwards(&cl); 
+  )
   
 
   //##!! remove

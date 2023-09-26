@@ -41,7 +41,7 @@
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
     if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj))
       return true;
 #endif
@@ -70,11 +70,10 @@ inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegi
   assert(hr != NULL, "just checking");
   assert(hr->is_in_reserved(obj), "Attempting to mark object at " PTR_FORMAT " that is not contained in the given region %u", p2i(obj), hr->hrm_index());
 
-  if (hr->obj_allocated_since_next_marking(obj)) { //this returns true, if the obj is above TAMPs and doesnt need marking (considered live by default) -young regions have TAMPs==bottom
-    //##!! TODO or not TODO
-    //if is_tera_traversal()  &&  !obj->is_marked_move_h2() then 
-    //     enable its tera flag in parallel (atomic operation)
-    //     if old && succeeded then increase its h2 liveness only      
+  // If statment checks if the obj is above TAMPs.
+  // Then it doe not need marking (its considered live by default) 
+  // !! Young regions have TAMPs==bottom
+  if (hr->obj_allocated_since_next_marking(obj)) {      
     return false;
   }
 
@@ -205,7 +204,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       oop obj = task_entry.obj();
 
       
-#ifdef TERA_CONC_MARKING     
+#ifdef TERA_MAINTENANCE   
       //##!! If obj is in H2
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
@@ -237,7 +236,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
 #ifdef TERA_CONC_MARKING
           if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
-              // stdprint << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  (HeapWord*)obj << ")\n";              
+              TERA_REMOVE( stdprint << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  (HeapWord*)obj << ")\n"; )           
               
               //iterate this oop, in tera mode
               _cm_oop_closure->enable_tera_traversal(obj);    
@@ -262,18 +261,20 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 //without traversing it. Just marking and pushing the content of the array.
 inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
 
-#ifdef TERA_CONC_MARKING
+#ifdef TERA_ASSERT
     DEBUG_ONLY( if(EnableTeraHeap) assert( !Universe::is_in_h2(obj) , "H2 objects should have been filtered out"); )
-    
+#endif
+
+#ifdef TERA_CONC_MARKING
     if ( EnableTeraHeap && obj->is_marked_move_h2()) {
-        // stdprint << obj->klass()->signature_name() << " sarch under it\n";
+        TERA_REMOVE( stdprint << obj->klass()->signature_name() << " sarch under it\n"; )
         
         //iterate this oop, in tera mode
         _cm_oop_closure->enable_tera_traversal(obj); 
         obj->oop_iterate(_cm_oop_closure, mr);
         _cm_oop_closure->disable_tera_traversal(); 
 
-        // stdprint << "Finished searching H2 obj\n";
+        TERA_REMOVE( stdprint << "Finished searching H2 obj\n"; )
     }
     else
 #endif
@@ -329,7 +330,7 @@ inline void G1CMTask::abort_marking_if_regular_check_fail() {
 
 inline bool G1CMTask::make_reference_grey(oop obj) {
 
-#ifdef TERA_CONC_MARKING
+#ifdef TERA_MAINTENANCE
   //##!! If obj is in H2
   //  (1) set H2 region live bit
   //  (2) Fence heap traversal to H2
@@ -375,8 +376,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
       obj->mark_move_h2( _cm_oop_closure->get_cur_obj_group_id(),
                          _cm_oop_closure->get_cur_obj_part_id());
       
-      //All of the transitive closure should be marked and printed
-      // stdprint << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n";
+      TERA_REMOVE( stdprint << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n"; )
     }
   }
 #endif
@@ -428,9 +428,11 @@ inline bool G1CMTask::deal_with_reference(T* p) {
     return false;
   }
 
-  // if( is_tera_traversal() ){    
-  //   stdprint << "\tmarked " << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")\n";
-  // }
+  TERA_REMOVE(
+    if( is_tera_traversal() ){    
+      stdprint << "\tmarked " << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")\n";
+    }
+  )
   
   return make_reference_grey(obj);
 }

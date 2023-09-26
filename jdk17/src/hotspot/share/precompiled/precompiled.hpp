@@ -37,7 +37,7 @@
 
 #include "gc/shared/collectedHeap.hpp"
 
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
 #include "gc/teraHeap/teraHeap.hpp"
 #endif
 

@@ -162,7 +162,7 @@ Mutex*   Bootclasspath_lock           = NULL;
 Monitor* JVMCI_lock                   = NULL;
 #endif
 
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
 Mutex*   tera_heap_lock              = NULL;
 Mutex*   tera_heap_group_lock        = NULL;
 #endif 
@@ -234,12 +234,12 @@ void mutex_init() {
     def(MonitoringSupport_lock     , PaddedMutex  , native   ,   true,  _safepoint_check_never);      // used for serviceability monitoring support
   }
 
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
   if (EnableTeraHeap) {
     def(tera_heap_lock              , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for Teraheap backward reference stacks
     def(tera_heap_group_lock        , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for TeraHeap region groupping
   }
-#endif // TERA_MINOR_GC
+#endif 
 
   def(StringDedup_lock             , PaddedMonitor, leaf,        true,  _safepoint_check_never);
   def(StringDedupIntern_lock       , PaddedMutex  , leaf,        true,  _safepoint_check_never);

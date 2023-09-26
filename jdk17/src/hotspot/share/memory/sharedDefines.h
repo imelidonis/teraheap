@@ -12,29 +12,36 @@
 #ifndef _SHARE_DEFINES_H_
 #define _SHARE_DEFINES_H_
 
-#include <iostream>
+
  /************************************
   * Source code that we need to remove after testing
   ************************************/
 
-// #define MALAKIZOME //##!! remove
-// #define Tera_mark_young // leave ??
+  #include <iostream>
+  #define stdprint std::cerr
 
 //one of the two should only be enabled, or none
 // #define FORCE_OPT // force optional cset
-#define NO_OPT // no optional cset (not working correctly)
+// #define NO_OPT // no optional cset (not working correctly)
 
-#define stdprint std::cerr
+// #define TERA_DEBUG
+#ifdef TERA_DEBUG
+	#define TERA_REMOVE(code) code
+#else
+	#define TERA_REMOVE(code)
+#endif
 
-#define TERA_LOG				         //< Define logging for TeraHeap
 
-#define TERA_FLAG				         //< Define teraFlag word
+#define TERA_FLAG				         // Define teraFlag word
+#define TERA_ASSERT              // Extended assertions for TeraHeap
+#define TERA_MAINTENANCE         // if objs are transfered to H2, these should be enabled : check-ups, fence h2 heap
 
-#define TERA_CONC_MARKING
+#define TERA_CARDS               // Enable Teraheap card table and scan h2 card table for back refs during evacuations
 
-#define TERA_EVAC //for minor and mix collections
+// #define TERA_CONC_MARKING   // Do the marking : mark transitive closure, old region statistics (h2 liveness) , sort based on garbage-1st policy 
+// #define TERA_EVAC_MOVE    // Move objs that have their tera flag enabled, to h2
 
-#define TERA_CARDS               //< Enable Teraheap card table
+
 
   // #define BACK_REF_STAT            //< Collect statistics for backward
                                    //refenrences. Works only with -XX:GCThreads=1
@@ -53,7 +60,7 @@
                                   // e.g 9 = 512bytes
                                   // 2^13 = 8K = 8*1024
 
-#define TERA_INTERPRETER	        //< Enable Interpreter to support TeraHeap
+#define TERA_INTERPRETER	        // Enable Interpreter to support TeraHeap
 
 #define TERA_C1				            //< Enable C1 to support TeraHeap
 
@@ -63,18 +70,13 @@
                                   // card marking are all implemented in the
                                   // make_leaf_call()
 
-//#define TEST_CLONE                // Clone objects
-
-#define DISABLE_TRAVERSE_OLD_GEN  //< Disable backward reference traversal
-                                                    // from H2 to old generation (H1) during
-                                                    // minor GC
-
-#define TERA_ASSERT               // Extended assertions for TeraHeap
-
 //#define FASTMAP                 // Enable this define when you run
                                   // with fastmap with enabled
                                   // -XX:AllocateHeapAt="/mnt/dir"
                                   // or -XX:AllocateOldGenAt="/mnt/dir"
+
+#define TERA_LOG				         // Define logging for TeraHeap
+
 
 /**********************************
  * Write Mode to H2

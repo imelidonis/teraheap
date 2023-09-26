@@ -146,7 +146,7 @@ extern Monitor* JfrThreadSampler_lock;           // used to suspend/resume JFR t
 extern Mutex*   UnsafeJlong_lock;                // provides Unsafe atomic updates to jlongs on platforms that don't support cx8
 #endif
 
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
 extern Mutex*   tera_heap_lock;                 // Protects backward reference stacks
 extern Mutex*   tera_heap_group_lock;           // Protects region grouping in H2
 #endif

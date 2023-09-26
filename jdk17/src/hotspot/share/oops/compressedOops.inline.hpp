@@ -55,7 +55,7 @@ inline oop CompressedOops::decode_not_null(narrowOop v) {
   assert(!is_null(v), "narrow oop value can never be zero");
   oop result = decode_raw(v);
   assert(is_object_aligned(result), "address not aligned: " INTPTR_FORMAT, p2i((void*) result));
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   DEBUG_ONLY(
       if (EnableTeraHeap) {
         assert(Universe::is_in_heap(result) || Universe::is_in_h2(result), "object not in H1 and not in H2 " PTR_FORMAT, p2i((void*) result));
@@ -90,7 +90,7 @@ inline narrowOop CompressedOops::encode(oop v) {
 }
 
 inline oop CompressedOops::decode_not_null(oop v) {
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   DEBUG_ONLY(
       if (EnableTeraHeap) {
         assert(Universe::is_in_heap(v) || Universe::is_in_h2(v), "object not in heap " PTR_FORMAT, p2i((void*) v));

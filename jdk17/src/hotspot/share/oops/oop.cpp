@@ -100,7 +100,7 @@ intptr_t oopDesc::slow_identity_hash() {
 
 // used only for asserts and guarantees
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
   if (EnableTeraHeap) {
     if (!Universe::heap()->is_oop(obj) && !Universe::is_in_h2(obj)) {
       return false;
@@ -233,7 +233,7 @@ void oopDesc::release_double_field_put(int offset, jdouble value)     { HeapAcce
 void oopDesc::verify_forwardee(oop forwardee) {
 
 #ifdef INCLUDE_CDS_JAVA_HEAP
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
 
   assert(  Universe::is_in_heap(forwardee) || ( EnableTeraHeap && Universe::is_in_h2(forwardee) ), "forwarding outside the reserved heaps (H1, H2)" );
   

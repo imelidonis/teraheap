@@ -1412,6 +1412,8 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionSetCandidat
   uint candidate_idx = candidates->cur_idx();
 
   HeapRegion* r = candidates->at(candidate_idx);
+
+  TERA_REMOVE( stdprint << "Region chosen : "; )
   while (num_optional_regions < max_optional_regions) {
     assert(r != NULL, "Region must exist");
     prediction_ms += predict_region_total_time_ms(r, false);
@@ -1425,8 +1427,12 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionSetCandidat
 
     time_remaining_ms -= prediction_ms;
     num_optional_regions++;
+
+    TERA_REMOVE( stdprint << r->hrm_index() << " , "; )
+
     r = candidates->at(++candidate_idx);
   }
+  TERA_REMOVE( stdprint<<"\n"; )
 
   log_debug(gc, ergo, cset)("Prepared %u regions out of %u for optional evacuation. Predicted time: %.3fms",
                             num_optional_regions, max_optional_regions, prediction_ms);

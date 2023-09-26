@@ -123,8 +123,6 @@ void G1BarrierSet::write_ref_field_post_slow(volatile CardValue* byte) {
 }
 
 void G1BarrierSet::invalidate(MemRegion mr) {
-  // stdprint << "invalidate\n";
-
   if (mr.is_empty()) {
     return;
   }

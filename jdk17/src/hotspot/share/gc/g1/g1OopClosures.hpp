@@ -333,7 +333,6 @@ public:
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }  
-  inline void th_trim_queue_partially();
   // virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
   // void set_ref_discoverer(ReferenceDiscoverer* rd) {
   //   set_ref_discoverer_internal(rd);
@@ -341,40 +340,32 @@ public:
 };
 #endif
 
-// ##!! remove
-#ifdef TERA_EVAC
-class TeraFlagEnableClosure : public BasicOopIterateClosure {
-public:
-  TeraFlagEnableClosure(){}
 
-  template <class T> void do_oop_work(T* p);
-  virtual void do_oop(oop* p)          { do_oop_work(p); }
-  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
+TERA_REMOVE(
+  class PrintFieldsClosure : public BasicOopIterateClosure {
+    G1CollectedHeap* _g1h;
+  public:
+    PrintFieldsClosure(G1CollectedHeap* g1h){ g1h=_g1h; }
 
-};
-#endif
+    template <class T> void do_oop_work(T* p);
+    virtual void do_oop(oop* p)          { do_oop_work(p); }
+    virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
 
-//##!! remove
-class PrintFieldsClosure : public BasicOopIterateClosure {
-  G1CollectedHeap* _g1h;
-public:
-  PrintFieldsClosure(G1CollectedHeap* g1h){ g1h=_g1h; }
+  };
+)
 
-  template <class T> void do_oop_work(T* p);
-  virtual void do_oop(oop* p)          { do_oop_work(p); }
-  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
+TERA_REMOVE(
+  class PrintFieldsClosure_inline : public BasicOopIterateClosure {
+    G1CollectedHeap* _g1h;
+  public:
+    PrintFieldsClosure_inline(G1CollectedHeap* g1h){ g1h=_g1h; }
 
-};
+    template <class T> void do_oop_work(T* p);
+    virtual void do_oop(oop* p)          { do_oop_work(p); }
+    virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
 
-class PrintFieldsClosure_inline : public BasicOopIterateClosure {
-  G1CollectedHeap* _g1h;
-public:
-  PrintFieldsClosure_inline(G1CollectedHeap* g1h){ g1h=_g1h; }
+  };
+)
 
-  template <class T> void do_oop_work(T* p);
-  virtual void do_oop(oop* p)          { do_oop_work(p); }
-  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
-
-};
 
 #endif // SHARE_GC_G1_G1OOPCLOSURES_HPP

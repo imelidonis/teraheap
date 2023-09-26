@@ -2534,7 +2534,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
         return JNI_EINVAL;
       }
 
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
       if (EnableTeraHeap) {
         assert(TeraHeapSize != 0, "Initialize TeraHeap size -XX:TeraHeapSize=<num>");
         MaxHeapSize = MaxHeapSize - TeraHeapSize;

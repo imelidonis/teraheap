@@ -143,7 +143,7 @@ void G1ParScanThreadState::verify_task(narrowOop* task) const {
   assert(UseCompressedOops, "sanity");
   oop p = RawAccess<>::oop_load(task);
 
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   assert(_g1h->is_in_reserved(p)
         ||  ( EnableTeraHeap && Universe::is_in_h2(p)) ,
          "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));
@@ -157,7 +157,7 @@ void G1ParScanThreadState::verify_task(oop* task) const {
   assert(task != NULL, "invariant");
   oop p = RawAccess<>::oop_load(task);
 
-#ifdef TERA_EVAC
+#ifdef TERA_ASSERT
   assert(_g1h->is_in_reserved(p)
         ||  ( EnableTeraHeap && Universe::is_in_h2(p)) ,
          "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));
@@ -194,7 +194,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   // Reference should not be NULL here as such are never pushed to the task queue.
   oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
 
-#ifdef TERA_EVAC
+#ifdef TERA_MAINTENANCE
   // In this case somebody else already did all the work (move obj to h2 and adjust its reference ptr)
   if( EnableTeraHeap && Universe::is_in_h2(obj) ) return; 
 #endif
@@ -233,7 +233,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
     //        *push them to the queue (G1ScanClosureBase::prefetch_and_push)
     //        *back refs ???
     //else call copy_to_survivor_space (line below)
-#ifdef TERA_EVAC      
+#ifdef TERA_EVAC_MOVE      
     if( EnableTeraHeap  
         && _g1h->collector_state()->in_mixed_phase() 
         && obj->is_marked_move_h2()
@@ -302,7 +302,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
   }
 
-#ifdef TERA_EVAC
+#ifdef TERA_EVAC_MOVE
   //check if array is forwarded in h2
   if( EnableTeraHeap && Universe::is_in_h2(to_array) ){    
     G1ScanInYoungSetter x(&_scanner, true );
@@ -318,7 +318,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
                               step._index,
                               step._index + _partial_objarray_chunk_size);
   }
-#elif
+#else
   HeapRegion* hr = _g1h->heap_region_containing(to_array);
   G1ScanInYoungSetter x(&_scanner, hr->is_young());
 
@@ -513,10 +513,6 @@ MAYBE_INLINE_EVACUATION
 oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const region_attr,
                                                     oop const old,
                                                     markWord const old_mark) {
-
-  //##!! remove
-  if( strcmp(old->klass()->signature_name(), "LNode;") == 0 )  G1CollectedHeap::h1++;
-
   assert(region_attr.is_in_cset(),
          "Unexpected region attr type: %s", region_attr.get_type_str());
 
@@ -603,7 +599,10 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
         assert(klass->is_typeArray_klass(), "invariant");
       }
       
-      // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
+      TERA_REMOVE(
+         stdprint << "MOVE OBJ (" << (HeapWord*) old 
+         << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
+      )
 
       return obj;
     }
@@ -618,24 +617,21 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       _string_dedup_requests.add(old);
     }
 
+    TERA_REMOVE(
+      stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
+      stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")  :  "
+      << obj->klass()->signature_name() << "  :  Childs  :  ";
 
-    //##!! remove mine
-    {
-      // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
-      // stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")  :  "
-      // << obj->klass()->signature_name() << "  :  Childs  :  ";
+      PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
+      obj->oop_iterate_backwards(&cl); 
 
-      // PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
-      // obj->oop_iterate_backwards(&cl); 
-
-      // stdprint << "\n";
-    }
+      stdprint << "\n";
+    )    
 
     G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
     obj->oop_iterate_backwards(&_scanner, klass);
 
-    //##!! remove mine
-    // stdprint << "\n";
+    TERA_REMOVE( stdprint << "\n"; )
 
     return obj;
 
@@ -646,7 +642,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 }
 
 
-#ifdef TERA_EVAC
+#ifdef TERA_EVAC_MOVE
 MAYBE_INLINE_EVACUATION
 #include "runtime/mutexLocker.hpp"
 
@@ -661,7 +657,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
   if (obj->is_forwarded()) return obj->forwardee(); 
 
-  G1CollectedHeap::h2++; //##!! remove
+  TERA_REMOVE( G1CollectedHeap::h2++; ) 
 
 
   assert(region_attr.is_in_cset(),
@@ -678,7 +674,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
   HeapWord* h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
 
 
-  // stdprint << "  addr in H2 to be moved : " << h2_obj_addr << "\n";
+  TERA_REMOVE( stdprint << "  addr in H2 to be moved : " << h2_obj_addr << "\n"; )
   
   assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");
   assert(Universe::is_in_h2( cast_to_oop(h2_obj_addr) ), "Pointer from H2 is not valid");
@@ -721,34 +717,36 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
         assert(klass->is_typeArray_klass(), "invariant");
       }
 
-      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
+      TERA_REMOVE( 
+        stdprint << "MOVE OBJ (" << (HeapWord*) obj 
+        << ")  ---TO H2---> (" <<  h2_obj_addr 
+        << ")  size " << obj->size() <<"\n";
+      )
 
       return h2_obj;
     }
 
 
 
-     //##!! remove mine
-    {
-      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
+    TERA_REMOVE(
+      stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
 
 
-      // stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
-      // << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
+      stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
+      << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
 
-      // PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
-      // h2_obj->oop_iterate_backwards(&cl); 
+      PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
+      h2_obj->oop_iterate_backwards(&cl); 
 
-      // stdprint << "\n";
-    }
+      stdprint << "\n";
+    )
 
 
 
     G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
     h2_obj->oop_iterate_backwards(&_scanner, klass);
 
-    //##!! remove mine
-    // stdprint << "\n";
+    TERA_REMOVE( stdprint << "\n"; )
 
 
     return h2_obj;

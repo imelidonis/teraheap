@@ -159,22 +159,28 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
     size_t _reclaimable_bytes_added;
 
     void add_region(HeapRegion* hr) {
+
+TERA_REMOVE(
+#ifdef TERA_CONC_MARKING
       if ( hr->h2_marked_bytes() > 0 ) { 
         double time =  G1CollectedHeap::heap()->policy()->predict_region_total_time_ms(hr, false);
 
-        //print results in bytes
-        //if you want them in words, do bytes/8
-        // stdprint << "Region added " << hr->get_type_str() << " " << hr->hrm_index() << " :" 
-        // << "\n  live    [bottom, TAMPs, top] : " << hr->live_bytes() 
-        // << "\n  marked  [bottom,TAMPs]       : " << hr->marked_bytes()      
-        // << "\n  h2 live [bottom, TAMPs]      : " << hr->h2_marked_bytes() 
-        // << "\n  reclaimable bytes            : " << hr->reclaimable_bytes() 
-        // << "\n  time for evac                : " << time
-        // << "\n  gc efficiency (recl / time)  : " << hr->reclaimable_bytes() / time
-        // << "\n  bellow threshold ? " << region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes())
-        // << "\n  rem set complete? " << hr->rem_set()->is_complete()
-        // << "\n\n";
-      }    
+        
+          //print results in bytes
+          //if you want them in words, do bytes/8
+          stdprint << "Region added " << hr->get_type_str() << " " << hr->hrm_index() << " :" 
+          << "\n  live    [bottom, TAMPs, top] : " << hr->live_bytes() 
+          << "\n  marked  [bottom,TAMPs]       : " << hr->marked_bytes()      
+          << "\n  h2 live [bottom, TAMPs]      : " << hr->h2_marked_bytes() 
+          << "\n  reclaimable bytes            : " << hr->reclaimable_bytes() 
+          << "\n  time for evac                : " << time
+          << "\n  gc efficiency (recl / time)  : " << hr->reclaimable_bytes() / time
+          << "\n  bellow threshold ? " << G1CollectionSetChooser::region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes())
+          << "\n  rem set complete? " << hr->rem_set()->is_complete()
+          << "\n\n";        
+      }  
+#endif  
+)
 
       if (_cur_chunk_idx == _cur_chunk_end) {
         _array->claim_chunk(_cur_chunk_idx, _cur_chunk_end);
@@ -353,7 +359,7 @@ G1CollectionSetCandidates* G1CollectionSetChooser::build(WorkGang* workers, uint
   prune(result);
   result->verify();
 
-  result->print(); //##!! remove this line. is mine
+  TERA_REMOVE(  result->print(); )
 
   return result;
 }

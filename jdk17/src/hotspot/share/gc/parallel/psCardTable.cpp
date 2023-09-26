@@ -401,31 +401,28 @@ void PSCardTable::h2_scavenge_contents_parallel(
 	// 16K.
 	size_t slice_width = ssize * stripe_total;
 
-  //##!! mine
-  // stdprint 
-  // << "Last obj moved to H2 (" << (HeapWord*) Universe::teraHeap()->_last_obj 
-  // << ")  in Card :  " << addr_for( byte_for(Universe::teraHeap()->_last_obj) )
-  // << "\n"; 
 
-  // if( stripe_number == 0 ){
-  //   stdprint << "Top is obj " << space_top << " in Card " << addr_for(byte_for(space_top)) << "\n";
+TERA_REMOVE(
+  if( stripe_number == 0 ){
+    stdprint << "Top is obj " << space_top << " in Card " << addr_for(byte_for(space_top)) << "\n";
 
-  //   for (CardValue* card = start_card; card < end_card; card ++) {
-  //     stdprint << "Card " << addr_for(card) << " ";
-  //     stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
-  //     if( card_is_oldgen(*card) )
-  //           stdprint << "old\n";
-  //         else if( card_is_newgen(*card) )
-  //           stdprint << "young\n";
-  //         else if( card_is_dirty(*card) )
-  //           stdprint << "dirty\n";
-  //         else if( card_is_verify(*card) )
-  //           stdprint << "verify\n";
-  //         else  if( card_is_clean(*card) )
-  //           stdprint << "clean\n";
-  //         else stdprint << "idk\n";
-  //   }
-  // }
+    for (CardValue* card = start_card; card < end_card; card ++) {
+      stdprint << "Card " << addr_for(card) << " ";
+      stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
+      if( card_is_oldgen(*card) )
+            stdprint << "old\n";
+          else if( card_is_newgen(*card) )
+            stdprint << "young\n";
+          else if( card_is_dirty(*card) )
+            stdprint << "dirty\n";
+          else if( card_is_verify(*card) )
+            stdprint << "verify\n";
+          else  if( card_is_clean(*card) )
+            stdprint << "clean\n";
+          else stdprint << "idk\n";
+    }
+  }
+)
 
 
   // scan until the top of the tera heap is met
@@ -441,12 +438,13 @@ void PSCardTable::h2_scavenge_contents_parallel(
 			worker_end_card = end_card;
 		}
 
-    // stdprint 
-    // << "start_card: " << addr_for(start_card)
-    // << "  -  end card: " << addr_for(end_card)
-    // << "\nworker_start_card: " << addr_for(worker_start_card)
-    // << "  -  worker_end_card: " << addr_for(worker_end_card)
-    // << "\n";
+    TERA_REMOVE( stdprint 
+    << "start_card: " << addr_for(start_card)
+    << "  -  end card: " << addr_for(end_card)
+    << "\nworker_start_card: " << addr_for(worker_start_card)
+    << "  -  worker_end_card: " << addr_for(worker_end_card)
+    << "\n";
+    )
 	
 		// We do not want to scan objects more than once. In order to accomplish
 		// this, we assert that any object with an object head inside our
@@ -488,18 +486,18 @@ void PSCardTable::h2_scavenge_contents_parallel(
 		while (current_card < worker_end_card) {
 			
 
+      TERA_REMOVE( fprintf(stdout, "Skip clean cards:\n "); )
 
-      //##!!
-      // fprintf(stdout, "Skip clean cards:\n ");
       // skip any clean cards (no back refs here)
       while (current_card < worker_end_card && th_card_is_clean(*current_card, scan_old)) {
 				
-        //##!!        
-        // if( card_is_oldgen(*current_card) )
-        //     fprintf(stdout, "old ");
-        // else if( card_is_clean(*current_card) )
-        //     fprintf(stdout, "clean ");
-        // else fprintf(stdout, "idk-1");
+        TERA_REMOVE(        
+          if( card_is_oldgen(*current_card) )
+              fprintf(stdout, "old ");
+          else if( card_is_clean(*current_card) )
+              fprintf(stdout, "clean ");
+          else fprintf(stdout, "idk-1");
+        )
 
         current_card++;
 			}
@@ -588,39 +586,35 @@ void PSCardTable::h2_scavenge_contents_parallel(
                "Following clean card: %p must be less than worker end card %p",
                following_clean_card, worker_end_card);
 
-        //##!!
-        // fprintf(stdout, "\nFind dirty cards to be scanned:\n ");
+        
+        TERA_REMOVE( fprintf(stdout, "\nFind dirty cards to be scanned:\n "); )
        
         //clear all the dirty cards in the sequence we found
         //dirty cards are the non-clean cards found for the corresponding collection
         //Later on they become old/young or stay clean
 				while (first_unclean_card < following_clean_card) {
 
-          //##!!          
-          // if( card_is_oldgen(*first_unclean_card) )
-          //   fprintf(stdout, "old ");
-          // else if( card_is_newgen(*first_unclean_card) )
-          //   fprintf(stdout, "young ");
-          // else if( card_is_dirty(*first_unclean_card) )
-          //   fprintf(stdout, "dirty ");
-          // else if( card_is_verify(*first_unclean_card) )
-          //   fprintf(stdout, "verify ");
-          // else  if( card_is_clean(*first_unclean_card) )
-          //   fprintf(stdout, "clean ");
-          // else fprintf(stdout, "idk ");
-
-          // if( first_unclean_card == end_card - 1 ){ 
-          //   // stdprint << "Card skipped clean (snapshot top) " << addr_for(first_unclean_card) << "\n";
-          //   first_unclean_card++;
-          //   continue;
-          // }
+          TERA_REMOVE(         
+            if( card_is_oldgen(*first_unclean_card) )
+              fprintf(stdout, "old ");
+            else if( card_is_newgen(*first_unclean_card) )
+              fprintf(stdout, "young ");
+            else if( card_is_dirty(*first_unclean_card) )
+              fprintf(stdout, "dirty ");
+            else if( card_is_verify(*first_unclean_card) )
+              fprintf(stdout, "verify ");
+            else  if( card_is_clean(*first_unclean_card) )
+              fprintf(stdout, "clean ");
+            else fprintf(stdout, "idk ");
+          )
 
 					*first_unclean_card++ = clean_card;
 				}
 
-        //##!!        
-        // stdprint << "H2 ITERATION will scan until addr : " << (HeapWord*)to << "\n";
-        // stdprint << "\n";
+        TERA_REMOVE(      
+          stdprint << "H2 ITERATION will scan until addr : " << (HeapWord*)to << "\n";
+          stdprint << "\n";
+        )
 
         // p : the first obj in the dirty card sequence
         // to: the following-obj after the top-obj
@@ -628,22 +622,17 @@ void PSCardTable::h2_scavenge_contents_parallel(
 				while (p < to) {          
 					oop m = cast_to_oop(p);
 
-          //##!!
-          // stdprint << "Scan obj for back refs\n";
+          
+         TERA_REMOVE( stdprint << "ITERATE AN OBJ IN H2  : (" << (HeapWord*)m << ")  size:" << m->size() << "  " << m->klass()->signature_name() << "\n"; )
 
-          // stdprint << "ITERATE AN OBJ IN H2  : (" << (HeapWord*)m << ")  size:" << m->size() << "  " << m->klass()->signature_name() << "\n";
           assert(!Universe::teraHeap()->is_metadata(m), "its metadata");
 
 					assert(oopDesc::is_oop_or_null(m), "check for header");
          
-          //##!!
-          if(!m->klass()->is_typeArray_klass()){ //if its typeArray then it doesnt have refs in it. No need to scan it
-           
+          //if its typeArray then it doesnt have refs in it. No need to scan it
+          if(!m->klass()->is_typeArray_klass()){ 
             m->oop_iterate_backwards(cl);
-
-            // fprintf(stdout, "DONE ITERATING\n\n");  
-            // cl->th_trim_queue_partially();
-           
+            // cl->th_trim_queue_partially();           
           }
 
 
@@ -656,7 +645,7 @@ void PSCardTable::h2_scavenge_contents_parallel(
 				}
 
 				last_scanned = p;
-        // stdprint << "H2 ITERATION finished. Last scanned obj is (" << (HeapWord*)last_scanned << ")\n";
+        TERA_REMOVE( stdprint << "H2 ITERATION finished. Last scanned obj is (" << (HeapWord*)last_scanned << ")\n"; )
 
 			}
 			// "current_card" is still the "following_clean_card" or
@@ -672,8 +661,7 @@ void PSCardTable::h2_scavenge_contents_parallel(
 			// be safely cleaned in the next iteration.
 			current_card++;
 
-      //##!!
-      // fprintf(stdout,"\n" );
+      TERA_REMOVE( fprintf(stdout,"\n" ); )
 		}
 	} 
   

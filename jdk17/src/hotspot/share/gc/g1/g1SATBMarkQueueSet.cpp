@@ -83,7 +83,7 @@ SATBMarkQueue& G1SATBMarkQueueSet::satb_queue_for_thread(Thread* const t) const 
 static inline bool requires_marking(const void* entry, G1CollectedHeap* g1h) {
 
 
-#ifdef TERA_CONC_MARKING
+#ifdef TERA_MAINTENANCE
 
   assert(oopDesc::is_oop(cast_to_oop(entry), true /* ignore mark word */),
          "Invalid oop in SATB buffer: " PTR_FORMAT, p2i(entry));

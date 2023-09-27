@@ -919,32 +919,33 @@ UNSAFE_ENTRY(jboolean, Unsafe_inH2(JNIEnv *env, jobject unsafe, jobject obj)) {
   
   oop o = JNIHandles::resolve_non_null(obj);
 
-  // If the object is already in TeraCache then do not mark its teraflag
-  // if (Universe::is_in_h2(o)){
-  //   DEBUG_ONLY( if (!H2LivenessAnalysis) assert(o->is_in_h2(), "Obj should be flagged that is in h2" ); ) 
-  //   stdprint << "Obj h2 addr " << (HeapWord*) o << "\n";
-  //   return true;
-  // }
-
-  stdprint <<  "Java Iterate  " << o->klass()->signature_name() 
-  << "  (" << (HeapWord*)o << ")   "
-  << "h2:" << Universe::is_in_h2(o);  
-  if(!Universe::is_in_h2(o)) 
-    stdprint << "   idx:"<<  G1CollectedHeap::heap()->heap_region_containing(o)->hrm_index();
-  
-  stdprint << "   marked:" << o->is_marked_move_h2();
-  stdprint << "\n";
-
   TERA_REMOVE(
+    // If the object is already in TeraCache then do not mark its teraflag
+    // if (Universe::is_in_h2(o)){
+    //   DEBUG_ONLY( if (!H2LivenessAnalysis) assert(o->is_in_h2(), "Obj should be flagged that is in h2" ); ) 
+    //   stdprint << "Obj h2 addr " << (HeapWord*) o << "\n";
+    //   return true;
+    // }
+
+    stdprint <<  "Java Iterate  " << o->klass()->signature_name() 
+    << "  (" << (HeapWord*)o << ")   "
+    << "h2:" << Universe::is_in_h2(o);  
+    if(!Universe::is_in_h2(o)) 
+      stdprint << "   idx:"<<  G1CollectedHeap::heap()->heap_region_containing(o)->hrm_index();
+    
+    stdprint << "   marked:" << o->is_marked_move_h2();
+    stdprint << "\n";
+
+  
     PrintFieldsClosure cl(G1CollectedHeap::heap()); 
     o->oop_iterate_backwards(&cl); 
+
+    //##!! remove
+    // uint idx = G1CollectedHeap::heap()->heap_region_containing(o)->hrm_index();
+    // stdprint << "Is in region idx " << idx << "\n"
+    //   << "obj size " << o->size() * 8 << "\n"; //in bytes
   )
   
-
-  //##!! remove
-  // uint idx = G1CollectedHeap::heap()->heap_region_containing(o)->hrm_index();
-  // stdprint << "Is in region idx " << idx << "\n"
-  //   << "obj size " << o->size() * 8 << "\n"; //in bytes
 
   return false;
 }

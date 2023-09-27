@@ -47,8 +47,8 @@ public:
   static void write_ref_field_pre_entry(oopDesc* orig, JavaThread *thread);
   static void write_ref_field_post_entry(volatile CardValue* card_addr, JavaThread* thread);
 
-  static void my_print_array(){ stdprint <<  "write barrier post array\n"; }
-  static void my_print_ref(){ stdprint <<  "write barrier post ref\n"; }
+  TERA_REMOVE( static void my_print_array(){ stdprint <<  "write barrier post array\n"; } )
+  TERA_REMOVE( static void my_print_ref(){ stdprint <<  "write barrier post ref\n"; } )
 };
 
 #endif // SHARE_GC_G1_G1BARRIERSETRUNTIME_HPP

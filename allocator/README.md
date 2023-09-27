@@ -1,4 +1,4 @@
-# TeraCache Region-Based Allocator
+# TeraHeap Region-Based Allocator
 
 ## Prepare TeraHeap Allocator
 Before compiling TeraHeap allocator edit the  following variables in
@@ -16,7 +16,7 @@ make
 ```
 
 ## Install and Uninstall Allocator Library
-More easily just run (you need do not need sudo priveledges):
+More easily just run (you do not need sudo priveledges):
 ```sh
 ./build.sh
 ```

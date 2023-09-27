@@ -17,16 +17,18 @@
   * Source code that we need to remove after testing
   ************************************/
 
-  #include <iostream>
-  #define stdprint std::cerr
-
 //one of the two should only be enabled, or none
 // #define FORCE_OPT // force optional cset
 // #define NO_OPT // no optional cset (not working correctly)
 
 // #define TERA_DEBUG
 #ifdef TERA_DEBUG
+  
+  #include <iostream>
+  #define stdprint std::cerr
+
 	#define TERA_REMOVE(code) code
+
 #else
 	#define TERA_REMOVE(code)
 #endif

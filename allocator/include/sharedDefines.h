@@ -6,10 +6,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEV "/home1/public/mariach/TeraHeap/H2.txt"	     //< Device name
+#define DEV "/mnt/fmap/H2.txt"       //< Device name
 //#define DEV "/spare/mariach/H2.txt"
-
-#define DEV_SIZE (4*1024LU*1024*1024)  //< Device size (in bytes)
+#define DEV_SIZE (700*1024LU*1024*1024)  //< Device size (in bytes)
 
 //#define ASSERT
 
@@ -21,7 +20,7 @@
 #define assertf(A, M, ...) ;
 #endif
 
-#define ANONYMOUS    0                //< Set to 1 for small mmaps
+#define ANONYMOUS  0                //< Set to 1 for small mmaps
 
 #define MAX_REQS	 64				  //< Maximum requests
 
@@ -29,23 +28,22 @@
 
 #define MALLOC_ON	1				  //< Allocate buffers dynamically
 
-#define REGION_SIZE	(256*1024LU*1024) //< Region size (in bytes) for allignment
-									  // version
-
-#define V_SPACE (100*1024LU*1024*1024*1024) //< Virtual address space size for 
-											// small mmaps
+#define REGION_SIZE	(16*1024LU*1024) //< Region size (in bytes) for allignment
+									                    // version
 
 #if ANONYMOUS
+#define V_SPACE (100*1024LU*1024*1024*1024) //< Virtual address space size for 
+											// small mmaps
 #define REGION_ARRAY_SIZE ((V_SPACE)/(REGION_SIZE))
 #define MAX_PARTITIONS 256			  // Maximum partitions per RDD, affects 
 									  // id array size
 
-#define MAX_RDD_ID 256				  //< Total different rdds
+#define MAX_RDD_ID ((REGION_ARRAY_SIZE)/(MAX_PARTITIONS)) //< Total different rdds
 
 #else
 #define REGION_ARRAY_SIZE ((DEV_SIZE)/(REGION_SIZE))
 
-#define MAX_PARTITIONS 1			  // Maximum partitions per RDD, affects 
+#define MAX_PARTITIONS 256			  // Maximum partitions per RDD, affects 
 									  // id array size
 #define MAX_RDD_ID ((REGION_ARRAY_SIZE)/(MAX_PARTITIONS)) //< Total different rdds
 

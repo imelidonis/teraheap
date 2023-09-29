@@ -6,9 +6,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEV "/mnt/fmap/H2.txt"       //< Device name
-//#define DEV "/spare/mariach/H2.txt"
-#define DEV_SIZE (700*1024LU*1024*1024)  //< Device size (in bytes)
+// #define DEV "/mnt/fmap/file.txt"	     //< Device name
+#define DEV "/home1/public/imel/file.txt"	     //< Device name
+#define DEV_SIZE (4*1024LU*1024*1024)  //< Device size (in bytes)
 
 //#define ASSERT
 

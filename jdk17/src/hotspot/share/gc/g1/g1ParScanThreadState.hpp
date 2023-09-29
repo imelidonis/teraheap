@@ -192,6 +192,10 @@ private:
                                 markWord old_mark);
 
 
+#ifdef TERA_EVAC_MOVE
+  oop do_copy_to_h2_space(G1HeapRegionAttr region_attr, oop obj, markWord m);
+#endif
+
 
   // This method is applied to the fields of the objects that have just been copied.
   template <class T> void do_oop_evac(T* p);

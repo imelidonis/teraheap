@@ -118,7 +118,7 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   
   oop obj = CompressedOops::decode_not_null(heap_oop);
 
-  TERA_REMOVE( stdprint <<  obj->klass()->signature_name() << " h2:" << Universe::is_in_h2(obj) << " (" << (HeapWord*)obj << ")  ,  "; )
+  TERA_REMOVE( stdprint <<  obj->klass()->signature_name() << " h2:" << Universe::is_in_h2(obj) << " (" << cast_from_oop<HeapWord*>(obj) << ")  ,  "; )
 
 
 //##!! If obj is in H2
@@ -193,7 +193,7 @@ inline void G1RootRegionScanClosure::do_oop_work(T* p) {
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
       if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
-        Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
         return;
       }
 #endif
@@ -343,7 +343,7 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   if (Universe::teraHeap()->is_obj_in_h2(obj)) {
     Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
     
-    TERA_REMOVE( stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") :  at H2\n" ; )   
+    TERA_REMOVE( stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") :  at H2\n" ; )   
 
 		return;	
   }
@@ -355,7 +355,7 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
 
     TERA_REMOVE(
       const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
-      stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : at H1 ";
+      stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") : at H1 ";
      
       if (hr->is_young()) stdprint << "YOUNG (in cset)\n";
       else if (hr->is_old()) stdprint << "OLD (in cset)\n";
@@ -377,7 +377,7 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
 
     TERA_REMOVE(
       const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
-      stdprint << "\t" << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ") : at H1 ";
+      stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") : at H1 ";
      
       if (hr->is_young()) stdprint << "YOUNG (out of cset)\n";
       else if (hr->is_old()) stdprint << "OLD (out of cset)\n";
@@ -478,7 +478,7 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
   if(EnableTeraHeap){
     if( Universe::is_in_h2(obj) ){
       //set H2 region live bit
-      if( should_mark ) Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+      if( should_mark ) Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
       return;
     }    
   }
@@ -582,7 +582,7 @@ template <class T> void G1RebuildRemSetClosure::do_oop_work(T* p) {
   // bcs its an H2 region, and it does not have a rem set
 
   if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
-    Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
     return;
   }
 
@@ -607,7 +607,7 @@ TERA_REMOVE(
     oop obj = CompressedOops::decode_not_null(heap_oop);
 
   
-    stdprint << "\t" <<  obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")   "
+    stdprint << "\t" <<  obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ")   "
     << "h2:" << Universe::is_in_h2(obj);  
     if(!Universe::is_in_h2(obj)) 
       stdprint << "   idx:"<<  G1CollectedHeap::heap()->heap_region_containing(obj)->hrm_index();
@@ -626,7 +626,7 @@ TERA_REMOVE(
     
     stdprint <<  obj->klass()->signature_name() 
     << " h2:" << Universe::is_in_h2(obj) 
-    << " (" << (HeapWord*)obj << ")  ,  ";
+    << " (" << cast_from_oop<HeapWord*>(obj) << ")  ,  ";
        
   }
 )

@@ -3,3 +3,4 @@
 *.class
 tags
 openjdk/build/
+compile_commands.json

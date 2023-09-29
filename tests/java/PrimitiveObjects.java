@@ -8,7 +8,7 @@ import java.util.ArrayList;
 
 import java.lang.reflect.Field;
 
-public class Array {
+public class PrimitiveObjects {
 	private static final sun.misc.Unsafe _UNSAFE;
 
 	static {
@@ -20,7 +20,6 @@ public class Array {
 			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
 		}
 	}
-
 	public static void mem_info(String str) {
 		System.out.println("=========================================");
 		System.out.println(str + "\n");
@@ -39,50 +38,34 @@ public class Array {
 		System.out.println("=========================================");
 	}
 
-	public static void main(String args[]) throws Exception {
-    //int num_elements = 2000000;
-	  int num_elements = 1;
-	  long sum;
+  public static void main(String args[]){
+    Person p1 = new Person();
+    Person p2 = new Person();
+    Person p3 = new Person();
+    Person p4 = new Person();
+    gc();
+  }
+}
 
-    int[] array2 = new int[1];
+class Person {
+  int x;
+  int y;
 
-    int[] array1 = new int[num_elements];
-	  _UNSAFE.h2TagAndMoveRoot(array1, 0, 0);
+  Person() {
+    this.x = 10;
+    this.y = 20;
+  }
 
-	  //int[] array2 = new int[num_elements];
-	  _UNSAFE.h2TagAndMoveRoot(array2, 1, 0);
+  public void set_x(int num, int num2) {
+    this.x = num;
+    this.y = num2;
+  }
 
-	  for (int i = 0; i < num_elements; i++)
-	      array2[i] = 333;
-	  
-
-	  gc();
-
-	  for (int i = 0; i < num_elements; i++)
-	      array1[i] = i*2;
-	  
-	  gc();
-	  for (int i = 0; i < num_elements; i++)
-	      array1[i] = i;
-	  
-	  gc();
-	  
-	  sum = 0;
-	  for (int i = 0; i < num_elements; i++)
-	      sum += array1[i];
-	  
-	  for (int i = 0; i < num_elements; i++)
-	      array2[i] = i*4;
-	  
-	  gc();
-	  
-	  for (int i = 0; i < num_elements; i++)
-	      array2[i] = 333;
-	  
-	  gc();
-	  
-	  sum = 0;
-	  for (int i = 0; i < num_elements; i++)
-	      sum += array1[i];
+  public int getX() {
+    return this.x;
+  }
+  
+  public int getY() {
+    return this.y;
   }
 }

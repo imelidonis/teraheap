@@ -24,37 +24,28 @@ class ClassInstance {
 		  arrayLaptop[i] = new Laptop();
 	  }
 
-	  GC.move_to_old();
-
-	
-	  GC.gc();
+	  System.gc();
 
 	  _UNSAFE.h2TagAndMoveRoot(arrayLaptop[0], 0, 0);
 
 	  Object obj = arrayLaptop[0].getClass();
 	  _UNSAFE.h2TagAndMoveRoot(obj, 0, 0);
 
-	  GC.gc();
+	  System.gc();
 	  arrayLaptop[0].add_new_element();
 	  arrayLaptop[40].add_new_element();
 	  arrayLaptop[41].add_new_element();
-
-	  GC.move_to_old();
-
-	  GC.gc();
-
+	  System.gc();
 	  _UNSAFE.h2TagAndMoveRoot(arrayLaptop[10], 1, 0);
 
-	  GC.gc();
+	  System.gc();
 
 	  arrayLaptop[10].add_new_element();
 	  arrayLaptop[42].add_new_element();
 	  arrayLaptop[43].add_new_element();
 	  arrayLaptop[44].add_new_element();
-	  
-	  GC.move_to_old();
-	
-	  GC.gc();
+
+	  System.gc();
 
 	  _UNSAFE.h2TagAndMoveRoot(arrayLaptop[20], 2, 0);
 
@@ -63,16 +54,12 @@ class ClassInstance {
 
 	  for (int i=50; i < 1000; i++)
 		  arrayLaptop[i].add_new_element();
-	
-	  GC.move_to_old();
 
-	  GC.gc();
+	  System.gc();
 	  
 	  arrayLaptop[400].add_new_element();
-
-	  GC.move_to_old();
 	  
-	  GC.gc();
+	  System.gc();
   }
 }
 

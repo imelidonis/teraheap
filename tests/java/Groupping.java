@@ -40,7 +40,7 @@ public class Groupping
 	{
 		System.out.println("=========================================");
 		System.out.println("Call GC");
-		GC.gc();
+		System.gc();
 		System.out.println("=========================================");
 	}
 	
@@ -63,35 +63,32 @@ public class Groupping
 		LinkedList<Integer> list = new LinkedList<Integer>();
 		_UNSAFE.h2TagAndMoveRoot(list, 0, 0);
 
-		GC.move_to_old();
+		gc();
         
 		long x = 0;
 		// Traverse all the data of the list
 		for (int i = 0; i < num_elements; i++)
 			list.add(new Integer(i));
 
-		GC.move_to_old();
-        GC.gc();
+        gc();
 
         for (int i = 0; i < num_elements; i++)
             list.remove();
 
-        GC.gc();
+        gc();
 		LinkedList<String> list2 = new LinkedList<String>();
 		_UNSAFE.h2TagAndMoveRoot(list2, 1, 0);
         
         for (int i = 0; i < num_elements_2; i++)
             list2.add(new String("Hello World " + i));
 
-		GC.move_to_old();
-
-        GC.gc();
+        gc();
 		calcHashCode(list2, num_elements);
 
-		GC.gc();
+		gc();
 		calcHashCode(list2, num_elements);
 
-		GC.gc();
+		gc();
 		calcHashCode(list2, num_elements);
 
 		mem_info("Memory After");

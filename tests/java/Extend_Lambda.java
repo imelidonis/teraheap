@@ -58,7 +58,13 @@ class Extend_Lambda
 		System.out.println("Hashcode Element = " + sum);
 	}
 
-
+	public static void gc()
+	{
+		System.out.println("=========================================");
+		System.out.println("Call GC");
+		System.gc();
+		System.out.println("=========================================");
+	}
 
 	public static void main(String args[]) 
 	{ 
@@ -69,29 +75,25 @@ class Extend_Lambda
 		LinkedList<Integer> linkedList = new LinkedList<Integer>(); 
 		int num_elements = 100000;
 		
-		// _UNSAFE.h2TagAndMoveRoot(fobj, 0, 0);
-
-		GC.move_to_old();
+		//_UNSAFE.h2TagAndMoveRoot(fobj, 0, 0);
 		
-		GC.gc();
+		gc();
 	
 		fobj.abstractFun(5); 
 
 		_UNSAFE.h2TagAndMoveRoot(linkedList, 1, 0);
 
-		GC.gc();
+		gc();
 
 		for (int i = 0; i < num_elements; i++)
 			linkedList.add(new Integer(i));
 
 		fobj.abstractFun(1000); 
-
-		GC.move_to_old();
 		
-		GC.gc();
+		gc();
 
 		fobj.abstractFun(2000); 
-		GC.gc();
+		gc();
 		linkedList = null;
 
 		LinkedList<Integer> linkedList2 = new LinkedList<Integer>(); 
@@ -100,21 +102,19 @@ class Extend_Lambda
 		for (int i = 0; i < num_elements; i++)
 			linkedList2.add(new Integer(i));
 
-		GC.move_to_old();
-
 		fobj.abstractFun(4000); 
 	
-		GC.gc();
+		gc();
 		
 		calcHashCode(linkedList2, num_elements);
 		
 		fobj.abstractFun(4000); 
 		
-		GC.gc();
+		gc();
 		
 		calcHashCode(linkedList2, num_elements);
 		
-		GC.gc();
+		gc();
 		mem_info("Memory Information");
 	} 
 } 

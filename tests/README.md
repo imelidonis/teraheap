@@ -1,10 +1,5 @@
 # TeraHeap Test Files
 
-## What to change
-At the run.sh change : STRIPE_SIZE (size) , JAVA (path) , flags used in the function
-At java/Makefile change : JAVA_REPO , JAVAC  paths
-run.sh -h
-
 ## Description
 TeraHeap test files are used to test TeraHeap functionalities during
 implementation. All these test files are implemented in JAVA. 

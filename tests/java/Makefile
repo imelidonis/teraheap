@@ -12,39 +12,24 @@
 ####################################################
 
 JAVA_REPO := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))../../jdk17
-# JAVA_COMP=$(JAVA_REPO)/build/base-linux/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar
-JAVA_COMP=$(JAVA_REPO)/build/base-linux/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar -classpath /home1/public/mariach/TeraHeap/teraheap/tests/java/bin/
-# JAVAC=$(JAVA_REPO)/build/sith5/jdk/bin/javac -Xlint:deprecation -sourcepath /home1/public/mariach/benches/mine/H2/wbextra.jar
-# JAVAC=javac
+JAVAC=$(JAVA_REPO)/build/linux-x86_64-server-slowdebug/jdk/bin/javac
+PROJECT_DIR := $(shell pwd)/../..
 
-JAVAC=$(JAVA_COMP) -d ./bin
-
-GDB=gdb
-
-TARGET= GC.class Array_List_Int.class Array.class Array_List.class Array_List_Int.class Array_List_String.class List_Large.class \
+TARGET=Array.class Array_List.class Array_List_Int.class List_Large.class \
 	   MultiList.class Simple_Lambda.class Extend_Lambda.class \
 	   Test_Reflection.class Test_Reference.class HashMap.class Rehashing.class \
 	   Clone.class Groupping.class MultiHashMap.class Test_WeakHashMap.class \
-	   ClassInstance.class
-	   
+	   ClassInstance.class PrimitiveObjects.class
+
 all: $(TARGET)
 
-GC.class: GC.java
-	$(JAVAC) $<
-
 Array.class: Array.java
-	$(JAVAC) $<
-
-Array_mine.class: Array_mine.java
 	$(JAVAC) $<
 
 Array_List.class: Array_List.java 
 	$(JAVAC) $<
 
 Array_List_Int.class: Array_List_Int.java 
-	$(JAVAC) $<
-
-Array_List_String.class: Array_List_String.java 
 	$(JAVAC) $<
 
 List_Large.class: List_Large.java 
@@ -86,12 +71,16 @@ Test_WeakHashMap.class: Test_WeakHashMap.java
 ClassInstance.class: ClassInstance.java
 	$(JAVAC) $<
 
+PrimitiveObjects.class: PrimitiveObjects.java
+	$(JAVAC) $<
+
 clean:
-	rm core.*
-	rm hs_err_pid*
-	rm *_err *_out *_tera
-	rm hotspot_pid*
-	rm replay_pid*
+	-rm core.*
+	-rm hs_err_pid*
+	-rm err out
+	-rm hotspot_pid*
+	-rm replay_pid*
+	-rm llarge_teraCache.txt
 
 distclean: clean
-	rm -f *.class
+	-rm -f *.class

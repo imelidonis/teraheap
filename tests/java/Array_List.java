@@ -35,6 +35,12 @@ public class Array_List {
 		}
 	}
 
+	public static void gc() {
+		System.out.println("=========================================");
+		System.out.println("Call GC");
+		System.gc();
+		System.out.println("=========================================");
+	}
 
 	public static void calcHashCode(ArrayList<String> arl, int num_elements) {
 		long sum = 0;
@@ -48,8 +54,6 @@ public class Array_List {
 	public static void main (String[] args)
 	{
 		int num_elements =10000000;
-		// int num_elements = Integer.parseInt(args[0]);
-
 		long sum = 0;
 
 		mem_info("Memory Before");
@@ -60,27 +64,37 @@ public class Array_List {
 
 		for (int i = 0; i < num_elements; i++)
 			arl.add(new String("Hello World for the first time " + i));
-
-		GC.move_to_old();
-
-		GC.gc();
-		calcHashCode(arl, num_elements);
-
-        GC.gc();
-		calcHashCode(arl, num_elements);
-
-		GC.gc();
-		calcHashCode(arl, num_elements);
-
-		GC.gc();
 		
+    ArrayList<String> arl2 = new ArrayList<String>();
+		for (int i = 0; i < num_elements; i++)
+			arl2.add(new String("Hello World " + i));
+
+		_UNSAFE.h2TagAndMoveRoot(arl2, 0, 0);
+
+		calcHashCode(arl, num_elements);
+		calcHashCode(arl2, num_elements);
+		gc();
+
+		calcHashCode(arl, num_elements);
+
+    gc();
+		calcHashCode(arl, num_elements);
+
+		gc();
+		calcHashCode(arl, num_elements);
+
+		gc();
+
 		for (int i = 0; i < num_elements; i++)
 			arl.add(new String("Hello World its me giannos " + i));
 
-		GC.move_to_old(); //here trim error 
-		
-		GC.gc();
+		gc();
+
 		calcHashCode(arl, num_elements);
+
+    gc();
+
+    calcHashCode(arl2, num_elements);
 
 		mem_info("Memory After");
 	}

@@ -31,7 +31,13 @@ public class Clone
 		}
 	}
 
-	
+	public static void gc()
+	{
+		System.out.println("=========================================");
+		System.out.println("Call GC");
+		System.gc();
+		System.out.println("=========================================");
+	}
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) 
@@ -42,23 +48,16 @@ public class Clone
 
         ArrayList<String> arrayListObject = new ArrayList<>(); 
 		_UNSAFE.h2TagAndMoveRoot(arrayListObject, 0, 0);
-		
 
 		for (int i = 0; i < num_elements/2; i++)
 		{
 			arrayListObject.add("Jack Kolokasis " + i);
 		}
 
-		GC.move_to_old();
-		GC.gc();
-
 		for (int i = 0; i < num_elements/2; i++)
 		{
 			arrayListObject.add("Jack Kolokasis " + i);
 		}
-
-		GC.move_to_old();
-		GC.gc();
          
         System.out.println(arrayListObject);   
 		
@@ -67,13 +66,7 @@ public class Clone
 			arrayListObject.add("Nicos Kolokasis " + i);
 		}
 
-		GC.move_to_old();
-		GC.gc();
-
         ArrayList<String> arrayListClone =  (ArrayList<String>) arrayListObject.clone();
-
-		GC.move_to_old();
-		GC.gc();
 
         System.out.println(arrayListClone);   
 		
@@ -81,9 +74,5 @@ public class Clone
 		{
 			arrayListObject.add("Jack Kolokasis " + i + "00");
 		}
-
-		GC.move_to_old();
-		GC.gc();
-		
     }
 }

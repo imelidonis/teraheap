@@ -25,8 +25,6 @@ public class Array_List_Int {
 		}
 	}
 
-	
-
 	public static void mem_info(String str) {
 		System.out.println("=========================================");
 		System.out.println(str + "\n");
@@ -35,6 +33,13 @@ public class Array_List_Int {
 			System.out.println(memoryPoolMXBean.getName());
 			System.out.println(memoryPoolMXBean.getUsage().getUsed());
 		}
+	}
+
+	public static void gc() {
+		System.out.println("=========================================");
+		System.out.println("Call GC");
+		System.gc();
+		System.out.println("=========================================");
 	}
 
 	public static void calcHashCode(ArrayList<Integer> arl, int num_elements) {
@@ -49,8 +54,6 @@ public class Array_List_Int {
 	public static void main (String[] args) 
 	{		 
 		int num_elements =10000000;
-		// int num_elements =1 000 000;
-
 		long sum = 0;
 
 		mem_info("Memory Before");
@@ -61,30 +64,25 @@ public class Array_List_Int {
 		for (int i = 0; i < num_elements; i++)
 			arl.add(new Integer(i));
 
-		
-		GC.move_to_old();
-
-		GC.gc();
+		gc();
 		calcHashCode(arl, num_elements);
 
-        GC.gc();
+        gc();
 		calcHashCode(arl, num_elements);
 
-		GC.gc();
+		gc();
 		calcHashCode(arl, num_elements);
 
 		arl = null;
-		GC.gc();
+		gc();
 
 		ArrayList<Integer> arl2 = new ArrayList<Integer>();
-		_UNSAFE.h2TagAndMoveRoot(arl2, 1, 0); 
+		_UNSAFE.h2TagAndMoveRoot(arl2, 1, 0);
 
 		for (int i = 0; i < num_elements; i++)
 			arl2.add(new Integer(i));
-
-		GC.move_to_old();
 		
-		GC.gc();
+		gc();
 
 		calcHashCode(arl2, num_elements);
 

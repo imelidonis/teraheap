@@ -1,10 +1,10 @@
 # TeraHeap Test Files
 
-## What to change
-At the run.sh change : STRIPE_SIZE (size) , JAVA (path) , flags used in the function
-At java/Makefile change : JAVA_REPO , JAVAC  paths
-run.sh -h
-
+evacuations folder : tests for the g1 evacuations (forces minor and major evacuations)
+system_gc folder   : these tests are triggered by System.gc() and they can test
+                    (1) parallel scavenge major/full gc 
+                    (2) g1 full gc
+                    
 ## Description
 TeraHeap test files are used to test TeraHeap functionalities during
 implementation. All these test files are implemented in JAVA. 

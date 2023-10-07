@@ -27,9 +27,12 @@
   #include <iostream>
   #define stdprint std::cerr
 
-	#define TERA_REMOVE(code) code
+	#define TERA_REMOVEx(code) code
+	#define TERA_REMOVE(code)
+
 
 #else
+	#define TERA_REMOVEx(code)
 	#define TERA_REMOVE(code)
 #endif
 
@@ -66,9 +69,9 @@
 
 #define TERA_C1				            //< Enable C1 to support TeraHeap
 
-#define TERA_C2				            //< Enable C1 to support TeraHeap
+#define TERA_C2				            //< Enable C2 to support TeraHeap
 
-//#define C2_ONLY_LEAF_CALL		    //< C2 Compiler version - Comparisons and
+// #define C2_ONLY_LEAF_CALL		    //< C2 Compiler version - Comparisons and
                                   // card marking are all implemented in the
                                   // make_leaf_call()
 

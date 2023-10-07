@@ -39,6 +39,13 @@ void G1CodeBlobClosure::HeapRegionGatheringOopClosure::do_oop_work(T* p) {
   T oop_or_narrowoop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(oop_or_narrowoop)) {
     oop o = CompressedOops::decode_not_null(oop_or_narrowoop);
+
+#if defined TERA_C1 || defined TERA_C2
+      // if the nmethod is pointing to an h2 obj
+      // no need to include the nmethod in the rem set (bcs there are no rem sets in h2)
+      if(EnableTeraHeap && Universe::is_in_h2(o)) return;
+#endif
+
     HeapRegion* hr = _g1h->heap_region_containing(o);
     assert(!_g1h->is_in_cset(o) || hr->rem_set()->strong_code_roots_list_contains(_nm), "if o still in collection set then evacuation failed and nm must already be in the remset");
     hr->add_strong_code_root(_nm);
@@ -58,6 +65,18 @@ void G1CodeBlobClosure::MarkingOopClosure::do_oop_work(T* p) {
   T oop_or_narrowoop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(oop_or_narrowoop)) {
     oop o = CompressedOops::decode_not_null(oop_or_narrowoop);
+
+#if defined TERA_C1 || defined TERA_C2
+      // if the nmethod is pointing to an h2 obj
+      // no need to mark it as live
+      //  (1) set H2 region live bit
+      //  (2) Fence heap traversal to H2
+      if (EnableTeraHeap && (Universe::is_in_h2(o))){    
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(o));
+        return;
+      }
+#endif
+
     _cm->mark_in_next_bitmap(_worker_id, o);
   }
 }

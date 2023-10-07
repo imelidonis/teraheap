@@ -119,6 +119,13 @@ class G1VerifyCodeRootOopClosure: public OopClosure {
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
 
+#if defined TERA_C1 || defined TERA_C2
+      // if the nmethod is pointing to an h2 obj
+      // no need for the nmethod to be included in the rem set of the regions obj (bcs there are no rem sets in h2)
+      if(EnableTeraHeap && Universe::is_in_h2(obj)) return;
+#endif
+
+
       // Now fetch the region containing the object
       HeapRegion* hr = _g1h->heap_region_containing(obj);
       HeapRegionRemSet* hrrs = hr->rem_set();

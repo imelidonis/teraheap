@@ -124,7 +124,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
     //in h2
     BarrierSet *bs = BarrierSet::barrier_set();
     CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-    CardTable* ct = ctbs->card_table();
+    CardTable* ct = ctbs->th_card_table();
     intptr_t th_disp = (intptr_t) ct->th_byte_map_base();
 
     Label L_loop;
@@ -376,8 +376,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
     // IN H2
     __ bind(L_in_h2);
 
-    CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
-    CardTable* ct = ctbs->th_card_table();
+    CardTable* th_ct = ct->th_card_table();
 
     const Register obj = tmp;   // apla dinei alli onomasia sto tmp    
     __ movptr(obj, store_addr); // obj = store_addr
@@ -392,7 +391,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
     // So this essentially converts an address to a displacement and it will
     // never need to be relocated. On 64bit however the value may be too
     // large for a 32bit displacement.
-    intptr_t th_byte_map_base = (intptr_t)ct->th_byte_map_base();
+    intptr_t th_byte_map_base = (intptr_t)th_ct->th_byte_map_base();
     if (__ is_simm32(th_byte_map_base)) {
       th_card_addr = Address(noreg, obj, Address::times_1, th_byte_map_base);
     } else {

@@ -14,4 +14,4 @@ export PATH=${PROJECT_DIR}/tera_malloc/include/:$PATH
 export C_INCLUDE_PATH=${PROJECT_DIR}/tera_malloc/include/:$C_INCLUDE_PATH
 export CPLUS_INCLUDE_PATH=${PROJECT_DIR}/tera_malloc/include/:$CPLUS_INCLUDE_PATH
 
-make -C java Array.class
+make -C java all

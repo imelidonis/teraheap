@@ -13,14 +13,25 @@ implementation. All these test files are implemented in JAVA.
 To build and run all test files for TeraHeap:
 
 ```sh
-cd ./java
+Choose what benchmarks you want 
+
+cd system_gc
 ./compile.sh
-cd -
+
+    OR
+
+cd evacuations
+./compile.sh
+
+
 ```
 ## Run Tests
 There are different modes that you can run the TeraHeap tests.
 
 ```sh
+
+Inside the system_gc or evacuations folder do:
+
 # Run tests in interpreter mode
 ./run.sh 1
 

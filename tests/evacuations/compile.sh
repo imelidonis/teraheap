@@ -25,7 +25,7 @@ cd ..
 make -C java GC.class
 
 # Thirdly : compile any benchmark you want
-make -C java Array.class
+make -C java all
 
 
 

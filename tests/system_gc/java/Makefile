@@ -12,7 +12,7 @@
 ####################################################
 
 JAVA_REPO := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))../../../jdk17
-JAVAC=$(JAVA_REPO)/build/base-linux/jdk/bin/javac
+JAVAC=$(JAVA_REPO)/build/base-linux/jdk/bin/javac -d ./bin
 PROJECT_DIR := $(shell pwd)/../../..
 
 TARGET=Array.class Array_List.class Array_List_Int.class List_Large.class \
@@ -77,10 +77,10 @@ PrimitiveObjects.class: PrimitiveObjects.java
 clean:
 	-rm core.*
 	-rm hs_err_pid*
-	-rm err out
+	-rm -r out
 	-rm hotspot_pid*
 	-rm replay_pid*
 	-rm llarge_teraCache.txt
 
 distclean: clean
-	-rm -f *.class
+	-rm -rf bin

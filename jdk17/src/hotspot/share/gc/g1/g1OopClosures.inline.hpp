@@ -442,6 +442,11 @@ inline void G1ScanRSForOptionalClosure::do_oop_work(T* p) {
 }
 
 void G1ParCopyHelper::do_cld_barrier(oop new_obj) {
+
+#ifdef TERA_MAINTENANCE 
+  if( EnableTeraHeap && Universe::is_in_h2(new_obj) ) return;
+#endif
+
   if (_g1h->heap_region_containing(new_obj)->is_young()) {
     _scanned_cld->record_modified_oops();
   }

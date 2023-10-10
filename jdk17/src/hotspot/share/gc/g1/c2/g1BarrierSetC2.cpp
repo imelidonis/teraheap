@@ -40,6 +40,7 @@
 #include "opto/type.hpp"
 #include "utilities/macros.hpp"
 
+
 const TypeFunc *G1BarrierSetC2::write_ref_field_pre_entry_Type() {
   const Type **fields = TypeTuple::fields(2);
   fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // original field value
@@ -65,6 +66,23 @@ const TypeFunc *G1BarrierSetC2::write_ref_field_post_entry_Type() {
 
   return TypeFunc::make(domain, range);
 }
+
+#ifdef TERA_C2
+const TypeFunc *G1BarrierSetC2::h2_wb_post_Type() {
+
+  const Type **fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeRawPtr::NOTNULL;  // Card addr
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(0);
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+
+  return TypeFunc::make(domain, range);
+}
+#endif // TERA_C2
+
+
 
 #define __ ideal.
 /*
@@ -397,6 +415,7 @@ void G1BarrierSetC2::post_barrier(GraphKit* kit,
     return;
   }
 
+//????
   if (use_ReduceInitialCardMarks()
       && g1_can_remove_post_barrier(kit, &kit->gvn(), oop_store, adr)) {
     return;
@@ -420,7 +439,7 @@ void G1BarrierSetC2::post_barrier(GraphKit* kit,
   Node* dirty_card = __ ConI((jint)G1CardTable::dirty_card_val());
   Node* zeroX = __ ConX(0);
 
-  const TypeFunc *tf = write_ref_field_post_entry_Type();
+  const TypeFunc *tf = write_ref_field_post_entry_Type(); //??????
 
   // Offsets into the thread
   const int index_offset  = in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset());
@@ -442,13 +461,145 @@ void G1BarrierSetC2::post_barrier(GraphKit* kit,
   Node* cast =  __ CastPX(__ ctrl(), adr);
 
   // Divide pointer by card size
-  Node* card_offset = __ URShiftX( cast, __ ConI(CardTable::card_shift) );
+  Node* card_offset = __ URShiftX( cast, __ ConI(CardTable::card_shift) ); 
 
   // Combine card table base and card offset
   Node* card_adr = __ AddP(no_base, byte_map_base_node(kit), card_offset );
 
-  // If we know the value being stored does it cross regions?
+#ifdef TERA_C2
+  if(EnableTeraHeap){
 
+#ifdef C2_ONLY_LEAF_CALL
+    const TypeFunc *tera_tf = h2_wb_post_Type();
+    __ make_leaf_call(tera_tf, CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::h2_wb_post), "h2_wb_post", adr);
+#else
+
+    Node* tc_adr = __ makecon(
+        TypeRawPtr::make((address)Universe::teraHeap()->h2_start_addr()));
+    
+    Node* tc_cast = __ CastPX(__ ctrl(), tc_adr);
+    
+    assert(adr->bottom_type()->isa_ptr() != NULL, "Error");
+    assert(tc_adr->bottom_type()->isa_ptr() != NULL, "Error");
+    
+    Node* t = kit->gvn().transform(new SubXNode(cast, tc_cast));
+    
+
+    //if ( obj start addr - teraheap start  <  0 ) then obj is in H1
+    __ if_then(t, BoolTest::lt, __ ConX(0)); {
+      
+      //ORIGINAL H1 CODE
+
+      // If we know the value being stored, does it cross regions?
+      if (val != NULL) {
+        // Does the store cause us to cross regions?
+
+        // Should be able to do an unsigned compare of region_size instead of
+        // and extra shift. Do we have an unsigned compare??
+        // Node* region_size = __ ConI(1 << HeapRegion::LogOfHRGrainBytes);
+        Node* xor_res =  __ URShiftX ( __ XorX( cast,  __ CastPX(__ ctrl(), val)), __ ConI(HeapRegion::LogOfHRGrainBytes));
+
+        // if (xor_res == 0) same region so skip
+        __ if_then(xor_res, BoolTest::ne, zeroX, likely); {
+
+          // No barrier if we are storing a NULL
+          __ if_then(val, BoolTest::ne, kit->null(), likely); {
+
+            // Ok must mark the card if not already dirty
+
+            // load the original value of the card
+            Node* card_val = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+
+            __ if_then(card_val, BoolTest::ne, young_card, unlikely); {
+              kit->sync_kit(ideal);
+              kit->insert_mem_bar(Op_MemBarVolatile, oop_store);
+              __ sync_kit(kit);
+
+              Node* card_val_reload = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+              __ if_then(card_val_reload, BoolTest::ne, dirty_card); {
+                g1_mark_card(kit, ideal, card_adr, oop_store, alias_idx, index, index_adr, buffer, tf);
+              } __ end_if();
+            } __ end_if();
+          } __ end_if();
+        } __ end_if();
+      } else {
+        // The Object.clone() intrinsic uses this path if !ReduceInitialCardMarks.
+        // We don't need a barrier here if the destination is a newly allocated object
+        // in Eden. Otherwise, GC verification breaks because we assume that cards in Eden
+        // are set to 'g1_young_gen' (see G1CardTable::verify_g1_young_region()).
+        assert(!use_ReduceInitialCardMarks(), "can only happen with card marking");
+        Node* card_val = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+        __ if_then(card_val, BoolTest::ne, young_card); {
+          g1_mark_card(kit, ideal, card_adr, oop_store, alias_idx, index, index_adr, buffer, tf);
+        } __ end_if();
+      }
+    
+    } __ else_(); {
+
+      // Mark tera card as dirty
+      const TypeFunc *tera_tf = h2_wb_post_Type();
+      __ make_leaf_call(tera_tf, CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::h2_wb_post), "h2_wb_post", adr);
+
+    } __ end_if();
+
+#endif // C2_ONLY_LEAF_CALL
+
+  // Final sync IdealKit and GraphKit.
+    kit->final_sync(ideal);
+  } else {
+    
+    //ORIGINAL H1 CODE
+
+    // If we know the value being stored, does it cross regions?
+    if (val != NULL) {
+      // Does the store cause us to cross regions?
+
+      // Should be able to do an unsigned compare of region_size instead of
+      // and extra shift. Do we have an unsigned compare??
+      // Node* region_size = __ ConI(1 << HeapRegion::LogOfHRGrainBytes);
+      Node* xor_res =  __ URShiftX ( __ XorX( cast,  __ CastPX(__ ctrl(), val)), __ ConI(HeapRegion::LogOfHRGrainBytes));
+
+      // if (xor_res == 0) same region so skip
+      __ if_then(xor_res, BoolTest::ne, zeroX, likely); {
+
+        // No barrier if we are storing a NULL
+        __ if_then(val, BoolTest::ne, kit->null(), likely); {
+
+          // Ok must mark the card if not already dirty
+
+          // load the original value of the card
+          Node* card_val = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+
+          __ if_then(card_val, BoolTest::ne, young_card, unlikely); {
+            kit->sync_kit(ideal);
+            kit->insert_mem_bar(Op_MemBarVolatile, oop_store);
+            __ sync_kit(kit);
+
+            Node* card_val_reload = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+            __ if_then(card_val_reload, BoolTest::ne, dirty_card); {
+              g1_mark_card(kit, ideal, card_adr, oop_store, alias_idx, index, index_adr, buffer, tf);
+            } __ end_if();
+          } __ end_if();
+        } __ end_if();
+      } __ end_if();
+    } else {
+      // The Object.clone() intrinsic uses this path if !ReduceInitialCardMarks.
+      // We don't need a barrier here if the destination is a newly allocated object
+      // in Eden. Otherwise, GC verification breaks because we assume that cards in Eden
+      // are set to 'g1_young_gen' (see G1CardTable::verify_g1_young_region()).
+      assert(!use_ReduceInitialCardMarks(), "can only happen with card marking");
+      Node* card_val = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+      __ if_then(card_val, BoolTest::ne, young_card); {
+        g1_mark_card(kit, ideal, card_adr, oop_store, alias_idx, index, index_adr, buffer, tf);
+      } __ end_if();
+    }
+    kit->final_sync(ideal);
+  
+  }
+
+
+#else
+  // If we know the value being stored, does it cross regions?
   if (val != NULL) {
     // Does the store cause us to cross regions?
 
@@ -494,6 +645,7 @@ void G1BarrierSetC2::post_barrier(GraphKit* kit,
 
   // Final sync IdealKit and GraphKit.
   kit->final_sync(ideal);
+#endif
 }
 
 // Helper that guards and inserts a pre-barrier.

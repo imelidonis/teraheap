@@ -4303,6 +4303,13 @@ class RegisterNMethodOopClosure: public OopClosure {
     T heap_oop = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
+
+#if defined TERA_C1 || defined TERA_C2
+      // if the nmethod is pointing to an h2 obj
+      // no need to include the nmethod in the rem set (bcs there are no rem sets in h2)
+      if(EnableTeraHeap && Universe::is_in_h2(obj)) return;
+#endif
+
       HeapRegion* hr = _g1h->heap_region_containing(obj);
       assert(!hr->is_continues_humongous(),
              "trying to add code root " PTR_FORMAT " in continuation of humongous region " HR_FORMAT
@@ -4330,6 +4337,13 @@ class UnregisterNMethodOopClosure: public OopClosure {
     T heap_oop = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
+
+#if defined TERA_C1 || defined TERA_C2
+      // if the nmethod is pointing to an h2 obj
+      // no need to unregister the nmethod from the rem set (bcs there are no rem sets in h2)
+      if(EnableTeraHeap && Universe::is_in_h2(obj)) return;
+#endif
+
       HeapRegion* hr = _g1h->heap_region_containing(obj);
       assert(!hr->is_continues_humongous(),
              "trying to remove code root " PTR_FORMAT " in continuation of humongous region " HR_FORMAT

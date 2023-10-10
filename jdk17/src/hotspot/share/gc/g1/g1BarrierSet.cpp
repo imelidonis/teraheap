@@ -111,6 +111,14 @@ void G1BarrierSet::write_ref_array_pre(narrowOop* dst, size_t count, bool dest_u
 }
 
 void G1BarrierSet::write_ref_field_post_slow(volatile CardValue* byte) {
+
+  DEBUG_ONLY(
+    if(EnableTeraHeap){
+      BarrierSet *bs = BarrierSet::barrier_set();
+      CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+      assert(Universe::heap()->is_in(ctbs->card_table()->addr_for((CardValue*)byte) ) , "should not be called at an h2 card" );
+    })
+
   // In the slow path, we know a card is not young
   assert(*byte != G1CardTable::g1_young_card_val(), "slow path invoked without filtering");
   OrderAccess::storeload();

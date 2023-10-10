@@ -209,7 +209,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
       if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
-        Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
         return;
       }
 #endif
@@ -236,7 +236,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
 #ifdef TERA_CONC_MARKING
           if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
-              TERA_REMOVE( stdprint << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  (HeapWord*)obj << ")\n"; )           
+              TERA_REMOVE( stdprint << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  cast_from_oop<HeapWord*>(obj) << ")\n"; )           
               
               //iterate this oop, in tera mode
               _cm_oop_closure->enable_tera_traversal(obj);    
@@ -336,7 +336,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   //  (2) Fence heap traversal to H2
   //  return false (did not add anything to the bitmap)
   if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
-    Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
     return false;
   }
 #endif
@@ -430,7 +430,7 @@ inline bool G1CMTask::deal_with_reference(T* p) {
 
   TERA_REMOVE(
     if( is_tera_traversal() ){    
-      stdprint << "\tmarked " << obj->klass()->signature_name() << "  (" << (HeapWord*)obj << ")\n";
+      stdprint << "\tmarked " << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ")\n";
     }
   )
   

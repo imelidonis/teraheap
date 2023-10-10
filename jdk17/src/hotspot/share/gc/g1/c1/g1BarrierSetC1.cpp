@@ -115,6 +115,20 @@ void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprD
     return;
   }
 
+
+#ifdef TERA_C1
+  // These registers are used for TeraCache and TeraCard tables
+  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
+  CardTable* ct = ctbs->th_card_table(); 
+	LIR_Const* tera_card_table_base = NULL;
+	LIR_Opr tera_ct = NULL;
+
+  if (EnableTeraHeap) {
+    tera_card_table_base = new LIR_Const(ct->th_byte_map_base());
+    tera_ct = gen->load_constant(tera_card_table_base);
+  }
+#endif
+
   // If the "new_val" is a constant NULL, no barrier is necessary.
   if (new_val->is_constant() &&
       new_val->as_constant_ptr()->as_jobject() == NULL) return;
@@ -122,9 +136,9 @@ void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprD
   if (!new_val->is_register()) {
     LIR_Opr new_val_reg = gen->new_register(T_OBJECT);
     if (new_val->is_constant()) {
-      __ move(new_val, new_val_reg);
+      __ move(new_val, new_val_reg); // new_val_reg = constant contained by new_val 
     } else {
-      __ leal(new_val, new_val_reg);
+      __ leal(new_val, new_val_reg); // new_val_reg = addr contained by new_val
     }
     new_val = new_val_reg;
   }
@@ -143,6 +157,48 @@ void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprD
   }
   assert(addr->is_register(), "must be a register at this point");
 
+  // Registers : new_val=address or constant , addr=address
+  // addr = new_var (barrier was hit here)
+
+
+#ifdef TERA_C1
+  LabelObj* L = new LabelObj();
+	LabelObj* M = new LabelObj();
+
+	// Check if the object belongs to TeraCache or in the heap. If it belongs to
+	// TeraCache then jump to mark the tera card tables, otherwise continue to
+	// mark the heap card tables.
+  if (EnableTeraHeap) {
+		LIR_Opr h2_start_addr = gen->new_register(T_LONG);
+		__ move(LIR_OprFact::intptrConst((address)Universe::teraHeap()->h2_start_addr()), h2_start_addr);
+
+		assert(h2_start_addr->is_register(), "must be a register at this point");
+		assert(h2_start_addr->is_double_cpu(), "must be a single cpu");
+
+		if (addr->is_single_cpu()) {
+			LIR_Opr tmp_addr = gen->new_register(T_LONG);
+			__ move(addr, tmp_addr);
+
+			assert(tmp_addr->is_double_cpu(), "must be a single cpu");
+
+			__ cmp(lir_cond_greaterEqual, tmp_addr, h2_start_addr);
+			__ branch(lir_cond_greaterEqual, M->label());
+
+		} 
+		else if (addr->is_double_cpu()) {
+			__ cmp(lir_cond_greaterEqual, addr, h2_start_addr);
+			__ branch(lir_cond_greaterEqual, M->label());
+		} 
+		else 
+			ShouldNotReachHere();
+	}
+#endif
+
+
+  // IF addr IN H1
+
+  // xor_res = addr XOR new_var
+  // xor_shift_res = xor_res >> LogOfHRGrainBytes
   LIR_Opr xor_res = gen->new_pointer_register();
   LIR_Opr xor_shift_res = gen->new_pointer_register();
   if (TwoOperandLIRForm) {
@@ -168,11 +224,58 @@ void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprD
   }
   assert(new_val->is_register(), "must be a register at this point");
 
+  // if ( xor_shift_res == 0 ) then addr and new_val are in the same region
   __ cmp(lir_cond_notEqual, xor_shift_res, LIR_OprFact::intptrConst(NULL_WORD));
 
   CodeStub* slow = new G1PostBarrierStub(addr, new_val);
   __ branch(lir_cond_notEqual, slow);
   __ branch_destination(slow->continuation());
+
+
+
+#ifdef TERA_C1
+	// Mark teracache card tables
+	if (EnableTeraHeap) {
+
+		__ branch(lir_cond_always, L->label());
+
+    // IF addr IN H2
+
+		__ branch_destination(M->label());
+    
+		LIR_Opr tmp_reg = gen->new_pointer_register();
+
+		if (TwoOperandLIRForm) {
+			__ move(addr, tmp_reg);
+			__ unsigned_shift_right(tmp_reg, CardTable::th_card_shift, tmp_reg);
+		} else {
+			__ unsigned_shift_right(addr, CardTable::th_card_shift, tmp_reg);
+		}
+  
+    LIR_Address* th_card_addr;
+    if (gen->can_inline_as_constant(tera_card_table_base)) {
+      th_card_addr = new LIR_Address(tmp_reg, tera_card_table_base->as_jint(), T_BYTE);
+    } else {
+      th_card_addr = new LIR_Address(tmp_reg, tera_ct, T_BYTE);
+    }
+
+    LIR_Opr dirty = LIR_OprFact::intConst(CardTable::dirty_card_val());
+    if (UseCondCardMark) {
+      LIR_Opr th_cur_value = gen->new_register(T_INT);
+      __ move(th_card_addr, th_cur_value);
+
+      LabelObj* L_th_already_dirty = new LabelObj();
+      __ cmp(lir_cond_equal, th_cur_value, dirty);
+      __ branch(lir_cond_equal, L_th_already_dirty->label());
+      __ move(dirty, th_card_addr);
+      __ branch_destination(L_th_already_dirty->label());
+    } else {
+      __ move(dirty, th_card_addr);
+    }
+
+    __ branch_destination(L->label());
+	}
+#endif
 }
 
 void G1BarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {

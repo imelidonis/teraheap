@@ -238,7 +238,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
         && _g1h->collector_state()->in_mixed_phase() 
         && obj->is_marked_move_h2()
       ){    
-        obj = copy_to_h2_space(region_attr, obj, m);        
+        obj = do_copy_to_h2_space(region_attr, obj, m);        
     }else{
         obj = do_copy_to_survivor_space(region_attr, obj, m);
     }
@@ -643,17 +643,25 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
 
 #ifdef TERA_EVAC_MOVE
-MAYBE_INLINE_EVACUATION
+
 #include "runtime/mutexLocker.hpp"
 
-oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr const region_attr,
+ATTRIBUTE_FLATTEN
+oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr region_attr,
+                                                 oop old,
+                                                 markWord old_mark) {
+  return do_copy_to_h2_space(region_attr, old, old_mark);
+}
+
+MAYBE_INLINE_EVACUATION
+oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr,
                                                     oop const obj,
                                                     markWord const m){
 
   MutexLocker x(tera_heap_lock); //objs are moved in tera without parallelism
 
   //Two diff refs may point to the same obj that is going to be evacuated in h2.
-  //If both refs are popped and they are now executing copy_to_h2_space() for the same obj
+  //If both refs are popped and they are now executing do_copy_to_h2_space() for the same obj
   //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
   if (obj->is_forwarded()) return obj->forwardee(); 
 

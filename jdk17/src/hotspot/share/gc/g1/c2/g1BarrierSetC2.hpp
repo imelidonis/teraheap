@@ -81,6 +81,10 @@ protected:
 
   static const TypeFunc* write_ref_field_pre_entry_Type();
   static const TypeFunc* write_ref_field_post_entry_Type();
+#ifdef TERA_C2
+  static const TypeFunc* h2_wb_post_Type();
+#endif  
+
 
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
 

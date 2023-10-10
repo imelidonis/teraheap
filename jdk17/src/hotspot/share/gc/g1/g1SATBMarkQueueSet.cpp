@@ -101,7 +101,7 @@ static inline bool requires_marking(const void* entry, G1CollectedHeap* g1h) {
   //  (2) Fence heap traversal to H2
   //   return false
   if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
-    Universe::teraHeap()->mark_used_region((HeapWord*)obj);
+    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
     return false;
   }
 

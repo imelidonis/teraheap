@@ -46,6 +46,10 @@ public:
   // C2 slow-path runtime calls.
   static void write_ref_field_pre_entry(oopDesc* orig, JavaThread *thread);
   static void write_ref_field_post_entry(volatile CardValue* card_addr, JavaThread* thread);
+#ifdef TERA_C2
+  static void h2_wb_post(void* obj);
+#endif
+
 
   TERA_REMOVE( static void my_print_array(){ stdprint <<  "write barrier post array\n"; } )
   TERA_REMOVE( static void my_print_ref(){ stdprint <<  "write barrier post ref\n"; } )

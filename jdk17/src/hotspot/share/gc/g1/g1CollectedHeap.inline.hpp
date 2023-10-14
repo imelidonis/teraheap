@@ -87,7 +87,7 @@ inline HeapWord* G1CollectedHeap::bottom_addr_for_region(uint index) const {
 }
 
 template <class T>
-inline HeapRegion* G1CollectedHeap::heap_region_containing(const T addr) const {
+inline HeapRegion* G1CollectedHeap::heap_region_containing(const T addr) const { 
   assert(addr != NULL, "invariant");
   assert(is_in_reserved((const void*) addr),
          "Address " PTR_FORMAT " is outside of the heap ranging from [" PTR_FORMAT " to " PTR_FORMAT ")",
@@ -315,6 +315,11 @@ inline bool G1CollectedHeap::is_in_young(const oop obj) {
   if (obj == NULL) {
     return false;
   }
+
+#ifdef TERA_MAINTENANCE 
+  if( EnableTeraHeap && Universe::is_in_h2(obj) ) return false;
+#endif
+
   return heap_region_containing(obj)->is_young();
 }
 

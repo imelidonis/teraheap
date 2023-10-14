@@ -115,11 +115,14 @@
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
 
-TERA_REMOVE(
+TERA_REMOVEx(
   long int G1CollectedHeap::h1=0;
   long int G1CollectedHeap::h2=0;
   long G1CollectedHeap::count=0;
 )
+#ifdef TERA_AVOID_FULL_GC
+  int G1CollectedHeap::full_gc_count=0;
+#endif
 
 // INVARIANTS/NOTES
 //
@@ -1122,6 +1125,15 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
   const bool do_clear_all_soft_refs = clear_all_soft_refs ||
       soft_ref_policy()->should_clear_all_soft_refs();
 
+
+  #ifdef TERA_AVOID_FULL_GC
+    if( ++full_gc_count >= 3 ){
+      stdprint << "======= AVOID FULL GC ================\n";
+      return false;
+    }
+    stdprint << "======= FULL GC ================\n";
+  #endif
+  
   G1FullCollector collector(this, explicit_gc, do_clear_all_soft_refs, do_maximum_compaction);
   GCTraceTime(Info, gc) tm("Pause Full", NULL, gc_cause(), true);
 
@@ -2409,6 +2421,11 @@ bool G1CollectedHeap::supports_concurrent_gc_breakpoints() const {
 }
 
 bool G1CollectedHeap::is_archived_object(oop object) const {
+  
+#ifdef TERA_MAINTENANCE 
+  if( EnableTeraHeap && Universe::is_in_h2(object) ) return false;
+#endif
+
   return object != NULL && heap_region_containing(object)->is_archive();
 }
 
@@ -3037,7 +3054,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         // of the collection set!).
         _allocator->release_mutator_alloc_regions();
  
-      TERA_REMOVE(
+      TERA_REMOVEx(
         if( collector_state()->in_mixed_phase()  )
           stdprint << "\n#GC ===== MIXED gc ====\n";
         else if( collector_state()->in_concurrent_start_gc() )
@@ -3045,7 +3062,15 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         else stdprint << "\n#GC ===== YOUNG gc ====\n";
       )
 
-        
+#ifdef TERA_MAINTENANCE
+    if (EnableTeraHeap) {      
+      // Give advise to kernel to prefetch pages for TeraCache random
+      Universe::teraHeap()->h2_enable_rand_faults();
+
+      // Reset the used field of all regions
+      Universe::teraHeap()->h2_reset_used_field();
+    }
+#endif       
 
         calculate_collection_set(evacuation_info, target_pause_time_ms);
 
@@ -3072,7 +3097,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         // Actually do the work...        
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 
-      TERA_REMOVE(
+      TERA_REMOVEx(
         if(h2>0){
           stdprint << "Initial Evac : Moved in H1=" << h1 << " , H2="<<h2<<"\n";
           h1=h2=0;
@@ -3086,7 +3111,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
           evacuate_optional_collection_set(&per_thread_states);
           
-          TERA_REMOVE(
+          TERA_REMOVEx(
               stdprint << "Optional Evac : Moved in H1=" << h1 << " , H2="<<h2<<"\n";
               h1=h2=0;            
           )      
@@ -3094,10 +3119,22 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
         
      
-        TERA_REMOVE( stdprint << "===============================(gc done)\n"; )
+        TERA_REMOVEx( stdprint << "===============================(gc done)\n"; )
 
         
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
+
+
+#ifdef TERA_MAINTENANCE
+        if (EnableTeraHeap) {
+#if defined(ASYNC) && defined(PR_BUFFER)
+            // Wait to complete all the transfers to H2 and then continue
+            Universe::teraHeap()->h2_complete_transfers();      
+#endif
+          // Free all the regions that are unused after marking
+          Universe::teraHeap()->free_unused_regions();
+        }
+#endif
 
         start_new_collection_set();
 
@@ -3218,6 +3255,11 @@ bool G1STWIsAliveClosure::do_object_b(oop p) {
 }
 
 bool G1STWSubjectToDiscoveryClosure::do_object_b(oop obj) {
+
+#ifdef TERA_MAINTENANCE 
+  if( EnableTeraHeap && Universe::is_in_h2(obj) ) return false;
+#endif
+
   assert(obj != NULL, "must not be NULL");
   assert(_g1h->is_in_reserved(obj), "Trying to discover obj " PTR_FORMAT " not in heap", p2i(obj));
   // The areas the CM and STW ref processor manage must be disjoint. The is_in_cset() below

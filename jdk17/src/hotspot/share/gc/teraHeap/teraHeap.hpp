@@ -248,7 +248,7 @@ public:
   // We need to make an fsync when we use fastmap
   void h2_fsync();
 
-#if PR_BUFFER
+#ifdef PR_BUFFER
   // Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is
   // used to know where the object will move to H2. We use promotion buffer to
   // reduce the number of system calls for small sized objects.

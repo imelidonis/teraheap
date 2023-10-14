@@ -40,7 +40,7 @@ TeraHeap::TeraHeap() {
   _start_addr = start_addr_mem_pool();
   _stop_addr = stop_addr_mem_pool();
 
-  TERA_REMOVE( stdprint << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n"; )
+  TERA_REMOVEx( stdprint << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n"; )
 
   // Initilize counters for TeraHeap
   // These counters are used for experiments
@@ -547,7 +547,7 @@ void TeraHeap::disable_groups(void){
 	obj_h2_addr = NULL;
 }
 
-#if PR_BUFFER
+#ifdef PR_BUFFER
 
 // Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is
 // used to know where the object will move to H2. We use promotion buffer to

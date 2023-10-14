@@ -192,10 +192,13 @@ public:
 
 
 
-TERA_REMOVE(  static long int h1; )
-TERA_REMOVE(  static long int h2; )
-TERA_REMOVE(  static long count; )
+TERA_REMOVEx(  static long int h1; )
+TERA_REMOVEx(  static long int h2; )
+TERA_REMOVEx(  static long count; )
 
+#ifdef TERA_AVOID_FULL_GC
+  static int full_gc_count;
+#endif
 
 private:
   // Rebuilds the region sets / lists so that they are repopulated to

@@ -232,7 +232,6 @@ public:
   oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, markWord old_mark);
 
 #ifdef TERA_EVAC_MOVE
-  void moveObjToH2(HeapWord *q, HeapWord *compaction_top, size_t size);
   oop copy_to_h2_space(G1HeapRegionAttr region_attr, oop obj, markWord m);
 #endif
 

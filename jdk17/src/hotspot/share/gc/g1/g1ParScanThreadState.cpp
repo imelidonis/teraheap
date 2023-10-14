@@ -665,7 +665,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
   if (obj->is_forwarded()) return obj->forwardee(); 
 
-  TERA_REMOVE( G1CollectedHeap::h2++; ) 
+  TERA_REMOVEx( G1CollectedHeap::h2++; ) 
 
 
   assert(region_attr.is_in_cset(),
@@ -701,8 +701,9 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
 
   
   if( forward_ptr == NULL ){
-    moveObjToH2(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
-
+    Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
+    
+    
   
     //traverse the 1-st level kids
     //----------------------------------
@@ -772,49 +773,6 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
 
 }
 
-
-void G1ParScanThreadState::moveObjToH2(HeapWord *obj, HeapWord *h2_obj_addr, size_t size){
-  // Size is in words. Each word is 8 bytes. I use memcpy instead of
-  // memmove to avoid the extra copy of the data in the buffer.
-#if defined(SYNC)
-  Universe::teraHeap()->h2_write((char *)obj, (char *)h2_obj_addr, size);
-  // Change the value of teraflag in the new location of the object
-  oop(h2_obj_addr)->set_in_h2();
-  /* Initialize mark word of the destination */
-  oop(h2_obj_addr)->init_mark();
-
-#elif defined(FMAP)
-  // Change the value of teraflag in the new location of the object
-  oop(obj)->set_in_h2();
-  /* Initialize mark word of the destination */
-  oop(obj)->init_mark();
-  Universe::teraHeap()->h2_write((char *)obj, (char *)h2_obj_addr, size);
-
-#elif defined(ASYNC)
-  // Change the value of teraflag in the new location of the object
-  oop(obj)->set_in_h2();
-  /* Initialize mark word of the destination */
-  oop(obj)->init_mark();
-
-#if defined(PR_BUFFER)
-  Universe::teraHeap()->h2_promotion_buffer_insert((char *)obj, (char *)h2_obj_addr, size);
-#else
-  Universe::teraHeap()->h2_awrite((char *)obj, (char *)h2_obj_addr, size);
-#endif
-
-#else
-
-  // Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz );
-  memcpy(h2_obj_addr, obj, size * 8);
-
-  if (!H2LivenessAnalysis)
-    // Change the value of teraflag in the new location of the object
-    cast_to_oop(h2_obj_addr)->set_in_h2();
-
-  /* Initialize mark word of the destination */
-  cast_to_oop(h2_obj_addr)->init_mark();
-#endif // SYNC
-}
 #endif
 
 #ifdef TERA_CARDS

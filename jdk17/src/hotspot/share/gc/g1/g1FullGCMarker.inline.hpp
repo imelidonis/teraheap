@@ -81,10 +81,18 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
 
-    // Fencing scan in H2 and mark live region.
+    // Fencing scan in H2 and mark region as live.
     if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj)) {
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(obj));
       return;
+    }
+
+    if (false /* TODO: check if obj is h2_candidate */) {
+      // Object is an H2 candidate
+      if (!obj->is_marked_move_h2()) {
+        // TODO: i need group_id and part_id
+        // obj->mark_move_h2(uint64_t rdd_id, uint64_t part_id)
+      }
     }
 
     if (mark_object(obj)) {

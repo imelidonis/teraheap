@@ -37,6 +37,7 @@
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -79,6 +80,13 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
+
+    // Fencing scan in H2 and mark live region.
+    if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj)) {
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(obj));
+      return;
+    }
+
     if (mark_object(obj)) {
       _oop_stack.push(obj);
       assert(_bitmap->is_marked(obj), "Must be marked now - map self");

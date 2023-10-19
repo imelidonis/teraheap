@@ -39,6 +39,10 @@ private:
   // during adjust phase of the Full GC.
   static Stack<oop *, mtGC> _tc_adjust_stack;
 
+#ifdef TERA_REFACTOR
+  static Stack<oop, mtGC> _tc_evac; // evacuations of g1, use this stack to keep track of h2 objects that are going to be evacuated from h1 to h2
+#endif
+
 #ifdef TERA_TIMERS
   TeraTimers *teraTimer;
 #endif
@@ -247,6 +251,13 @@ public:
   // Fsync writes in TeraHeap
   // We need to make an fsync when we use fastmap
   void h2_fsync();
+
+#ifdef TERA_REFACTOR
+  void remember_h2_oop(oop obj);
+  oop get_next_h2_oop_into_cset();
+  void clear_remembered_h2_oops();
+  void group_region_enabled_g1(HeapWord *obj, void *obj_field, G1CollectedHeap* _g1h);
+#endif
 
 #ifdef PR_BUFFER
   // Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is

@@ -59,9 +59,8 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   // Local tenuring threshold.
   uint _tenuring_threshold;
   G1ScanEvacuatedObjClosure  _scanner;
-
-#ifdef Tera_mark_young
-  bool tera_marking = false; //tera marking while evacuating
+#ifdef TERA_EVAC_MOVE  
+  ScanH2ObjClosure _tera_scanner;
 #endif
 
   uint _worker_id;
@@ -119,13 +118,18 @@ public:
                        size_t optional_cset_length);
   virtual ~G1ParScanThreadState();
 
-  void set_ref_discoverer(ReferenceDiscoverer* rd) { _scanner.set_ref_discoverer(rd); }
+  void set_ref_discoverer(ReferenceDiscoverer* rd) { 
+    _scanner.set_ref_discoverer(rd); 
+#ifdef TERA_EVAC_MOVE
+    _tera_scanner.set_ref_discoverer(rd); 
+#endif    
+  }
 
 #ifdef ASSERT
   bool queue_is_empty() const { return _task_queue->is_empty(); }
 #endif
 
-#ifdef TERA_CARDS
+#if defined(TERA_CARDS) && !defined(TERA_REFACTOR)
   template <class T>
   // h2->h2 update the dependency list
   // h2->h1 update the h2 card table flag

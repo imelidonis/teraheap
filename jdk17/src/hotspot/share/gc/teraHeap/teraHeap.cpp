@@ -16,6 +16,10 @@ char *TeraHeap::_stop_addr = NULL;
 Stack<oop *, mtGC> TeraHeap::_tc_stack;
 Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
 
+#ifdef TERA_REFACTOR
+Stack<oop, mtGC> TeraHeap::_tc_evac;
+#endif
+
 uint64_t TeraHeap::total_objects;
 uint64_t TeraHeap::total_objects_size;
 uint64_t TeraHeap::fwd_ptrs_per_fgc;
@@ -317,6 +321,19 @@ void TeraHeap::h2_push_backward_reference(void *p, oop o) {
 	assert(!_tc_adjust_stack.is_empty(), "Sanity Check");
 }
 
+#ifdef TERA_REFACTOR
+void TeraHeap::remember_h2_oop(oop obj){
+	_tc_evac.push(obj);
+}
+
+oop TeraHeap::get_next_h2_oop_into_cset(){
+	return (_tc_evac.is_empty() ? NULL : _tc_evac.pop());
+}
+
+void TeraHeap::clear_remembered_h2_oops(){
+	_tc_evac.clear(true);
+}
+#endif
 // Init the statistics counters of TeraHeap to zero when a Full GC
 // starts
 void TeraHeap::h2_init_stats_counters() {
@@ -711,6 +728,35 @@ void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
 	ct->th_write_ref_field(h2_obj_field);
 }
 
+#ifdef TERA_REFACTOR
+#include "gc/g1/g1CollectedHeap.hpp"
+void TeraHeap::group_region_enabled_g1(HeapWord* obj, void *obj_field , G1CollectedHeap* _g1h) {
+	
+	assert (obj_h2_addr != NULL , "Sanity check"); 
+	assert (obj_h1_addr != NULL , "Sanity check"); 
+	oop referenced_obj = cast_to_oop(obj);
+
+	// Update dependency list
+	// obj : h2
+	if (is_obj_in_h2( referenced_obj )) {
+		check_for_group((char*) obj);
+		return;
+	}
+
+
+	// Update h2 card table flag
+	// obj : h1
+	size_t diff =  (HeapWord *)obj_field - obj_h1_addr;
+	assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(obj_h1_addr)->size()),
+			"Diff out of range: %lu", diff);
+	HeapWord *h2_obj_field = obj_h2_addr + diff;
+	assert(is_field_in_h2((void *) h2_obj_field), "Shoud be in H2");
+
+
+	_g1h->th_card_table()->inline_write_ref_field_gc( (void*) h2_obj_field, referenced_obj, ! _g1h->card_table()->is_in_young(referenced_obj) );
+}
+#endif
+
 // Set non promote label value
 void TeraHeap::set_non_promote_tag(long val) {
   non_promote_tag = val;
@@ -842,7 +888,7 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size) {
 
   // Change the value of teraflag when the objects is in memory
   !H2LivenessAnalysis ? cast_to_oop(src)->set_in_h2() : cast_to_oop(src)->set_live();
-
+  
 #if defined(SYNC)
   h2_write((char *)src, (char *)dst, size);
 #elif defined(FMAP)
@@ -854,7 +900,28 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size) {
 #else
   // We use memcpy instead of memmove to avoid the extra copy of the
   // data in the buffer.
-  memcpy(dst, src, size * 8);
+
+  // Clear mark word and evacuate in h2
+  // if we dont clear the mark word of the h2 obj, error will occur (dont know why)
+
+  if( cast_to_oop(src)->is_objArray() ){
+	
+	// large object arrays are spliced into multiple parts and pushed in queue for later scanning.
+	// the to_array works as an iterator for the from_array (see --> G1ParScanThreadState::start_partial_objarray , G1ParScanThreadState::do_partial_array )
+	// thus the from_array must still have its forwarded pointer set, so when we pop it from the queue
+	// we can easily find the to_array. therefore we cant clear the mark of the from_array, so we access h2 to
+	// clear the mark of the to_array.  
+	memcpy(dst, src, size * 8);
+	cast_to_oop(dst)->init_mark();
+
+  }else{
+
+	// clear the mark of the from obj, so we wont have to access h2
+	cast_to_oop(src)->init_mark();
+	memcpy(dst, src, size * 8);
+
+  }
+
 #endif // SYNC
 }
 

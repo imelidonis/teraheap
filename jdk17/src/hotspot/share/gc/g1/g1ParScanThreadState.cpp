@@ -65,6 +65,9 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
     _age_table(false),
     _tenuring_threshold(g1h->policy()->tenuring_threshold()),
     _scanner(g1h, this),
+  #ifdef TERA_EVAC_MOVE
+    _tera_scanner(g1h, this),
+  #endif
     _worker_id(worker_id),
     _last_enqueued_card(SIZE_MAX),
     _stack_trim_upper_threshold(GCDrainStackTargetSize * 2 + 1),
@@ -253,19 +256,24 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 
   RawAccess<IS_NOT_NULL>::oop_store(p, obj);
 
-#ifdef TERA_CARDS
+
+#ifdef TERA_MAINTENANCE
   if(EnableTeraHeap){
     
-    // h2(update card table status) -> h1/h2(newly evacuated)
+#if defined(TERA_CARDS) && !defined(TERA_REFACTOR) 
+    // h2 -> h1/h2 (newly evacuated)
     if( Universe::is_field_in_h2((void*) p) ){
       th_ref_update( p, obj, region_attr ); 
       return;    // we dont keep h2 incoming ptrs in the rem sets
-    }
+    }  
+#endif
 
     // If obj is in H2, we dont have to update any rem set (H2 doesnt have rem sets)
-    if( Universe::is_in_h2(obj) ) return;    
+    if( Universe::is_in_h2(obj) ) return;
   }
 #endif
+
+
 
   //if in same region, no need to update obj-region incoming ptrs (RemSet)
   if (HeapRegion::is_in_same_region(p, obj)) {
@@ -291,6 +299,11 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
 
   oop to_obj = from_obj->forwardee();
   assert(from_obj != to_obj, "should not be chunking self-forwarded objects");
+
+#if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR)
+  DEBUG_ONLY( if( EnableTeraHeap ) assert( !Universe::is_in_h2(to_obj) , "to_array is in H2. H2-transfered-arrays should not be sliced. They are processed directly" ); )
+#endif
+
   assert(to_obj->is_objArray(), "must be obj array");
   objArrayOop to_array = objArrayOop(to_obj);
 
@@ -302,23 +315,16 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
   }
 
-#ifdef TERA_EVAC_MOVE
+#if defined(TERA_EVAC_MOVE) && !defined(TERA_REFACTOR)
   //check if array is forwarded in h2
-  if( EnableTeraHeap && Universe::is_in_h2(to_array) ){    
-    G1ScanInYoungSetter x(&_scanner, true );
-
-    to_array->oop_iterate_range(&_scanner,
+  if( EnableTeraHeap && Universe::is_in_h2(to_array) ){
+    to_array->oop_iterate_range(&_tera_scanner,
                               step._index,
                               step._index + _partial_objarray_chunk_size);
-  }else{
-    HeapRegion* hr = _g1h->heap_region_containing(to_array);
-    G1ScanInYoungSetter x(&_scanner, hr->is_young());
-
-    to_array->oop_iterate_range(&_scanner,
-                              step._index,
-                              step._index + _partial_objarray_chunk_size);
+    return;
   }
-#else
+#endif
+
   HeapRegion* hr = _g1h->heap_region_containing(to_array);
   G1ScanInYoungSetter x(&_scanner, hr->is_young());
 
@@ -328,7 +334,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   to_array->oop_iterate_range(&_scanner,
                               step._index,
                               step._index + _partial_objarray_chunk_size);
-#endif
+
   
 }
 
@@ -340,6 +346,52 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   assert(from_obj->is_forwarded(), "precondition");
   assert(from_obj->forwardee() == to_obj, "precondition");
   assert(from_obj != to_obj, "should not be scanning self-forwarded objects");
+  
+#if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR)
+ 
+  if( EnableTeraHeap && Universe::is_in_h2(from_obj) ){
+    
+    assert(from_obj->is_objArray(), "precondition");
+
+    objArrayOop from_array = objArrayOop(from_obj);
+
+    // Process the whole from_array array, because the to_array object 
+    // has not been evacuated yet. Therefore we can not split the array into chunks 
+    // because the to_array->length() is used to keep track of the from_array split iteration
+    // But in the case of an h2-transfered-obj the to_array does not exist yet
+    from_array->oop_iterate_range(&_tera_scanner, 0, from_array->length() );
+    return;
+  }
+#elif defined(TERA_EVAC_MOVE)
+
+  if( EnableTeraHeap && Universe::is_in_h2(from_obj) ){
+    
+    assert(to_obj->is_objArray(), "precondition");
+
+    objArrayOop to_array = objArrayOop(to_obj);
+
+    PartialArrayTaskStepper::Step step
+      = _partial_array_stepper.start(objArrayOop(from_obj),
+                                    to_array,
+                                    _partial_objarray_chunk_size);
+
+    // Push any needed partial scan tasks.  Pushed before processing the
+    // intitial chunk to allow other workers to steal while we're processing.
+    for (uint i = 0; i < step._ncreate; ++i) {
+      push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
+    }
+
+    
+    // Process the initial chunk.  No need to process the type in the
+    // klass, as it will already be handled by processing the built-in
+    // module. The length of to_array is not correct, but fortunately
+    // the iteration ignores that length field and relies on start/end.
+    to_array->oop_iterate_range(&_tera_scanner, 0, step._index);
+    return;
+  }
+
+#endif
+
   assert(to_obj->is_objArray(), "precondition");
 
   objArrayOop to_array = objArrayOop(to_obj);
@@ -361,6 +413,7 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   // module. The length of to_array is not correct, but fortunately
   // the iteration ignores that length field and relies on start/end.
   to_array->oop_iterate_range(&_scanner, 0, step._index);
+
 }
 
 MAYBE_INLINE_EVACUATION
@@ -658,124 +711,112 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
                                                     oop const obj,
                                                     markWord const m){
 
-  MutexLocker x(tera_heap_lock); //objs are moved in tera without parallelism
-
-  //Two diff refs may point to the same obj that is going to be evacuated in h2.
-  //If both refs are popped and they are now executing do_copy_to_h2_space() for the same obj
-  //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
-  if (obj->is_forwarded()) return obj->forwardee(); 
-
-  TERA_REMOVEx( G1CollectedHeap::h2++; ) 
-
-
   assert(region_attr.is_in_cset(),
-         "Unexpected region attr type: %s", region_attr.get_type_str());
+          "Unexpected region attr type: %s", region_attr.get_type_str());
 
   Klass* klass = obj->klass();
   const size_t word_sz = obj->size_given_klass(klass);
+  HeapWord* h2_obj_addr;
+  oop h2_obj;
 
-  //precompact 
+  {
+    MutexLocker x(tera_heap_lock); //objs are moved in tera without parallelism. Allocator does not support it for now
 
-  // Take a pointer from h2 region 
-  //##!! TODO
-  //This allocation should be in parallel. Like copy_to_survivor_space does
-  HeapWord* h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
+    //Two diff refs may point to the same obj that is going to be evacuated in h2.
+    //If both refs are popped and they are now executing do_copy_to_h2_space() for the same obj
+    //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
+    if (obj->is_forwarded()) return obj->forwardee(); 
+
+    TERA_REMOVEx( G1CollectedHeap::h2++; ) 
+
+    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
 
 
-  TERA_REMOVE( stdprint << "  addr in H2 to be moved : " << h2_obj_addr << "\n"; )
-  
-  assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");
-  assert(Universe::is_in_h2( cast_to_oop(h2_obj_addr) ), "Pointer from H2 is not valid");
-  
-  // We're going to allocate linearly, so might as well prefetch ahead.
-  // Prefetch::write(h2_obj_addr, PrefetchCopyIntervalInBytes);
+    TERA_REMOVE( stdprint << "  addr in H2 to be moved : " << h2_obj_addr << "\n"; )
+    
+    assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");
+    assert(Universe::is_in_h2( cast_to_oop(h2_obj_addr) ), "Pointer from H2 is not valid");
+    
+    h2_obj = cast_to_oop(h2_obj_addr);
+    
+    
+    //returns NULL if succeded (meaning h2_obj_addr is the new location) 
+    //else someone else manage to set the forwarding ptr, to another h2 location. 
+    //Thus it return that new location of h2, which is not h2_obj_addr 
+    const oop forward_ptr = obj->forward_to_atomic( h2_obj, m , memory_order_relaxed);
+    assert(forward_ptr == NULL, "Sanity check");
 
-  // Store the forwarding pointer into the mark word
-  const oop h2_obj = cast_to_oop(h2_obj_addr);
-  //returns NULL if succeded (meaning h2_obj_addr is the new location) 
-  //else someone else manage to set the forwarding ptr, to another h2 location. 
-  //Thus it return that new location of h2, which is not h2_obj_addr 
-  const oop forward_ptr = obj->forward_to_atomic( h2_obj, m , memory_order_relaxed);
-
-  
-
-  
-  if( forward_ptr == NULL ){
+#ifdef TERA_REFACTOR
+    obj->set_in_h2();
+    Universe::teraHeap()->remember_h2_oop(obj);
+#else
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
-    
-    
-  
-    //traverse the 1-st level kids
-    //----------------------------------
+#endif
 
-    // The destination is not a Young region, but an H2 region
-    // in young regions we dont scan rem set cards in G1ScanInYoungSetter > G1ScanEvacuatedObjClosure  when traversing kids
-    // thus we say that is a young region
-    G1HeapRegionAttr dest_attr = G1HeapRegionAttr(G1HeapRegionAttr::Young); 
-  
+  }
 
-    // Most objects are not arrays, so do one array check rather than
-    // checking for each array category for each object.
-    if (klass->is_array_klass()) {
-      if (klass->is_objArray_klass()) {
-        start_partial_objarray(dest_attr, obj, h2_obj);
-      } else {
-        // Nothing needs to be done for typeArrays.  Body doesn't contain
-        // any oops to scan, and the type in the klass will already be handled
-        // by processing the built-in module.
-        assert(klass->is_typeArray_klass(), "invariant");
-      }
-
-      TERA_REMOVE( 
-        stdprint << "MOVE OBJ (" << (HeapWord*) obj 
-        << ")  ---TO H2---> (" <<  h2_obj_addr 
-        << ")  size " << obj->size() <<"\n";
-      )
-
-      return h2_obj;
-    }
-
-
-
-    TERA_REMOVE(
-      stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
-
-
-      stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
-      << h2_obj->klass()->signature_name() << "  :  Childs  :  ";
-
-      PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
-      h2_obj->oop_iterate_backwards(&cl); 
-
-      stdprint << "\n";
-    )
-
-
-
-    G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
-    h2_obj->oop_iterate_backwards(&_scanner, klass);
-
-    TERA_REMOVE( stdprint << "\n"; )
-
-
-    return h2_obj;
-
-    //----------------------------------
 
  
-  }else{
-    //##!! TODO
-    //undo allocation of h2_obj_addr (free the object, afou den to xrisimopiisame)
-    assert(false, "Should never reach here");
-    //forward_ptr holds another h2 location, that some other thread has allocated
-    return forward_ptr;
-  }    
+
+  //traverse the 1-st level kids
+  //----------------------------------
+
+  // Most objects are not arrays, so do one array check rather than
+  // checking for each array category for each object.
+  if (klass->is_array_klass()) {
+    if (klass->is_objArray_klass()) {
+      
+      G1HeapRegionAttr dest_attr = G1HeapRegionAttr(G1HeapRegionAttr::Young); //@? no need for this line of code
+      start_partial_objarray(dest_attr, obj, h2_obj);
+    } else {
+      // Nothing needs to be done for typeArrays.  Body doesn't contain
+      // any oops to scan, and the type in the klass will already be handled
+      // by processing the built-in module.
+      assert(klass->is_typeArray_klass(), "invariant");
+    }
+
+    TERA_REMOVE( 
+      stdprint << "MOVE OBJ (" << (HeapWord*) obj 
+      << ")  ---TO H2---> (" <<  h2_obj_addr 
+      << ")  size " << obj->size() <<"\n";
+    )
+
+    return h2_obj;
+  }
+
+
+
+  TERA_REMOVE(
+    stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
+
+
+    stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
+    << obj->klass()->signature_name() << "  :  Childs  :  ";
+
+    PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
+    obj->oop_iterate_backwards(&cl); 
+
+    stdprint << "\n";
+  )
+
+
+
+#ifdef TERA_REFACTOR
+  obj->oop_iterate_backwards(&_tera_scanner, klass);
+#else
+  h2_obj->oop_iterate_backwards(&_tera_scanner, klass);
+#endif
+
+  TERA_REMOVE( stdprint << "\n"; )
+
+
+  return h2_obj;
 
 }
 
 #endif
 
-#ifdef TERA_CARDS
+#if defined(TERA_CARDS) && !defined(TERA_REFACTOR)
 
 // p->obj
 // p may be found through:

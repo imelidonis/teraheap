@@ -19,9 +19,9 @@
 
 //one of the two should only be enabled, or none
 // #define FORCE_OPT // force optional cset
-// #define NO_OPT // no optional cset (not working correctly)
+#define NO_OPT // no optional cset (not working correctly)
 
-// #define TERA_DEBUG
+#define TERA_DEBUG
 #ifdef TERA_DEBUG
   
   #include <iostream>
@@ -36,15 +36,19 @@
 	#define TERA_REMOVE(code)
 #endif
 
+#define TERA_AVOID_FULL_GC
+#define MAX_FULL_GC_COUNT 2
+
 
 #define TERA_FLAG				         // Define teraFlag word
 #define TERA_ASSERT              // Extended assertions for TeraHeap
 #define TERA_MAINTENANCE         // if objs are transfered to H2, these should be enabled : check-ups, fence h2 heap
+                                // helps for the independent development of g1 full gc
 
 #define TERA_CARDS               // Enable Teraheap card table and scan h2 card table for back refs during evacuations
 
-// #define TERA_CONC_MARKING   // Do the marking : mark transitive closure, old region statistics (h2 liveness) , sort based on garbage-1st policy 
-// #define TERA_EVAC_MOVE    // Move objs that have their tera flag enabled, to h2
+#define TERA_CONC_MARKING   // Do the marking : mark transitive closure, old region statistics (h2 liveness) , sort based on garbage-1st policy 
+#define TERA_EVAC_MOVE    // Move objs that have their tera flag enabled, to h2
 
 
 
@@ -90,11 +94,13 @@
                                    // in TeraHeap during major GC
 
 // #define SYNC
-// #define ASYNC				              //< Asynchronous I/O path for the writes in
-                                  // TeraHeap
 
-//#define PR_BUFFER			            //< Enable promotion buffer for async I/O to
-                                  // reduce the number of system calls 
+
+// #define TERA_REFACTOR
+// #define ASYNC				              //< Asynchronous I/O path for the writes in
+// #define PR_BUFFER			            //< Enable promotion buffer for async I/O to
+                                      // reduce the number of system calls 
+
 
 //#define FMAP				              //< When we use fastmap we need to ensure
                                   // that all the writes in buffered cached

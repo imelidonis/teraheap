@@ -90,8 +90,6 @@ inline void G1ScanClosureBase::handle_non_cset_obj_common_tera(G1HeapRegionAttr 
   && Universe::is_field_in_h2((void*) p)
   && !Universe::is_in_h2(obj)  , "Sanity check");
 
-  //##! humongous + optional (??? -can not happen)
-
   //h2->h1
   //back ref found: update h2 card table flag
   _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !_g1h->card_table()->is_in_young(obj) ); 
@@ -104,11 +102,11 @@ inline void G1ScanClosureBase::trim_queue_partially() {
   _par_scan_state->trim_queue_partially();
 }
 
-template <class T>
-//an object was evacuated (in h1 or h2) and we are now scanning its fields
+
+//an object was evacuated in h1 and we are now scanning its fields
 //*p is the field of the newly evacuated object
-// p(h1 or h2) -> obj (h1 or h2)
-// p(newly evacuated) -> obj (maybe it was there from before)
+// p(h1) -> obj (h1 or h2)
+template <class T>
 inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
 
@@ -125,31 +123,18 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
 //no need to set H2 region live bit : to kanoume mono gia ta roots otan eimste se CM
 #ifdef TERA_MAINTENANCE
   // h1->h2 : Fence
-  // h2->h2 : Update depedency list of tera && Fence
-  if (EnableTeraHeap && (Universe::is_in_h2(obj))){     
-    if ( Universe::is_field_in_h2((void*) p) ) 
-      Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
-
-    //Fence heap traversal to H2
-    return;
-  }
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))) return;
 #endif
 
-  //HERE : h1/h2 -> h1 (in or out the cset)
+  
 
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
+    // h1 -> h1 (in the cset)    
     prefetch_and_push(p, obj);
 
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     
-#ifdef TERA_CARDS   
-    // h2->h1(out of cset)
-    if(EnableTeraHeap && Universe::is_field_in_h2((void*) p) ){
-      handle_non_cset_obj_common_tera(region_attr, p, obj);
-      return;
-    }else
-#endif
     // h1->h1 (out of cset)
     handle_non_cset_obj_common(region_attr, p, obj);
     
@@ -167,6 +152,89 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
     _par_scan_state->enqueue_card_if_tracked(region_attr, p, obj);
   }
 }
+
+
+#ifdef TERA_EVAC_MOVE
+//an object was found that needs to be evacuated in h2, and we are now scanning its fields
+//*p is the field of the h2 obj
+// The obj has not been evacuated yet if TERA_REFACTOR is defined (its still in h1)
+// TERA_REFACTOR :  p(h1 but soon will move in h2) -> obj (h1 or h2)
+// ! TERA_REFACTOR : p(just evacuated in h2) -> obj (h1 or h2)
+template <class T>
+inline void ScanH2ObjClosure::do_oop_work(T* p) {
+  T heap_oop = RawAccess<>::oop_load(p);
+
+  if (CompressedOops::is_null(heap_oop)) {
+    return;
+  }
+  
+  oop obj = CompressedOops::decode_not_null(heap_oop);
+
+  TERA_REMOVE( stdprint <<  obj->klass()->signature_name() << " h2:" << Universe::is_in_h2(obj) << " (" << cast_from_oop<HeapWord*>(obj) << ")  ,  "; )
+
+
+
+#ifdef TERA_REFACTOR
+  // h2->h2 : Fence, Later on update dependency list
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))) return;
+#else
+
+  // h2->h2 : Fence, Update dependency list
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){
+    Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
+    return; 
+  }
+#endif
+  
+
+  //HERE : h2 -> h1 (in or out the cset)
+
+  const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
+  if (region_attr.is_in_cset()) {
+    prefetch_and_push(p, obj); // TERA_REFACTOR : p->obj , where p is the field in the h1 obj that has not been evacuated in h2 yet
+
+  } else {
+    
+    // h2->h1(out of cset)
+    // ifdef TERA_REFACTOR : Later on we will update the h2 card table flag
+
+#if defined(TERA_CARDS) && !defined(TERA_REFACTOR)
+    // h2->h1(out of cset) : Update h2 card table flag
+   handle_non_cset_obj_common_tera(region_attr, p, obj);      
+#endif
+   
+  }
+}
+#endif
+
+#ifdef TERA_REFACTOR
+//an object was found that needs to be evacuated in h2, and we are now scanning its fields
+//*p is the field of the h2 obj. The obj has not been evacuated yet, its still in h1
+// p(h1 but soon will moved in h2) -> obj (h1 or h2)
+template <class T>
+inline void H2EvacutationClosure::do_oop_work(T* p) {
+  T heap_oop = RawAccess<>::oop_load(p);
+
+  if (CompressedOops::is_null(heap_oop)) {
+    return;
+  }
+  
+  oop o = CompressedOops::decode_not_null(heap_oop);
+
+  // p may point to 
+  //  - h1 obj
+  //  - h1 obj but soon to be evauated in h2 (forwardee is in h2)
+  //  - h2 obj (flashed from buffer or was already there)
+  oop obj = ( o->is_forwarded() ) ? o->forwardee() : o; 
+ 
+  //h2->h2 : Update dependency list
+  //h2->h1 : Update h2 card table flag
+  Universe::teraHeap()->group_region_enabled_g1(cast_from_oop<HeapWord *>(obj), (void *) p , _g1h);
+  
+ 
+}
+#endif
+
 
 template <class T>
 inline void G1CMOopClosure::do_oop_work(T* p) {  
@@ -292,7 +360,6 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   //  (2) Fence heap traversal to H2
 #ifdef TERA_MAINTENANCE
   if (EnableTeraHeap){
-    // assert( !Universe::is_field_in_h2((void*) p) ,"Sanity check");
     if ( Universe::is_in_h2(obj) ) return;
   }
 
@@ -362,15 +429,7 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
       else if (hr->is_humongous()) stdprint << "HUMONGOUS (in cset)\n";
     )
     
-    
-    if( should_mark ){
-      // Here we dont mark the obj as live. Only the objs outside the cset are marked
-      // Objs in cset are evacuated objs that will be scanned again during the CM root region scan, in order to find live old objs.
-      // We enable the tera flag of the young obj in order to follow the transitive closure in the old gen (if any)
-      enable_tera_flag( (void*) p, obj);
-    }
-
-   
+     
     prefetch_and_push(p, obj);
    
   }else{
@@ -443,7 +502,7 @@ inline void G1ScanRSForOptionalClosure::do_oop_work(T* p) {
 
 void G1ParCopyHelper::do_cld_barrier(oop new_obj) {
 
-#ifdef TERA_MAINTENANCE 
+#ifdef TERA_MAINTENANCE
   if( EnableTeraHeap && Universe::is_in_h2(new_obj) ) return;
 #endif
 
@@ -534,7 +593,7 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
 
     //##!! Does something to the class loader data, if the evacuation region is young
     //if it doesnt cares about the old regions, maybe we dont care either if its H2 region
-    if (barrier == G1BarrierCLD /*##!! and forwardee is not in H2*/ ) {
+    if (barrier == G1BarrierCLD ) {
       do_cld_barrier(forwardee);
     }
 

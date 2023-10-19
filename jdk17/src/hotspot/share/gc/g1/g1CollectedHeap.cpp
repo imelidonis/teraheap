@@ -1127,11 +1127,14 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
 
 
   #ifdef TERA_AVOID_FULL_GC
-    if( ++full_gc_count >= 3 ){
-      stdprint << "======= AVOID FULL GC ================\n";
-      return false;
+    if(EnableTeraHeap){
+      if( full_gc_count >= MAX_FULL_GC_COUNT ){
+        stdprint << "======= AVOID FULL GC ================\n";
+        return false;
+      }
+      ++full_gc_count;
+      stdprint << "======= FULL GC ================\n";
     }
-    stdprint << "======= FULL GC ================\n";
   #endif
   
   G1FullCollector collector(this, explicit_gc, do_clear_all_soft_refs, do_maximum_compaction);
@@ -2422,7 +2425,7 @@ bool G1CollectedHeap::supports_concurrent_gc_breakpoints() const {
 
 bool G1CollectedHeap::is_archived_object(oop object) const {
   
-#ifdef TERA_MAINTENANCE 
+#ifdef TERA_MAINTENANCE
   if( EnableTeraHeap && Universe::is_in_h2(object) ) return false;
 #endif
 
@@ -3062,7 +3065,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         else stdprint << "\n#GC ===== YOUNG gc ====\n";
       )
 
-#ifdef TERA_MAINTENANCE
+#ifdef TERA_MAINTENANCEx
     if (EnableTeraHeap) {      
       // Give advise to kernel to prefetch pages for TeraCache random
       Universe::teraHeap()->h2_enable_rand_faults();
@@ -3117,6 +3120,32 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
           )      
         }
 
+#if defined(TERA_REFACTOR) && defined(TERA_EVAC_MOVE)
+      if ( EnableTeraHeap && collector_state()->in_mixed_phase() ) {
+        H2EvacutationClosure _h2_evac(this);
+
+        oop obj = Universe::teraHeap()->get_next_h2_oop_into_cset();
+        oop forwardee = obj->forwardee();
+        size_t size = obj->size();
+
+        while( obj != NULL ){
+
+          assert( Universe::heap()->is_in(obj) , "obj should be in h1");
+          assert( Universe::teraHeap()->is_in_h2(forwardee) , "forwardee should be in h2");
+          
+          Universe::teraHeap()->enable_groups( cast_from_oop<HeapWord*>(obj), cast_from_oop<HeapWord*>(forwardee) );  
+          obj->oop_iterate_backwards(&_h2_evac);
+          Universe::teraHeap()->disable_groups();
+
+          obj->init_mark(); //erase forwardee in obj header
+          Universe::teraHeap()->h2_move_obj( cast_from_oop<HeapWord*>(obj) , cast_from_oop<HeapWord*>(forwardee) , size) ;
+
+
+          obj = Universe::teraHeap()->get_next_h2_oop_into_cset();
+        }
+
+      }
+#endif
         
      
         TERA_REMOVEx( stdprint << "===============================(gc done)\n"; )
@@ -3125,12 +3154,12 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
 
-#ifdef TERA_MAINTENANCE
+#ifdef TERA_MAINTENANCEx
         if (EnableTeraHeap) {
-#if defined(ASYNC) && defined(PR_BUFFER)
-            // Wait to complete all the transfers to H2 and then continue
-            Universe::teraHeap()->h2_complete_transfers();      
-#endif
+
+          // Wait to complete all the transfers to H2 and then continue
+          Universe::teraHeap()->h2_complete_transfers();      
+
           // Free all the regions that are unused after marking
           Universe::teraHeap()->free_unused_regions();
         }
@@ -3256,7 +3285,7 @@ bool G1STWIsAliveClosure::do_object_b(oop p) {
 
 bool G1STWSubjectToDiscoveryClosure::do_object_b(oop obj) {
 
-#ifdef TERA_MAINTENANCE 
+#ifdef TERA_MAINTENANCE
   if( EnableTeraHeap && Universe::is_in_h2(obj) ) return false;
 #endif
 

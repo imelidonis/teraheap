@@ -66,10 +66,22 @@ void G1CollectionSetCandidates::iterate(HeapRegionClosure* cl) {
 
 TERA_REMOVE(
 void G1CollectionSetCandidates::print() {
-  stdprint << "OLD candidates sorted : ";
+  stdprint << "-----OLD candidates sorted------\n";
+  stdprint << "idx:[total live, h2 live ,reclaimable ,time for evac ,gc_effic (r/t)]\n";
   for (uint i = _front_idx; i < _num_regions; i++) {
-    HeapRegion* r = _regions[i];
-    stdprint << r->hrm_index() << "  ";
+    HeapRegion* hr = _regions[i];
+    double time =  G1CollectedHeap::heap()->policy()->predict_region_total_time_ms(hr, false);
+
+    if( hr->h2_marked_bytes()  > 0){
+      stdprint << hr->hrm_index() << ":[" << hr->live_bytes() 
+          << ",  " << hr->h2_marked_bytes() 
+          << ", " << hr->reclaimable_bytes() 
+          << ", " << time
+          << ", " << hr->gc_efficiency()
+          << "]\t";  
+    } else{
+      stdprint << hr->hrm_index() << "\t";
+    }
   }
   stdprint << "\n";
 }

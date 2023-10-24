@@ -161,7 +161,6 @@ class G1BuildCandidateRegionsTask : public AbstractGangTask {
     void add_region(HeapRegion* hr) {
 
 TERA_REMOVE(
-#ifdef TERA_CONC_MARKING
       if ( hr->h2_marked_bytes() > 0 ) { 
         double time =  G1CollectedHeap::heap()->policy()->predict_region_total_time_ms(hr, false);
 
@@ -175,11 +174,10 @@ TERA_REMOVE(
           << "\n  reclaimable bytes            : " << hr->reclaimable_bytes() 
           << "\n  time for evac                : " << time
           << "\n  gc efficiency (recl / time)  : " << hr->reclaimable_bytes() / time
-          << "\n  bellow threshold ? " << G1CollectionSetChooser::region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes())
+          << "\n  bellow threshold ? " << G1CollectionSetChooser::region_occupancy_low_enough_for_evac(hr->live_bytes_excluding_h2())
           << "\n  rem set complete? " << hr->rem_set()->is_complete()
           << "\n\n";        
-      }  
-#endif  
+      }   
 )
 
       if (_cur_chunk_idx == _cur_chunk_end) {
@@ -277,15 +275,18 @@ uint G1CollectionSetChooser::calculate_work_chunk_size(uint num_workers, uint nu
 
 bool G1CollectionSetChooser::should_add(HeapRegion* hr) {
 
-#ifdef TERA_CONC_MARKING
+
+#ifdef TERA_CONC_MARKING 
   DEBUG_ONLY(
     if(!EnableTeraHeap) assert(hr->h2_marked_bytes()==0 , "Tera Heap is not enabled. H2 marked objs should not be found");
   )
 
   return !hr->is_young() &&
-         !hr->is_pinned() &&
-         region_occupancy_low_enough_for_evac(hr->live_bytes() - hr->h2_marked_bytes()) &&
-         hr->rem_set()->is_complete();
+      !hr->is_pinned() &&
+      region_occupancy_low_enough_for_evac(hr->live_bytes_excluding_h2() ) &&
+      hr->rem_set()->is_complete();
+  
+ 
 #else
   return !hr->is_young() &&
          !hr->is_pinned() &&

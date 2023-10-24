@@ -474,6 +474,8 @@ public:
   size_t h2_live_words(uint region) const { return _region_mark_stats[region]._h2_live_words; }
   // Returns the butes that are going to be transfered in H2
   size_t h2_live_bytes(uint region) const { return h2_live_words(region) * HeapWordSize; }
+
+  size_t live_bytes_excluding_h2(uint region) const { return live_bytes(region) - h2_live_bytes(region); }
 #endif
 
   // Sets the internal top_at_region_start for the given region to current top of the region.

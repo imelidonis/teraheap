@@ -31,11 +31,12 @@
 
 
 #ifdef TERA_CARDS
-H2ToH1Closure::H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, uint worker_id)
-: G1ScanClosureBase(g1h,pss){ 
-      _cm = _g1h->concurrent_mark(); 
-      should_mark = _g1h->collector_state()->in_concurrent_start_gc();
-      _worker_id = worker_id;  
+H2ToH1Closure::H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, uint worker_id) : G1ScanClosureBase(g1h,pss) , 
+  _cm(_g1h->concurrent_mark()) ,
+  should_mark( _g1h->collector_state()->in_concurrent_start_gc() ) ,
+  _worker_id( worker_id ) 
+{ 
+  set_ref_discoverer_internal(g1h->ref_processor_stw());
 }
 #endif
 

@@ -394,6 +394,9 @@ public:
   }
 
   size_t h2_marked_bytes() { return _h2_marked_bytes; }
+
+  size_t live_bytes_excluding_h2() { return live_bytes() - _h2_marked_bytes; }
+
 #endif
 
   void zero_marked_bytes()      {

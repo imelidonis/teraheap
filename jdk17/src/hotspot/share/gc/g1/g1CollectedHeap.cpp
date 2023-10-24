@@ -118,6 +118,7 @@ size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 TERA_REMOVEx(
   long int G1CollectedHeap::h1=0;
   long int G1CollectedHeap::h2=0;
+  long int G1CollectedHeap::h2_bytes_copied=0;
   long G1CollectedHeap::count=0;
 )
 #ifdef TERA_AVOID_FULL_GC
@@ -1129,11 +1130,11 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
   #ifdef TERA_AVOID_FULL_GC
     if(EnableTeraHeap){
       if( full_gc_count >= MAX_FULL_GC_COUNT ){
-        stdprint << "======= AVOID FULL GC ================\n";
+        TERA_REMOVEx( stdprint << "======= AVOID FULL GC ================\n"; )
         return false;
       }
       ++full_gc_count;
-      stdprint << "======= FULL GC ================\n";
+       TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
     }
   #endif
   
@@ -2425,7 +2426,7 @@ bool G1CollectedHeap::supports_concurrent_gc_breakpoints() const {
 
 bool G1CollectedHeap::is_archived_object(oop object) const {
   
-#ifdef TERA_MAINTENANCE
+#ifdef TERA_MAINTENANCE 
   if( EnableTeraHeap && Universe::is_in_h2(object) ) return false;
 #endif
 
@@ -3065,14 +3066,16 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         else stdprint << "\n#GC ===== YOUNG gc ====\n";
       )
 
-#ifdef TERA_MAINTENANCEx
-    if (EnableTeraHeap) {      
-      // Give advise to kernel to prefetch pages for TeraCache random
-      Universe::teraHeap()->h2_enable_rand_faults();
+#ifdef TERA_MAINTENANCE
+        if (EnableTeraHeap) {      
+          // Give advise to kernel to prefetch pages for TeraCache random
+          Universe::teraHeap()->h2_enable_rand_faults();
 
-      // Reset the used field of all regions
-      Universe::teraHeap()->h2_reset_used_field();
-    }
+          if( collector_state()->in_concurrent_start_gc() ){
+            // Reset the used field of all regions
+            Universe::teraHeap()->h2_reset_used_field();
+          }
+        }
 #endif       
 
         calculate_collection_set(evacuation_info, target_pause_time_ms);
@@ -3091,10 +3094,10 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
       if(EnableTeraHeap) assert( may_do_optional_evacuation==false , "opt cset should not be triggered" );
 #endif
 
-      TERA_REMOVE( 
+      TERA_REMOVEx( 
         G1CollectedHeap::count++;
         stdprint << "GC count " << G1CollectedHeap::count << "\n";
-        h1=h2=0;
+        h1=h2=h2_bytes_copied=0;
       )
         
         // Actually do the work...        
@@ -3102,8 +3105,8 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
       TERA_REMOVEx(
         if(h2>0){
-          stdprint << "Initial Evac : Moved in H1=" << h1 << " , H2="<<h2<<"\n";
-          h1=h2=0;
+          stdprint << "Initial Evac : Moved in H1=" << h1 << " , H2="<<h2<<" -> size in bytes="<<h2_bytes_copied*8<<"\n";
+          h1=h2=h2_bytes_copied=0;
         }
       )
            
@@ -3114,8 +3117,8 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
           evacuate_optional_collection_set(&per_thread_states);
           
-          TERA_REMOVEx(
-              stdprint << "Optional Evac : Moved in H1=" << h1 << " , H2="<<h2<<"\n";
+          TERA_REMOVE(
+              stdprint << "Optional Evac : Moved in H1=" << h1 << " , H2="<<h2<<" -> size in bytes="<<h2_bytes_copied*8<<"\n";
               h1=h2=0;            
           )      
         }
@@ -3154,14 +3157,10 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
 
-#ifdef TERA_MAINTENANCEx
+#ifdef TERA_MAINTENANCE
         if (EnableTeraHeap) {
-
           // Wait to complete all the transfers to H2 and then continue
-          Universe::teraHeap()->h2_complete_transfers();      
-
-          // Free all the regions that are unused after marking
-          Universe::teraHeap()->free_unused_regions();
+          Universe::teraHeap()->h2_complete_transfers();  
         }
 #endif
 
@@ -3285,7 +3284,7 @@ bool G1STWIsAliveClosure::do_object_b(oop p) {
 
 bool G1STWSubjectToDiscoveryClosure::do_object_b(oop obj) {
 
-#ifdef TERA_MAINTENANCE
+#ifdef TERA_MAINTENANCE 
   if( EnableTeraHeap && Universe::is_in_h2(obj) ) return false;
 #endif
 
@@ -3706,7 +3705,7 @@ public:
     
     G1ParScanThreadState* pss = _per_thread_states->state_for_worker(worker_id);
     
-    TERA_REMOVE( ResourceMark rm; )//so you can print c_strings
+    TERA_REMOVEx( ResourceMark rm; )//so you can print c_strings
 
     H2ToH1Closure cl(_g1h, pss, worker_id);
     _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );

@@ -104,7 +104,7 @@ bool G1RemSetTrackingPolicy::update_humongous_before_rebuild(HeapRegion* r, bool
   return selected_for_rebuild;
 }
 
-bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_bytes) {
+bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_bytes, size_t live_bytes_excluding_h2) {
   assert(SafepointSynchronize::is_at_safepoint(), "should be at safepoint");
   assert(!r->is_humongous(), "Region %u is humongous", r->hrm_index());
 
@@ -125,13 +125,25 @@ bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_by
   // - Only need to rebuild non-complete remembered sets.
   // - Otherwise only add those old gen regions which occupancy is low enough that there
   // is a chance that we will ever evacuate them in the mixed gcs.
+#ifdef TERA_CONC_MARKING
   if ((total_live_bytes > 0) &&
+      G1CollectionSetChooser::region_occupancy_low_enough_for_evac( EnableTeraHeap ? live_bytes_excluding_h2 : total_live_bytes) &&
+      !r->rem_set()->is_tracked()) {
+
+    r->rem_set()->set_state_updating();
+    selected_for_rebuild = true;
+  }
+  
+#else
+    if ((total_live_bytes > 0) &&
       G1CollectionSetChooser::region_occupancy_low_enough_for_evac(total_live_bytes) &&
       !r->rem_set()->is_tracked()) {
 
     r->rem_set()->set_state_updating();
     selected_for_rebuild = true;
   }
+#endif
+
 
   print_before_rebuild(r, selected_for_rebuild, total_live_bytes, live_bytes);
 
@@ -140,14 +152,6 @@ bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_by
 
 void G1RemSetTrackingPolicy::update_after_rebuild(HeapRegion* r) {
   assert(SafepointSynchronize::is_at_safepoint(), "should be at safepoint");
-
-TERA_REMOVE(
-#ifdef TERA_CONC_MARKING
-  if ( r->h2_marked_bytes() > 0 )    
-      stdprint << "region " << r->hrm_index() << " is " << r->get_type_str() 
-      << "\nrem set is " << r->rem_set()->get_state_str() << "\n";
-#endif
-    )
 
   if (r->is_old_or_humongous_or_archive()) {
     if (r->rem_set()->is_updating()) {

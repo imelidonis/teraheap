@@ -194,6 +194,7 @@ public:
 
 TERA_REMOVEx(  static long int h1; )
 TERA_REMOVEx(  static long int h2; )
+TERA_REMOVEx(  static long int h2_bytes_copied; )
 TERA_REMOVEx(  static long count; )
 
 #ifdef TERA_AVOID_FULL_GC

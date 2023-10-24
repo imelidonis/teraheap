@@ -997,7 +997,17 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
         selected_for_rebuild = tracking_policy->update_humongous_before_rebuild(hr, is_live);
       } else {
         size_t const live_bytes = _cm->live_bytes(hr->hrm_index());
+
+#ifdef TERA_CONC_MARKING
+        if(EnableTeraHeap){
+          selected_for_rebuild = tracking_policy->update_before_rebuild(hr, live_bytes, _cm->live_bytes_excluding_h2(hr->hrm_index()) );
+        }else{
+          selected_for_rebuild = tracking_policy->update_before_rebuild(hr, live_bytes);
+        }
+#else
         selected_for_rebuild = tracking_policy->update_before_rebuild(hr, live_bytes);
+#endif
+
       }
       if (selected_for_rebuild) {
         _num_regions_selected_for_rebuild++;
@@ -1372,6 +1382,13 @@ void G1ConcurrentMark::cleanup() {
   if (has_aborted()) {
     return;
   }
+
+#ifdef TERA_MAINTENANCEx
+  if (EnableTeraHeap) {
+    // Free all the regions that are unused after marking
+    Universe::teraHeap()->free_unused_regions();
+  }
+#endif  
 
   G1Policy* policy = _g1h->policy();
   policy->record_concurrent_mark_cleanup_start();

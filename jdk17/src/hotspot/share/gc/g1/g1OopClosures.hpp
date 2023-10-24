@@ -43,7 +43,11 @@ class ReferenceProcessor;
 class H2ToH1Closure;
 
 class G1ScanClosureBase : public BasicOopIterateClosure {
-  friend class H2ToH1Closure;
+
+#ifdef TERA_CARDS
+   friend class H2ToH1Closure;
+#endif
+
 protected:
   G1CollectedHeap* _g1h;
   G1ParScanThreadState* _par_scan_state;
@@ -369,7 +373,7 @@ public:
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }  
-  // virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY; }
   // void set_ref_discoverer(ReferenceDiscoverer* rd) {
   //   set_ref_discoverer_internal(rd);
   // }

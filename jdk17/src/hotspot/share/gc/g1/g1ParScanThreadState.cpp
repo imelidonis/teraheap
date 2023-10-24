@@ -727,7 +727,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
     if (obj->is_forwarded()) return obj->forwardee(); 
 
-    TERA_REMOVEx( G1CollectedHeap::h2++; ) 
+    TERA_REMOVEx( G1CollectedHeap::h2++; G1CollectedHeap::h2_bytes_copied+=obj->size(); ) 
 
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
 

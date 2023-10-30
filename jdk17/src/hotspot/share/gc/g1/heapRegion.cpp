@@ -351,6 +351,10 @@ class VerifyStrongCodeRootOopClosure: public OopClosure {
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
 
+#ifdef TERA_MAINTENANCE
+    if( Universe::is_in_h2(obj) ) return;
+#endif
+
       // Note: not all the oops embedded in the nmethod are in the
       // current region. We only look at those which are.
       if (_hr->is_in(obj)) {

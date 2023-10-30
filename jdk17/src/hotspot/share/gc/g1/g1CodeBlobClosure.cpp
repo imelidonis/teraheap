@@ -66,7 +66,7 @@ void G1CodeBlobClosure::MarkingOopClosure::do_oop_work(T* p) {
   if (!CompressedOops::is_null(oop_or_narrowoop)) {
     oop o = CompressedOops::decode_not_null(oop_or_narrowoop);
 
-#if defined TERA_C1 || defined TERA_C2
+#ifdef TERA_MAINTENANCE
       // if the nmethod is pointing to an h2 obj
       // no need to mark it as live
       //  (1) set H2 region live bit

@@ -64,6 +64,10 @@ public:
     if (CompressedOops::is_null(o)) {
       return;
     }
+    
+#ifdef TERA_MAINTENANCE
+    if( Universe::is_in_h2((void*) o) ) return;
+#endif
 
     if (HeapRegion::is_in_same_region(p, CompressedOops::decode(o))) {
       return;

@@ -2074,9 +2074,8 @@ G1CMOopClosure::G1CMOopClosure(G1CollectedHeap* g1h,
 { 
 #ifdef TERA_CONC_MARKING
     _h2_flag = false;
-    metadata_traversal = false;
-    cur_obj_group_id = 0;
-    cur_obj_part_id = 0;
+    obj_container = NULL;
+    metadata_traversal_1 = metadata_traversal_2 = false;
 #endif
 }
 

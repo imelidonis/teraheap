@@ -60,8 +60,9 @@ public:
   void do_oop(oop* p) {
     oop obj = *p;
 #ifdef TERA_MAINTENANCE
-    if (EnableTeraHeap && obj != NULL && Universe::teraHeap()->is_obj_in_h2(obj)) {
+    if (EnableTeraHeap && obj != NULL && Universe::is_in_h2(obj)) {
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(obj));
+      return;
     }
 #endif
     if (obj == NULL) {

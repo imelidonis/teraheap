@@ -90,9 +90,11 @@ inline void G1ScanClosureBase::handle_non_cset_obj_common_tera(G1HeapRegionAttr 
   && Universe::is_field_in_h2((void*) p)
   && !Universe::is_in_h2(obj)  , "Sanity check");
 
+  assert(!_g1h->card_table()->is_in_young(obj) , "obj should be in old");
+
   //h2->h1
   //back ref found: update h2 card table flag
-  _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !_g1h->card_table()->is_in_young(obj) ); 
+  _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, true ); 
   // if h1 obj is in opt cset, remember
   handle_non_cset_obj_common(region_attr,p,obj);
 }
@@ -407,10 +409,13 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   
 
   // h2->h2
-  if (Universe::teraHeap()->is_obj_in_h2(obj)) {
+  if (Universe::is_in_h2(obj)) {
+
     Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
+    if( should_mark ) Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
     
-    TERA_REMOVE( stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") :  at H2\n" ; )   
+    
+    TERA_REMOVE( stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") :  at H2\n" ;)   
 
 		return;	
   }
@@ -421,37 +426,37 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
     // h2->h1 (in cset)
 
     TERA_REMOVE(
-      const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
-      stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") : at H1 ";
-     
-      if (hr->is_young()) stdprint << "YOUNG (in cset)\n";
-      else if (hr->is_old()) stdprint << "OLD (in cset)\n";
-      else if (hr->is_humongous()) stdprint << "HUMONGOUS (in cset)\n";
-    )
+        const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
+        stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") : at H1 ";
+      
+        if (hr->is_young()) stdprint << "YOUNG (in cset)\n";
+        else if (hr->is_old()) stdprint << "OLD (in cset)\n";
+        else if (hr->is_humongous()) stdprint << "HUMONGOUS (in cset)\n";
+          )
     
-     
+   
     prefetch_and_push(p, obj);
    
   }else{
 
     TERA_REMOVE(
-      const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
-      stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") : at H1 ";
-     
-      if (hr->is_young()) stdprint << "YOUNG (out of cset)\n";
-      else if (hr->is_old()) stdprint << "OLD (out of cset)\n";
-      else if (hr->is_humongous()) stdprint << "HUMONGOUS (out of cset)\n";
+        const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(obj);
+        stdprint << "\t" << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ") : at H1 idx-" << hr->hrm_index() << " ";
+      
+        if (hr->is_young()) stdprint << "YOUNG (out of cset)\n";
+        else if (hr->is_old()) stdprint << "OLD (out of cset)\n";
+        else if (hr->is_humongous()) stdprint << "HUMONGOUS (out of cset)\n";
     )
-
+       
     // h2->h1 (out of cset)
-    // meaning obj is not in young (bcs its excluded from the cset)
+    // meaning obj is not in young (bcs its excluded from the cset)    
     handle_non_cset_obj_common_tera(region_attr, p, obj);
 	
     if( should_mark ){
       enable_tera_flag( (void*) p, obj);
       mark_object(obj);
     }
-  
+      
   }
 }
 
@@ -670,12 +675,14 @@ TERA_REMOVE(
     if (CompressedOops::is_null(heap_oop)) return;
     oop obj = CompressedOops::decode_not_null(heap_oop);
 
-  
-    stdprint << "\t" <<  obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ")   "
-    << "h2:" << Universe::is_in_h2(obj);  
-    if(!Universe::is_in_h2(obj)) 
-      stdprint << "   idx:"<<  G1CollectedHeap::heap()->heap_region_containing(obj)->hrm_index();
-    stdprint << "\n";
+    fprintf(stderr , "\t%s  (" INTPTR_FORMAT ")  " , obj->klass()->signature_name(),  p2i(obj)  );
+    
+    if(Universe::is_in_h2(obj)) 
+      fprintf(stderr , " in H2\n");
+    else
+      fprintf(stderr , " in H1 %s  is marked %s\n" , 
+      G1CollectedHeap::heap()->heap_region_containing(obj)->get_type_str() , 
+      (obj->is_marked_move_h2() ? "YES" : "NO") );
     
   }
 )

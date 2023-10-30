@@ -220,9 +220,9 @@ TERA_REMOVE(
     if (EnableTeraHeap) {
       // Check if the address belongs to the address range of the Old Generation
       // or in the TeraCache
-      return ((addr >= _byte_map) && (addr < _byte_map + _byte_map_size)
+      return ((addr >= _byte_map) && (addr < _byte_map + _byte_map_size))
       ||
-      ((addr >= _th_byte_map) && (addr < _th_byte_map + _th_byte_map_size)));
+      ((addr >= _th_byte_map) && (addr < _th_byte_map + _th_byte_map_size));
     } 
     return (addr >= _byte_map) && (addr < _byte_map + _byte_map_size);
 #else

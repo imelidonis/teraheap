@@ -130,20 +130,22 @@ public:
 
 #ifdef TERA_EVAC_MOVE
 
+#ifdef TERA_REFACTOR
+//For async move into the h2
 class H2EvacutationClosure : public BasicOopIterateClosure{
   G1CollectedHeap* _g1h;
   public:
   H2EvacutationClosure(G1CollectedHeap* g1h) : _g1h(g1h){}
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+  // virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }
 };
+#endif
 
-
-// scans an h2 obj that is going to be evacuated later on in tera
-// the obj has been forwarded and its tera flag, is set to indicated that the obj is in h2 (even though it is not yet moved)
+// scans an h2 obj 
+// TERA_REFACTOR : the h2 obj is not yet evacueted in h2. it has been forwarded and its tera flag, is set to indicated that the obj is in h2 (even though it is not yet moved)
 class ScanH2ObjClosure : public G1ScanClosureBase {
 public:
   ScanH2ObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
@@ -237,9 +239,8 @@ class G1CMOopClosure : public MetadataVisitingOopIterateClosure {
   //if the parent object is marked to be moved to H2
   //its children should be marked too
   bool _h2_flag;
-  long int cur_obj_group_id;
-  long int cur_obj_part_id;
-  unsigned short metadata_traversal; //ignore the metadata traversals when enabling tera flag
+  oop obj_container; //the object that we are currently scanning its fields and metadata
+  bool metadata_traversal_1 , metadata_traversal_2; //dont enable the tera flag when metadata traversal is happening
 #endif
 
 public:
@@ -252,54 +253,46 @@ public:
 
   void enable_tera_traversal(oop obj) { 
     _h2_flag = true; 
-    cur_obj_group_id = obj->get_obj_group_id();
-    cur_obj_part_id = obj->get_obj_part_id();
+    obj_container = obj;
   }
 
   void disable_tera_traversal() { 
     _h2_flag = false; 
-    cur_obj_group_id = 0;
-    cur_obj_part_id = 0;
+    obj_container = NULL;
   }
 
-  bool is_h2_flag_set() { return _h2_flag && metadata_traversal==0; }
+  // when we enable the tera flag of an obj, then we traverse its refs and ita metadata
+  // we dont enable the tera flag of the metadata objs
+  bool is_h2_flag_set() { return _h2_flag && !metadata_traversal_1 && !metadata_traversal_2; }
 
   // Get the saved current object group id 
   long int get_cur_obj_group_id(void) {
-    return cur_obj_group_id;
+    assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
+    return obj_container->get_obj_group_id();
   }
 
   // Get the saved current object partition id 
   long int get_cur_obj_part_id(void) {
-    return cur_obj_part_id;
+    assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
+    return obj_container->get_obj_part_id();
   }
   
   virtual void do_klass(Klass* k){
-    DEBUG_ONLY(
-       if( EnableTeraHeap ) 
-        assert( metadata_traversal==0 , "Sanity : Traversing metadata");
-    )
-
     if( EnableTeraHeap ) {
-      metadata_traversal ++;
+      metadata_traversal_1=true;
       ClaimMetadataVisitingOopIterateClosure::do_klass(k);
-      metadata_traversal--;
+      metadata_traversal_1=false;
     }else{
       ClaimMetadataVisitingOopIterateClosure::do_klass(k);
     }
   }
 
 
-  void do_cld(ClassLoaderData* cld) {
-    DEBUG_ONLY(
-       if( EnableTeraHeap ) 
-        assert( metadata_traversal==0 || metadata_traversal==1  , "Sanity : Traversing metadata");
-    )
-
+  void do_cld(ClassLoaderData* cld) {    
     if( EnableTeraHeap ) {
-      metadata_traversal++;
+      metadata_traversal_2=true;
       ClaimMetadataVisitingOopIterateClosure::do_cld(cld);
-      metadata_traversal--;
+      metadata_traversal_2=false;
     }else{
       ClaimMetadataVisitingOopIterateClosure::do_cld(cld);
     }
@@ -367,7 +360,7 @@ class H2ToH1Closure : public G1ScanClosureBase {
 
   inline void mark_object(oop obj);
   inline void enable_tera_flag(void* p, oop obj);
-public:
+  public:
   H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, uint worker_id);
   
   template <class T> void do_oop_work(T* p);

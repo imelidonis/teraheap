@@ -52,16 +52,16 @@ TeraHeap::TeraHeap() {
   total_objects_size = 0;
 
   // Initialize arrays for the next minor collection
-  for (unsigned int i = 0; i < ParallelGCThreads; i++) {
-    tc_ct_trav_time[i] = 0;
-    heap_ct_trav_time[i] = 0;
-  }
+// for (unsigned int i = 0; i < ParallelGCThreads; i++) {
+// tc_ct_trav_time[i] = 0;
+// heap_ct_trav_time[i] = 0;
+// }
 
-  back_ptrs_per_mgc = 0;
+// back_ptrs_per_mgc = 0;
 
-  for (unsigned int i = 0; i < 3; i++) {
-    obj_distr_size[i] = 0;
-  }
+// for (unsigned int i = 0; i < 3; i++) {
+// obj_distr_size[i] = 0;
+// }
 
 //   cur_obj_group_id = 0;
 
@@ -665,7 +665,7 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 
 
 	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id());
-
+	
 	assert( (HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr , "H2 is Out of Memory\n" );
 
 	_start_array.th_allocate_block((HeapWord *)pos);
@@ -886,9 +886,7 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size) {
   assert(dst != NULL, "Dst address should not be null");
   assert(size > 0, "Size should not be zero");
 
-  // Change the value of teraflag when the objects is in memory
-  !H2LivenessAnalysis ? cast_to_oop(src)->set_in_h2() : cast_to_oop(src)->set_live();
-  
+
 #if defined(SYNC)
   h2_write((char *)src, (char *)dst, size);
 #elif defined(FMAP)
@@ -900,27 +898,12 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size) {
 #else
   // We use memcpy instead of memmove to avoid the extra copy of the
   // data in the buffer.
+  memcpy(dst, src, size * 8);
 
-  // Clear mark word and evacuate in h2
-  // if we dont clear the mark word of the h2 obj, error will occur (dont know why)
-
-  if( cast_to_oop(src)->is_objArray() ){
-	
-	// large object arrays are spliced into multiple parts and pushed in queue for later scanning.
-	// the to_array works as an iterator for the from_array (see --> G1ParScanThreadState::start_partial_objarray , G1ParScanThreadState::do_partial_array )
-	// thus the from_array must still have its forwarded pointer set, so when we pop it from the queue
-	// we can easily find the to_array. therefore we cant clear the mark of the from_array, so we access h2 to
-	// clear the mark of the to_array.  
-	memcpy(dst, src, size * 8);
-	cast_to_oop(dst)->init_mark();
-
-  }else{
-
-	// clear the mark of the from obj, so we wont have to access h2
-	cast_to_oop(src)->init_mark();
-	memcpy(dst, src, size * 8);
-
-  }
+  //you should not do cast_to_oop(src)->init_mark()
+  //bcs the obj left behind in h1, must still have the forwarding ptr in its header
+  //for the pointer adjustment (when other obj point to this obj during evac, they will be dereferenced based on that ptr)
+  cast_to_oop(dst)->init_mark(); 
 
 #endif // SYNC
 }

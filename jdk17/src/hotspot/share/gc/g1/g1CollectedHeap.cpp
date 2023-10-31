@@ -120,6 +120,7 @@ TERA_REMOVEx(
   long int G1CollectedHeap::h2=0;
   long int G1CollectedHeap::h2_bytes_copied=0;
   long G1CollectedHeap::count=0;
+  bool G1CollectedHeap::mix_gc_happened=false;
 )
 #ifdef TERA_AVOID_FULL_GC
   int G1CollectedHeap::full_gc_count=0;
@@ -1129,12 +1130,13 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
 
   #ifdef TERA_AVOID_FULL_GC
     if(EnableTeraHeap){
-      if( full_gc_count >= MAX_FULL_GC_COUNT ){
+      if( mix_gc_happened == true ){
+      // if( full_gc_count >= MAX_FULL_GC_COUNT ){
         TERA_REMOVEx( stdprint << "======= AVOID FULL GC ================\n"; )
         return false;
       }
-      ++full_gc_count;
-       TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
+      // ++full_gc_count;
+      TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
     }
   #endif
   
@@ -3059,9 +3061,10 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         _allocator->release_mutator_alloc_regions();
  
       TERA_REMOVEx(
-        if( collector_state()->in_mixed_phase()  )
+        if( collector_state()->in_mixed_phase()  ){
           stdprint << "\n#GC ===== MIXED gc ====\n";
-        else if( collector_state()->in_concurrent_start_gc() )
+          mix_gc_happened = true;
+        }else if( collector_state()->in_concurrent_start_gc() )
           stdprint << "\n#GC ===== Young gc + init marking ====\n";
         else stdprint << "\n#GC ===== YOUNG gc ====\n";
       )

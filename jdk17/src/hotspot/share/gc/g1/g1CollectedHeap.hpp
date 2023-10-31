@@ -196,6 +196,8 @@ TERA_REMOVEx(  static long int h1; )
 TERA_REMOVEx(  static long int h2; )
 TERA_REMOVEx(  static long int h2_bytes_copied; )
 TERA_REMOVEx(  static long count; )
+TERA_REMOVEx(  static bool mix_gc_happened; )
+
 
 #ifdef TERA_AVOID_FULL_GC
   static int full_gc_count;

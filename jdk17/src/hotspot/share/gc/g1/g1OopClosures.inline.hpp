@@ -104,11 +104,11 @@ inline void G1ScanClosureBase::trim_queue_partially() {
   _par_scan_state->trim_queue_partially();
 }
 
-
-//an object was evacuated in h1 and we are now scanning its fields
-//*p is the field of the newly evacuated object
-// p(h1) -> obj (h1 or h2)
 template <class T>
+//an object was evacuated (in h1 or h2) and we are now scanning its fields
+//*p is the field of the newly evacuated object
+// p(h1 or h2) -> obj (h1 or h2)
+// p(newly evacuated) -> obj (maybe it was there from before)
 inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
 
@@ -125,18 +125,31 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
 //no need to set H2 region live bit : to kanoume mono gia ta roots otan eimste se CM
 #ifdef TERA_MAINTENANCE
   // h1->h2 : Fence
-  if (EnableTeraHeap && (Universe::is_in_h2(obj))) return;
+  // h2->h2 : Update depedency list of tera && Fence
+  if (EnableTeraHeap && (Universe::is_in_h2(obj))){     
+    if ( Universe::is_field_in_h2((void*) p) ) 
+      Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
+
+    //Fence heap traversal to H2
+    return;
+  }
 #endif
 
-  
+  //HERE : h1/h2 -> h1 (in or out the cset)
 
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
-    // h1 -> h1 (in the cset)    
     prefetch_and_push(p, obj);
 
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     
+#ifdef TERA_CARDS   
+    // h2->h1(out of cset)
+    if(EnableTeraHeap && Universe::is_field_in_h2((void*) p) ){
+      handle_non_cset_obj_common_tera(region_attr, p, obj);
+      return;
+    }else
+#endif
     // h1->h1 (out of cset)
     handle_non_cset_obj_common(region_attr, p, obj);
     
@@ -154,6 +167,57 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
     _par_scan_state->enqueue_card_if_tracked(region_attr, p, obj);
   }
 }
+
+
+//an object was evacuated in h1 and we are now scanning its fields
+//*p is the field of the newly evacuated object
+// p(h1) -> obj (h1 or h2)
+// template <class T>
+// inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
+//   T heap_oop = RawAccess<>::oop_load(p);
+
+//   if (CompressedOops::is_null(heap_oop)) {
+//     return;
+//   }
+  
+//   oop obj = CompressedOops::decode_not_null(heap_oop);
+
+//   TERA_REMOVE( stdprint <<  obj->klass()->signature_name() << " h2:" << Universe::is_in_h2(obj) << " (" << cast_from_oop<HeapWord*>(obj) << ")  ,  "; )
+
+
+// //##!! If obj is in H2
+// //no need to set H2 region live bit : to kanoume mono gia ta roots otan eimste se CM
+// #ifdef TERA_MAINTENANCE
+//   // h1->h2 : Fence
+//   if (EnableTeraHeap && (Universe::is_in_h2(obj))) return;
+// #endif
+
+  
+
+//   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
+//   if (region_attr.is_in_cset()) {
+//     // h1 -> h1 (in the cset)    
+//     prefetch_and_push(p, obj);
+
+//   } else if (!HeapRegion::is_in_same_region(p, obj)) {
+    
+//     // h1->h1 (out of cset)
+//     handle_non_cset_obj_common(region_attr, p, obj);
+    
+//     assert(_scanning_in_young != Uninitialized, "Scan location has not been initialized.");
+    
+//     // p (ref of already evac object) points to -->  obj
+//     // _scanning_in_young == True  :  evac obj (young) --> obj (old/young)
+//     if (_scanning_in_young == True) {
+//       return;
+//     }
+
+//     // _scanning_in_young == False  : evac obj (old) --> obj (old/young)
+//     // rem set of obj-region needs to be updated
+//     // bcs RemSets only hold infos about old->young , old->old  incoming ptrs
+//     _par_scan_state->enqueue_card_if_tracked(region_attr, p, obj);
+//   }
+// }
 
 
 #ifdef TERA_EVAC_MOVE

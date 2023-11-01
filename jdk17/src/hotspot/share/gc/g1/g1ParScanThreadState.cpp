@@ -299,11 +299,6 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
 
   oop to_obj = from_obj->forwardee();
   assert(from_obj != to_obj, "should not be chunking self-forwarded objects");
-
-#if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR)
-  DEBUG_ONLY( if( EnableTeraHeap ) assert( !Universe::is_in_h2(to_obj) , "to_array is in H2. H2-transfered-arrays should not be sliced. They are processed directly" ); )
-#endif
-
   assert(to_obj->is_objArray(), "must be obj array");
   objArrayOop to_array = objArrayOop(to_obj);
 
@@ -315,16 +310,23 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
   }
 
-#if defined(TERA_EVAC_MOVE) && !defined(TERA_REFACTOR)
+#ifdef TERA_EVAC_MOVE
   //check if array is forwarded in h2
-  if( EnableTeraHeap && Universe::is_in_h2(to_array) ){
-    to_array->oop_iterate_range(&_tera_scanner,
+  if( EnableTeraHeap && Universe::is_in_h2(to_array) ){    
+    G1ScanInYoungSetter x(&_scanner, true );
+
+    to_array->oop_iterate_range(&_scanner,
                               step._index,
                               step._index + _partial_objarray_chunk_size);
-    return;
-  }
-#endif
+  }else{
+    HeapRegion* hr = _g1h->heap_region_containing(to_array);
+    G1ScanInYoungSetter x(&_scanner, hr->is_young());
 
+    to_array->oop_iterate_range(&_scanner,
+                              step._index,
+                              step._index + _partial_objarray_chunk_size);
+  }
+#else
   HeapRegion* hr = _g1h->heap_region_containing(to_array);
   G1ScanInYoungSetter x(&_scanner, hr->is_young());
 
@@ -334,7 +336,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   to_array->oop_iterate_range(&_scanner,
                               step._index,
                               step._index + _partial_objarray_chunk_size);
-
+#endif
   
 }
 
@@ -346,52 +348,6 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   assert(from_obj->is_forwarded(), "precondition");
   assert(from_obj->forwardee() == to_obj, "precondition");
   assert(from_obj != to_obj, "should not be scanning self-forwarded objects");
-  
-#if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR)
- 
-  if( EnableTeraHeap && Universe::is_in_h2(from_obj) ){
-    
-    assert(from_obj->is_objArray(), "precondition");
-
-    objArrayOop from_array = objArrayOop(from_obj);
-
-    // Process the whole from_array array, because the to_array object 
-    // has not been evacuated yet. Therefore we can not split the array into chunks 
-    // because the to_array->length() is used to keep track of the from_array split iteration
-    // But in the case of an h2-transfered-obj the to_array does not exist yet
-    from_array->oop_iterate_range(&_tera_scanner, 0, from_array->length() );
-    return;
-  }
-#elif defined(TERA_EVAC_MOVE)
-
-  if( EnableTeraHeap && Universe::is_in_h2(from_obj) ){
-    
-    assert(to_obj->is_objArray(), "precondition");
-
-    objArrayOop to_array = objArrayOop(to_obj);
-
-    PartialArrayTaskStepper::Step step
-      = _partial_array_stepper.start(objArrayOop(from_obj),
-                                    to_array,
-                                    _partial_objarray_chunk_size);
-
-    // Push any needed partial scan tasks.  Pushed before processing the
-    // intitial chunk to allow other workers to steal while we're processing.
-    for (uint i = 0; i < step._ncreate; ++i) {
-      push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
-    }
-
-    
-    // Process the initial chunk.  No need to process the type in the
-    // klass, as it will already be handled by processing the built-in
-    // module. The length of to_array is not correct, but fortunately
-    // the iteration ignores that length field and relies on start/end.
-    to_array->oop_iterate_range(&_tera_scanner, 0, step._index);
-    return;
-  }
-
-#endif
-
   assert(to_obj->is_objArray(), "precondition");
 
   objArrayOop to_array = objArrayOop(to_obj);
@@ -413,8 +369,135 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   // module. The length of to_array is not correct, but fortunately
   // the iteration ignores that length field and relies on start/end.
   to_array->oop_iterate_range(&_scanner, 0, step._index);
-
 }
+
+
+// MAYBE_INLINE_EVACUATION
+// void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
+//   oop from_obj = task.to_source_array();
+
+//   assert(_g1h->is_in_reserved(from_obj), "must be in heap.");
+//   assert(from_obj->is_objArray(), "must be obj array");
+//   assert(from_obj->is_forwarded(), "must be forwarded");
+
+//   oop to_obj = from_obj->forwardee();
+//   assert(from_obj != to_obj, "should not be chunking self-forwarded objects");
+
+// #if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR)
+//   DEBUG_ONLY( if( EnableTeraHeap ) assert( !Universe::is_in_h2(to_obj) , "to_array is in H2. H2-transfered-arrays should not be sliced. They are processed directly" ); )
+// #endif
+
+//   assert(to_obj->is_objArray(), "must be obj array");
+//   objArrayOop to_array = objArrayOop(to_obj);
+
+//   PartialArrayTaskStepper::Step step
+//     = _partial_array_stepper.next(objArrayOop(from_obj),
+//                                   to_array,
+//                                   _partial_objarray_chunk_size);
+//   for (uint i = 0; i < step._ncreate; ++i) {
+//     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
+//   }
+
+// #if defined(TERA_EVAC_MOVE) && !defined(TERA_REFACTOR)
+//   //check if array is forwarded in h2
+//   if( EnableTeraHeap && Universe::is_in_h2(to_array) ){
+//     to_array->oop_iterate_range(&_tera_scanner,
+//                               step._index,
+//                               step._index + _partial_objarray_chunk_size);
+//     return;
+//   }
+// #endif
+
+//   HeapRegion* hr = _g1h->heap_region_containing(to_array);
+//   G1ScanInYoungSetter x(&_scanner, hr->is_young());
+
+//   // Process claimed task.  The length of to_array is not correct, but
+//   // fortunately the iteration ignores the length field and just relies
+//   // on start/end.
+//   to_array->oop_iterate_range(&_scanner,
+//                               step._index,
+//                               step._index + _partial_objarray_chunk_size);
+
+  
+// }
+
+// MAYBE_INLINE_EVACUATION
+// void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
+//                                                   oop from_obj,
+//                                                   oop to_obj) {
+//   assert(from_obj->is_objArray(), "precondition");
+//   assert(from_obj->is_forwarded(), "precondition");
+//   assert(from_obj->forwardee() == to_obj, "precondition");
+//   assert(from_obj != to_obj, "should not be scanning self-forwarded objects");
+  
+// #if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR)
+ 
+//   if( EnableTeraHeap && Universe::is_in_h2(from_obj) ){
+    
+//     assert(from_obj->is_objArray(), "precondition");
+
+//     objArrayOop from_array = objArrayOop(from_obj);
+
+//     // Process the whole from_array array, because the to_array object 
+//     // has not been evacuated yet. Therefore we can not split the array into chunks 
+//     // because the to_array->length() is used to keep track of the from_array split iteration
+//     // But in the case of an h2-transfered-obj the to_array does not exist yet
+//     from_array->oop_iterate_range(&_tera_scanner, 0, from_array->length() );
+//     return;
+//   }
+// #elif defined(TERA_EVAC_MOVE)
+
+//   if( EnableTeraHeap && Universe::is_in_h2(from_obj) ){
+    
+//     assert(to_obj->is_objArray(), "precondition");
+
+//     objArrayOop to_array = objArrayOop(to_obj);
+
+//     PartialArrayTaskStepper::Step step
+//       = _partial_array_stepper.start(objArrayOop(from_obj),
+//                                     to_array,
+//                                     _partial_objarray_chunk_size);
+
+//     // Push any needed partial scan tasks.  Pushed before processing the
+//     // intitial chunk to allow other workers to steal while we're processing.
+//     for (uint i = 0; i < step._ncreate; ++i) {
+//       push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
+//     }
+
+    
+//     // Process the initial chunk.  No need to process the type in the
+//     // klass, as it will already be handled by processing the built-in
+//     // module. The length of to_array is not correct, but fortunately
+//     // the iteration ignores that length field and relies on start/end.
+//     to_array->oop_iterate_range(&_tera_scanner, 0, step._index);
+//     return;
+//   }
+
+// #endif
+
+//   assert(to_obj->is_objArray(), "precondition");
+
+//   objArrayOop to_array = objArrayOop(to_obj);
+
+//   PartialArrayTaskStepper::Step step
+//     = _partial_array_stepper.start(objArrayOop(from_obj),
+//                                    to_array,
+//                                    _partial_objarray_chunk_size);
+
+//   // Push any needed partial scan tasks.  Pushed before processing the
+//   // intitial chunk to allow other workers to steal while we're processing.
+//   for (uint i = 0; i < step._ncreate; ++i) {
+//     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
+//   }
+
+//   G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
+//   // Process the initial chunk.  No need to process the type in the
+//   // klass, as it will already be handled by processing the built-in
+//   // module. The length of to_array is not correct, but fortunately
+//   // the iteration ignores that length field and relies on start/end.
+//   to_array->oop_iterate_range(&_scanner, 0, step._index);
+
+// }
 
 MAYBE_INLINE_EVACUATION
 void G1ParScanThreadState::dispatch_task(ScannerTask task) {
@@ -726,7 +809,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     //If both refs are popped and they are now executing do_copy_to_h2_space() for the same obj
     //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
     if (obj->is_forwarded()) return obj->forwardee(); 
-
+    
     TERA_REMOVEx( G1CollectedHeap::h2++; G1CollectedHeap::h2_bytes_copied+=obj->size(); ) 
 
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
@@ -753,9 +836,10 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
 #endif
 
-  }
+  }//destroy mutex. Continue in parallel.
 
 
+  G1HeapRegionAttr dest_attr = G1HeapRegionAttr(G1HeapRegionAttr::Young); //@? no need for this line of code
  
 
   //traverse the 1-st level kids
@@ -766,7 +850,6 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   if (klass->is_array_klass()) {
     if (klass->is_objArray_klass()) {
       
-      G1HeapRegionAttr dest_attr = G1HeapRegionAttr(G1HeapRegionAttr::Young); //@? no need for this line of code
       start_partial_objarray(dest_attr, obj, h2_obj);
     } else {
       // Nothing needs to be done for typeArrays.  Body doesn't contain
@@ -804,7 +887,9 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
 #ifdef TERA_REFACTOR
   obj->oop_iterate_backwards(&_tera_scanner, klass);
 #else
-  h2_obj->oop_iterate_backwards(&_tera_scanner, klass);
+  // h2_obj->oop_iterate_backwards(&_tera_scanner, klass);
+    G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
+    h2_obj->oop_iterate_backwards(&_scanner, klass);
 #endif
 
   TERA_REMOVE( stdprint << "\n"; )

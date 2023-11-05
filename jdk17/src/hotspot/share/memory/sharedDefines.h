@@ -19,7 +19,7 @@
 
 //one of the two should only be enabled, or none
 // #define FORCE_OPT // force optional cset
-#define NO_OPT // no optional cset (not working correctly)
+// #define NO_OPT // no optional cset (not working correctly)
 
 // #define TERA_DEBUG
 #ifdef TERA_DEBUG
@@ -37,7 +37,7 @@
 #endif
 
 #define TERA_AVOID_FULL_GC
-#define MAX_FULL_GC_COUNT 2
+// #define MAX_FULL_GC_COUNT 2
 
 
 #define TERA_FLAG				         // Define teraFlag word

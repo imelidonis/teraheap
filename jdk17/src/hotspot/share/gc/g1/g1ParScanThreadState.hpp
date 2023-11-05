@@ -197,7 +197,7 @@ private:
 
 
 #ifdef TERA_EVAC_MOVE
-  oop do_copy_to_h2_space(G1HeapRegionAttr region_attr, oop obj, markWord m);
+  oop do_copy_to_h2_space(G1HeapRegionAttr region_attr, oop obj, markWord old_mark);
 #endif
 
 

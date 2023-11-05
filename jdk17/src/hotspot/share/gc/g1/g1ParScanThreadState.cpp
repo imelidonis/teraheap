@@ -792,7 +792,7 @@ oop G1ParScanThreadState::copy_to_h2_space(G1HeapRegionAttr region_attr,
 MAYBE_INLINE_EVACUATION
 oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr,
                                                     oop const obj,
-                                                    markWord const m){
+                                                    markWord const old_mark){
 
   assert(region_attr.is_in_cset(),
           "Unexpected region attr type: %s", region_attr.get_type_str());
@@ -826,7 +826,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     //returns NULL if succeded (meaning h2_obj_addr is the new location) 
     //else someone else manage to set the forwarding ptr, to another h2 location. 
     //Thus it return that new location of h2, which is not h2_obj_addr 
-    const oop forward_ptr = obj->forward_to_atomic( h2_obj, m , memory_order_relaxed);
+    const oop forward_ptr = obj->forward_to_atomic( h2_obj, old_mark , memory_order_relaxed);
     assert(forward_ptr == NULL, "Sanity check");
 
 #ifdef TERA_REFACTOR
@@ -835,6 +835,8 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
 #else
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
 #endif
+
+    h2_obj->set_mark(old_mark);
 
   }//destroy mutex. Continue in parallel.
 

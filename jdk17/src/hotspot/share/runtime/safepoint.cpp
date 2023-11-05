@@ -937,7 +937,17 @@ void ThreadSafepointState::handle_polling_page_exception() {
       oop result = caller_fr.saved_oop_result(&map);
       assert(oopDesc::is_oop_or_null(result), "must be oop");
       return_value = Handle(self, result);
+
+#ifdef TERA_MAINTENANCE 
+      if(EnableTeraHeap)
+        assert(Universe::heap()->is_in_or_null(result) ||
+        Universe::is_in_h2_or_null(result) , "must be heap pointer");
+      else
+        assert(Universe::heap()->is_in_or_null(result), "must be heap pointer");
+#else
       assert(Universe::heap()->is_in_or_null(result), "must be heap pointer");
+#endif
+
     }
 
     // We get here if compiled return polls found a reason to call into the VM.

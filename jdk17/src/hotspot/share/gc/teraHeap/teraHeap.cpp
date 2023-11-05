@@ -903,7 +903,7 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size) {
   //you should not do cast_to_oop(src)->init_mark()
   //bcs the obj left behind in h1, must still have the forwarding ptr in its header
   //for the pointer adjustment (when other obj point to this obj during evac, they will be dereferenced based on that ptr)
-  cast_to_oop(dst)->init_mark(); 
+//   cast_to_oop(dst)->init_mark(); 
 
 #endif // SYNC
 }

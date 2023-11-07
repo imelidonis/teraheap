@@ -80,7 +80,7 @@ void G1CollectionSetCandidates::print() {
           << ", " << hr->gc_efficiency()
           << "]\t";  
     } else{
-      stdprint << hr->hrm_index() << "\t";
+      stdprint << hr->hrm_index() << ", ";
     }
   }
   stdprint << "\n";

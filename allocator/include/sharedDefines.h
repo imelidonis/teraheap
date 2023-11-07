@@ -6,9 +6,22 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEV "/mnt/fmap/H2.txt"       //< Device name
-//#define DEV "/spare/mariach/H2.txt"
+//sith1
+// #define DEV "/mnt/fmap/mariach/H2.txt"       //< Device name 
 #define DEV_SIZE (700*1024LU*1024*1024)  //< Device size (in bytes)
+#define REGION_SIZE	(256*1024LU*1024) //< Region size (in bytes) for allignment
+									                    // version
+//sith3
+#define DEV "/tmp/nvme/mariach/H2.txt"       //< Device name 
+//#define DEV_SIZE (700*1024LU*1024*1024)  //< Device size (in bytes)
+//#define REGION_SIZE	(256*1024LU*1024) //< Region size (in bytes) for allignment
+									                    // version
+
+
+//sith0
+// #define DEV "/spare/mariach/H2.txt"
+// #define DEV_SIZE (4*1024LU*1024*1024)  
+// #define REGION_SIZE	(16*1024LU*1024)
 
 //#define ASSERT
 
@@ -28,8 +41,6 @@
 
 #define MALLOC_ON	1				  //< Allocate buffers dynamically
 
-#define REGION_SIZE	(16*1024LU*1024) //< Region size (in bytes) for allignment
-									                    // version
 
 #if ANONYMOUS
 #define V_SPACE (100*1024LU*1024*1024*1024) //< Virtual address space size for 

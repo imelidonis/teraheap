@@ -19,6 +19,11 @@
 //class ParCompactionManager;
 class PSCardTable;
 
+#ifdef TERA_DEBUG
+#include "gc/g1/g1CollectedHeap.inline.hpp"
+#endif
+
+
 class TeraHeap: public CHeapObj<mtInternal> {
 private:
   static char *_start_addr; // TeraHeap start address of mmap region
@@ -411,6 +416,26 @@ public:
 #ifdef TERA_TIMERS
   TeraTimers* getTeraTimer();
 #endif
+
+
+#ifdef TERA_DEBUGx
+void h2_pre_scan(PSCardTable* th_card_table){	
+	//dirty all cards in card table	
+	if( G1CollectedHeap::count > 300 ){
+		CardTable::CardValue* start_card = th_card_table->byte_for(h2_start_addr());
+		CardTable::CardValue* top_card = th_card_table->byte_for((HeapWord *)h2_top_addr());
+
+		for (CardTable::CardValue* card = start_card; card <= top_card; card ++) {		
+			*card = CardTable::dirty_card_val();
+		}
+	}
+}
+#endif
+
+
+
+
 };
 
 #endif
+

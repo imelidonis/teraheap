@@ -24,7 +24,7 @@ double		  free_elapsedtime = 0.0;
 #endif
 
 /*
- * Initialize region array, group array and their fields
+ * Initialize region array, tera_group array and their fields
  */
 void init_regions(){
   int32_t i;
@@ -277,7 +277,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
 
 
 /*
- * function that connects two regions in a group
+ * function that connects two regions in a tera_group
  * arguments: obj1: the object that references the other
  * obj2 the object that is referenced
  */
@@ -291,7 +291,7 @@ void references(char *obj1, char *obj2){
     if (seg1 == seg2)
         return;
   
-    struct group *ptr = region_array[seg1].dependency_list;
+    struct tera_group *ptr = region_array[seg1].dependency_list;
 
     while (ptr != NULL){
         if (ptr->region == &region_array[seg2])
@@ -300,7 +300,7 @@ void references(char *obj1, char *obj2){
     }
     if (ptr)
         return;
-    struct group *new = malloc(sizeof(struct group));
+    struct tera_group *new = malloc(sizeof(struct tera_group));
 
 #if STATISTICS
     total_deps++;
@@ -314,7 +314,7 @@ void references(char *obj1, char *obj2){
 }
 
 /*
- * function that connects two regions in a group
+ * function that connects two regions in a tera_group
  * arguments: obj: the object that must be checked to be groupped with the region_enabled
  */
 void check_for_group(char *obj){
@@ -325,14 +325,14 @@ void check_for_group(char *obj){
     }
     if (seg1 == seg2)
         return;
-    struct group *ptr = region_array[seg1].dependency_list;
+    struct tera_group *ptr = region_array[seg1].dependency_list;
     while (ptr != NULL){
         if (ptr->region == &region_array[seg2])
             return;
         ptr = ptr->next;
     }
 
-    struct group *new = malloc(sizeof(struct group));
+    struct tera_group *new = malloc(sizeof(struct tera_group));
 #if STATISTICS
     total_deps++;
 #endif
@@ -351,7 +351,7 @@ void print_groups(){
     fprintf(stderr, "Groups:\n");
     for (i = 0; i < REGION_ARRAY_SIZE ; i++){
         if (region_array[i].dependency_list != NULL){
-            struct group *ptr = region_array[i].dependency_list;
+            struct tera_group *ptr = region_array[i].dependency_list;
             fprintf(stderr, "Region %d depends on regions:\n", i);
             while (ptr != NULL){
                 fprintf(stderr, "\tRegion %lu\n", ptr->region-region_array);
@@ -371,12 +371,12 @@ void reset_used(){
 }
 
 /*
- * Marks the region that contains this obj as used and increases group
- * counter (if it belongs to a group)
+ * Marks the region that contains this obj as used and increases tera_group
+ * counter (if it belongs to a tera_group)
  * Arguments: obj: the object that is alive
  */
 void mark_used(char *obj) {
-	struct group *ptr = NULL;
+	struct tera_group *ptr = NULL;
     uint64_t seg = (obj - region_array[0].start_address) / ((uint64_t)REGION_SIZE);
 
 	assertf(seg >= 0 && seg < REGION_ARRAY_SIZE,
@@ -429,8 +429,8 @@ struct region_list* free_regions() {
   struct region_list *head = NULL;
   for (i = 0; i < REGION_ARRAY_SIZE; i++){
     if (region_array[i].used == 0 && region_array[i].last_allocated_end != region_array[i].start_address){
-      struct group *ptr = region_array[i].dependency_list;
-      struct group *next = NULL;
+      struct tera_group *ptr = region_array[i].dependency_list;
+      struct tera_group *next = NULL;
       while (ptr != NULL) {
         next = ptr->next;
         free(ptr);
@@ -616,7 +616,7 @@ char* get_region_start_addr(char *obj, uint64_t rdd_id, uint64_t part_id) {
 }
 
 /*
- * Get object 'groupId' (RDD Id). Each object is allocated based on a group Id
+ * Get object 'groupId' (RDD Id). Each object is allocated based on a tera_group Id
  * and the partition Id that locates in teraflag.
  *
  * @obj: address of the object
@@ -631,7 +631,7 @@ uint64_t get_obj_group_id(char *obj) {
 }
 
 /*
- * Get object 'groupId'. Each object is allocated based on a group Id
+ * Get object 'groupId'. Each object is allocated based on a tera_group Id
  * and the partition Id that locates in teraflag.
  *
  * obj: address of the object
@@ -647,22 +647,22 @@ uint64_t get_obj_part_id(char *obj) {
 }
 
 /*
- * Check if these two objects belong to the same group
+ * Check if these two objects belong to the same tera_group
  *
  * obj1: address of the object
  * obj2: address of the object
  *
- * returns: 1 if objects are in the same group, 0 otherwise
+ * returns: 1 if objects are in the same tera_group, 0 otherwise
  */
 int is_in_the_same_group(char *obj1, char *obj2) {
 	uint64_t seg1 = (obj1 - region_array[0].start_address) / ((uint64_t)REGION_SIZE);
 	uint64_t seg2 = (obj2 - region_array[0].start_address) / ((uint64_t)REGION_SIZE);
-	struct group *ptr = NULL;
+	struct tera_group *ptr = NULL;
 
 	assertf(seg1 < REGION_ARRAY_SIZE && seg2 < REGION_ARRAY_SIZE && seg1 >= 0
 			&& seg2 >=0, "Segment index is out of range %lu, %lu", seg1, seg2); 
 
-	/* Objects belong to the same group */
+	/* Objects belong to the same tera_group */
 	if (seg1 == seg2)
 		return 1;
 

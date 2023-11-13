@@ -1135,6 +1135,8 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
         return false;
       }
       TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
+    }else{
+      TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
     }
   #endif
   
@@ -2947,7 +2949,23 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
     return false;
   }
 
+#ifdef TERA_LOG
+  if( EnableTeraHeap ){
+
+    Universe::teraHeap()->get_tera_stats()->set_is_in_mix(collector_state()->in_mixed_phase());
+    Ticks start = Ticks::now();
+
+    do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
+
+    Universe::teraHeap()->get_tera_stats()->record_evacuation_time( (Ticks::now() - start).seconds() * 1000.0 );
+    Universe::teraHeap()->get_tera_stats()->print_gc_stats();
+  }else{
+    do_collection_pause_at_safepoint_helper(target_pause_time_ms);
+  }
+#else
   do_collection_pause_at_safepoint_helper(target_pause_time_ms);
+#endif
+
   return true;
 }
 
@@ -3142,11 +3160,25 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
           Universe::teraHeap()->h2_pre_scan(_th_card_table);
 #endif
 
-#ifdef TERA_CARDS
-        ScanH2CardTable scan_h2(&per_thread_states,
-                                 workers()->active_workers());
 
-        workers()->run_task(&scan_h2);
+#ifdef TERA_CARDS
+  #ifdef TERA_LOG
+
+        if( EnableTeraHeap ){
+          ScanH2CardTable scan_h2(&per_thread_states,
+                                  workers()->active_workers());
+
+          Tickspan task_time = run_task_timed(&scan_h2);
+          Universe::teraHeap()->get_tera_stats()->record_h2_scan_time( (task_time.seconds() * 1000.0) );
+        }
+  #else
+        if( EnableTeraHeap ){
+          ScanH2CardTable scan_h2(&per_thread_states,
+                                  workers()->active_workers());
+
+          workers()->run_task(&scan_h2);
+        }
+  #endif
 #endif
  
         // Actually do the work...        

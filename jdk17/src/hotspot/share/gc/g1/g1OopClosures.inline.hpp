@@ -193,6 +193,9 @@ inline void ScanH2ObjClosure::do_oop_work(T* p) {
   
 
   //HERE : h2 -> h1 (in or out the cset)
+#ifdef TERA_LOG
+  Universe::teraHeap()->get_tera_stats()->add_back_ref();
+#endif
 
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {

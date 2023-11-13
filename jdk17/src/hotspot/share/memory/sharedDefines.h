@@ -39,6 +39,7 @@
 #define TERA_AVOID_FULL_GC
 // #define MAX_FULL_GC_COUNT 2
 
+#define TERA_LOG				         // Define logging for TeraHeap
 
 #define TERA_FLAG				         // Define teraFlag word
 #define TERA_ASSERT              // Extended assertions for TeraHeap
@@ -84,7 +85,7 @@
                                   // -XX:AllocateHeapAt="/mnt/dir"
                                   // or -XX:AllocateOldGenAt="/mnt/dir"
 
-#define TERA_LOG				         // Define logging for TeraHeap
+
 
 
 /**********************************

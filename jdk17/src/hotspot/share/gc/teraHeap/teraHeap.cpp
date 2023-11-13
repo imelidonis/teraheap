@@ -79,6 +79,10 @@ TeraHeap::TeraHeap() {
 #ifdef TERA_TIMERS
   teraTimer = new TeraTimers();
 #endif
+
+#ifdef TERA_LOG
+  tera_stats = new TeraStatistics();
+#endif
 }
 
 // Return H2 start address
@@ -931,3 +935,10 @@ TeraTimers* TeraHeap::getTeraTimer() {
 }
 #endif
 
+#ifdef TERA_LOG
+// Tera statistics for objects that we move to H2, forward references,
+// and backward references.
+TeraStatistics* TeraHeap::get_tera_stats() {
+  return tera_stats;
+}
+#endif

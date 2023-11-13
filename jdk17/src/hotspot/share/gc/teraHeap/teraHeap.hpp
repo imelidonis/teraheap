@@ -8,6 +8,8 @@
 //#include "gc/parallel/psCompactionManager.hpp"
 #include "memory/sharedDefines.h"
 #include "oops/oop.hpp"
+#include "gc/teraHeap/teraStatistics.hpp"
+
 
 #include <regions.h>
 
@@ -50,6 +52,11 @@ private:
 
 #ifdef TERA_TIMERS
   TeraTimers *teraTimer;
+#endif
+
+
+#ifdef TERA_LOG
+  TeraStatistics *tera_stats;
 #endif
 
   /*-----------------------------------------------
@@ -417,6 +424,12 @@ public:
   TeraTimers* getTeraTimer();
 #endif
 
+#ifdef TERA_LOG
+  // Tera statistics for objects that we move to H2, forward references,
+  // and backward references.
+  TeraStatistics* get_tera_stats();
+#endif
+
 
 #ifdef TERA_DEBUGx
 void h2_pre_scan(PSCardTable* th_card_table){	
@@ -431,10 +444,6 @@ void h2_pre_scan(PSCardTable* th_card_table){
 	}
 }
 #endif
-
-
-
-
 };
 
 #endif

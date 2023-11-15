@@ -54,10 +54,8 @@ private:
   TeraTimers *teraTimer;
 #endif
 
-
-#ifdef TERA_LOG
   TeraStatistics *tera_stats;
-#endif
+
 
   /*-----------------------------------------------
    * Statistics of TeraHeap
@@ -424,11 +422,11 @@ public:
   TeraTimers* getTeraTimer();
 #endif
 
-#ifdef TERA_LOG
+
   // Tera statistics for objects that we move to H2, forward references,
   // and backward references.
   TeraStatistics* get_tera_stats();
-#endif
+
 
 
 #ifdef TERA_DEBUGx

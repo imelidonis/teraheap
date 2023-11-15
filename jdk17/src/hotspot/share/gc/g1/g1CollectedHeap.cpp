@@ -2949,8 +2949,8 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
     return false;
   }
 
-#ifdef TERA_LOG
-  if( EnableTeraHeap ){
+
+  if( EnableTeraHeap && TeraHeapStatistics ){
 
     Universe::teraHeap()->get_tera_stats()->set_is_in_mix(collector_state()->in_mixed_phase());
     Ticks start = Ticks::now();
@@ -2962,9 +2962,7 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
   }else{
     do_collection_pause_at_safepoint_helper(target_pause_time_ms);
   }
-#else
-  do_collection_pause_at_safepoint_helper(target_pause_time_ms);
-#endif
+
 
   return true;
 }
@@ -3162,23 +3160,18 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
 
 #ifdef TERA_CARDS
-  #ifdef TERA_LOG
 
-        if( EnableTeraHeap ){
-          ScanH2CardTable scan_h2(&per_thread_states,
-                                  workers()->active_workers());
 
-          Tickspan task_time = run_task_timed(&scan_h2);
-          Universe::teraHeap()->get_tera_stats()->record_h2_scan_time( (task_time.seconds() * 1000.0) );
+        if( EnableTeraHeap ){          
+            ScanH2CardTable scan_h2(&per_thread_states,
+                                    workers()->active_workers());
+
+            Tickspan task_time = run_task_timed(&scan_h2);
+
+            if( TeraHeapStatistics )
+              Universe::teraHeap()->get_tera_stats()->record_h2_scan_time( (task_time.seconds() * 1000.0) );
         }
-  #else
-        if( EnableTeraHeap ){
-          ScanH2CardTable scan_h2(&per_thread_states,
-                                  workers()->active_workers());
-
-          workers()->run_task(&scan_h2);
-        }
-  #endif
+ 
 #endif
  
         // Actually do the work...        

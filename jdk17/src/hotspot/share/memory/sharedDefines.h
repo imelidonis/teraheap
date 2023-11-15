@@ -21,7 +21,7 @@
 // #define FORCE_OPT // force optional cset
 // #define NO_OPT // no optional cset (not working correctly)
 
-#define TERA_DEBUG
+// #define TERA_DEBUG
 #ifdef TERA_DEBUG
   
   #include <iostream>

@@ -713,9 +713,9 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     
     TERA_REMOVEx( G1CollectedHeap::h2++; G1CollectedHeap::h2_bytes_copied+=obj->size(); ) 
 
-#ifdef TERA_LOG
-    Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*8 );
-#endif
+    if(TeraHeapStatistics)
+      Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*HeapWordSize );
+
 
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
 

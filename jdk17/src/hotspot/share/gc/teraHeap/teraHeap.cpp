@@ -80,9 +80,9 @@ TeraHeap::TeraHeap() {
   teraTimer = new TeraTimers();
 #endif
 
-#ifdef TERA_LOG
-  tera_stats = new TeraStatistics();
-#endif
+  if(TeraHeapStatistics)
+    tera_stats = new TeraStatistics();
+
 }
 
 // Return H2 start address
@@ -138,8 +138,8 @@ bool TeraHeap::is_field_in_h2(void *p) {
 }
 
 void TeraHeap::h2_clear_back_ref_stacks() {
-	if (TeraHeapStatistics)
-		back_ptrs_per_mgc = 0;
+	// if (TeraHeapStatistics)
+	// 	back_ptrs_per_mgc = 0;
 		
 	_tc_adjust_stack.clear(true);
 	_tc_stack.clear(true);
@@ -653,19 +653,19 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 	++total_objects;
 	++trans_per_fgc;
 
-	if (TeraHeapStatistics) {
-		size_t obj_size = (size * HeapWordSize) / 1024UL;
-		int count = 0;
+	// if (TeraHeapStatistics) {
+	// 	size_t obj_size = (size * HeapWordSize) / 1024UL;
+	// 	int count = 0;
 
-		while (obj_size > 0) {
-			count++;
-			obj_size/=1024UL;
-		}
+	// 	while (obj_size > 0) {
+	// 		count++;
+	// 		obj_size/=1024UL;
+	// 	}
 
-		assert(count <=2, "Array out of range");
+	// 	assert(count <=2, "Array out of range");
 
-		++obj_distr_size[count];
-	}
+	// 	++obj_distr_size[count];
+	// }
 
 
 	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id());
@@ -935,10 +935,9 @@ TeraTimers* TeraHeap::getTeraTimer() {
 }
 #endif
 
-#ifdef TERA_LOG
+
 // Tera statistics for objects that we move to H2, forward references,
 // and backward references.
 TeraStatistics* TeraHeap::get_tera_stats() {
   return tera_stats;
 }
-#endif

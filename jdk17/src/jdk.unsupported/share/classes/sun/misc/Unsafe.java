@@ -1312,4 +1312,15 @@ public final class Unsafe {
     return theInternalUnsafe.inH2(o);
   }
 
+  /**
+   * Returns whether an object is marked to move to H2
+   *
+   * @param o object/array to check
+   */
+  @ForceInline
+  public boolean is_marked_move_h2(Object o)
+  {
+    return theInternalUnsafe.is_marked_move_h2(o);
+  }
+
 }

@@ -21,13 +21,13 @@
 // #define FORCE_OPT // force optional cset
 // #define NO_OPT // no optional cset (not working correctly)
 
-// #define TERA_DEBUG
+#define TERA_DEBUG
 #ifdef TERA_DEBUG
   
   #include <iostream>
   #define stdprint std::cerr
 
-	#define TERA_REMOVEx(code) code
+	#define TERA_REMOVEx(code) 
 	#define TERA_REMOVE(code)
 
 

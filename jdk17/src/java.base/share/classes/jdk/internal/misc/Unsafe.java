@@ -3975,4 +3975,11 @@ public final class Unsafe {
    * @param o object/array to update tera mark word
    */
    public native boolean inH2(Object o);
+
+  /**
+   * Returns whether an object is marked to move to H2
+   *
+   * @param o object/array to check
+   */
+  public native boolean is_marked_move_h2(Object o);
 }

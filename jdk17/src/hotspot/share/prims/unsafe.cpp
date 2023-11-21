@@ -936,7 +936,6 @@ UNSAFE_ENTRY(jboolean, Unsafe_inH2(JNIEnv *env, jobject unsafe, jobject obj)) {
     stdprint << "   marked:" << o->is_marked_move_h2();
     stdprint << "\n";
 
-  
     PrintFieldsClosure cl(G1CollectedHeap::heap()); 
     o->oop_iterate_backwards(&cl); 
 
@@ -950,6 +949,16 @@ UNSAFE_ENTRY(jboolean, Unsafe_inH2(JNIEnv *env, jobject unsafe, jobject obj)) {
   return false;
 }
 UNSAFE_END
+
+UNSAFE_ENTRY(jboolean, Unsafe_is_marked_moved_h2(JNIEnv *env, jobject unsafe, jobject obj)) {
+  if (!EnableTeraHeap) return false;
+  
+  oop o = JNIHandles::resolve_non_null(obj);
+
+  return o->is_marked_move_h2();
+}
+UNSAFE_END
+
 
 
 /// JVM_RegisterUnsafeMethods
@@ -994,10 +1003,11 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     DECLARE_GETPUTOOP(Double, D),
 
     /*-------TERA HEAP----------*/
-    {CC "h2TagAndMoveRoot", CC "(" OBJ "JJ)V",  FN_PTR(Unsafe_h2TagAndMoveRoot)},
-    {CC "h2TagRoot",           CC "(" OBJ "JJ)V",               FN_PTR(Unsafe_h2TagRoot)},
-    {CC "h2Move",              CC "(J)V",                     FN_PTR(Unsafe_h2Move)},
-    {CC "inH2", CC "(" OBJ ")Z",         FN_PTR(Unsafe_inH2)},
+    {CC "h2TagAndMoveRoot",     CC "(" OBJ "JJ)V",  FN_PTR(Unsafe_h2TagAndMoveRoot)},
+    {CC "h2TagRoot",            CC "(" OBJ "JJ)V",  FN_PTR(Unsafe_h2TagRoot)},
+    {CC "h2Move",               CC "(J)V",          FN_PTR(Unsafe_h2Move)},
+    {CC "inH2",                 CC "(" OBJ ")Z",    FN_PTR(Unsafe_inH2)},
+    {CC "is_marked_move_h2",    CC "(" OBJ ")Z",    FN_PTR(Unsafe_is_marked_moved_h2)},
     
 
     {CC "allocateMemory0",    CC "(J)" ADR,              FN_PTR(Unsafe_AllocateMemory0)},

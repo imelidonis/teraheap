@@ -54,6 +54,14 @@ G1FullGCMarker::~G1FullGCMarker() {
   assert(is_empty(), "Must be empty at this point");
 }
 
+void G1FullGCMarker::set_h2_candidate_flags(oop obj) {
+  _is_h2_candidate = (EnableTeraHeap
+                      && !Universe::teraHeap()->is_metadata(obj)
+                      && obj->is_marked_move_h2()) ? true : false;
+  _h2_group_id = (_is_h2_candidate) ? obj->get_obj_group_id() : 0;
+  _h2_part_id  = (_is_h2_candidate) ? obj->get_obj_part_id() : 0;
+}
+
 void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
                                       ObjArrayTaskQueueSet* array_stacks,
                                       TaskTerminator* terminator) {

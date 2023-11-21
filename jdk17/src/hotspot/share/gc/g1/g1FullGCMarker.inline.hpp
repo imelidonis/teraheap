@@ -87,11 +87,10 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
       return;
     }
 
-    if (false /* TODO: check if obj is h2_candidate */) {
+    if (_is_h2_candidate) {
       // Object is an H2 candidate
       if (!obj->is_marked_move_h2()) {
-        // TODO: i need group_id and part_id
-        // obj->mark_move_h2(uint64_t rdd_id, uint64_t part_id)
+        obj->mark_move_h2(_h2_group_id, _h2_part_id);
       }
     }
 
@@ -182,11 +181,15 @@ void G1FullGCMarker::drain_stack() {
     oop obj;
     while (pop_object(obj)) {
       assert(_bitmap->is_marked(obj), "must be marked");
+      // If object is h2 candidate, set the fields for its children.
+      set_h2_candidate_flags(obj);
       follow_object(obj);
     }
     // Process ObjArrays one at a time to avoid marking stack bloat.
     ObjArrayTask task;
     if (pop_objarray(task)) {
+      // If array is h2 candidate, set the fields for its children.
+      set_h2_candidate_flags(task.obj());
       follow_array_chunk(objArrayOop(task.obj()), task.index());
     }
   } while (!is_empty());

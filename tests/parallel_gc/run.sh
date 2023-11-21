@@ -4,13 +4,13 @@ MODE=""
 PARALLEL_GC_THREADS=()
 STRIPE_SIZE=32768
 
-JAVA="$(pwd)/../../jdk17/build/base-linux/jdk/bin/java"
+#JAVA="$(pwd)/../jdk17u067/build/linux-x86_64-server-fastdebug/jdk/bin/java"
+JAVA="$(pwd)/../jdk17u067/build/linux-x86_64-server-release/jdk/bin/java"
 
 EXEC=("Array" "Array_List" "Array_List_Int" "List_Large" "MultiList" \
 	"Simple_Lambda" "Extend_Lambda" "Test_Reflection" "Test_Reference" \
 	"HashMap" "Rehashing" "Clone" "Groupping" "MultiHashMap" \
 	"Test_WeakHashMap" "ClassInstance")
-
 
 # Export Enviroment Variables
 export_env_vars() {
@@ -48,7 +48,7 @@ function interpreter_mode() {
 		-XX:-UseCompressedClassPointers \
 		-XX:+TeraHeapStatistics \
 		-XX:TeraStripeSize=${STRIPE_SIZE} \
-		-Xlogth:llarge_teraCache.txt -cp ./bin "${class_file}" > ./java/out/$1_err 2>&1 > ./java/out/$1_out
+		-Xlogth:llarge_teraCache.txt "${class_file}" > err 2>&1 > out
 }
 
 # Run tests using only C1 compiler
@@ -71,7 +71,7 @@ function c1_mode() {
 		-Xms${XMS}g \
 		-XX:-UseCompressedOops \
 		-XX:+TeraHeapStatistics \
-		-Xlogth:llarge_teraCache.txt -cp ./bin "${class_file}" > ./java/out/$1_err 2>&1 > ./java/out/$1_out
+		-Xlogth:llarge_teraCache.txt "${class_file}" > err 2>&1 > out
 }
 	 
 # Run tests using C2 compiler
@@ -94,7 +94,7 @@ function c2_mode() {
 		-XX:TeraCacheThreshold=0 \
 		-XX:-UseCompressedOops \
 		-XX:+TeraCacheStatistics \
-		-Xlogtc:llarge_teraCache.txt -cp ./bin "${class_file}" > ./java/out/$1_err 2>&1 > ./java/out/$1_out
+		-Xlogtc:llarge_teraCache.txt "${class_file}" > err 2>&1 > out
 } 
 
 # Run tests using all compilers
@@ -115,7 +115,7 @@ function run_tests_msg_box() {
 		-XX:-UseCompressedClassPointers \
 		-XX:+TeraHeapStatistics \
 		-XX:TeraStripeSize=${STRIPE_SIZE} \
-		-Xlogth:llarge_teraCache.txt -cp ./bin "${class_file}" > ./java/out/$1_err 2>&1 > ./java/out/$1_out
+		-Xlogth:llarge_teraCache.txt "${class_file}" > err 2>&1 > out
 }
 
 # Run tests using all compilers
@@ -135,7 +135,7 @@ function run_tests() {
     -XX:-UseCompressedClassPointers \
     -XX:+TeraHeapStatistics \
     -XX:TeraStripeSize=${STRIPE_SIZE} \
-    -Xlogth:llarge_teraCache.txt -cp ./bin "${class_file}" > ./java/out/$1_err 2>&1 > ./java/out/$1_out
+    -Xlogth:llarge_teraCache.txt "${class_file}" > err 2>&1 > out
   }
 
 # Run tests using gdb
@@ -156,7 +156,7 @@ function run_tests_debug() {
     -XX:-UseCompressedClassPointers \
     -XX:+TeraHeapStatistics \
     -XX:TeraStripeSize=${STRIPE_SIZE} \
-    -Xlogth:llarge_teraCache.txt -cp ./bin "${class_file}"
+    -Xlogth:llarge_teraCache.txt "${class_file}"
 }
 
 # Usage
@@ -209,9 +209,6 @@ print_msg() {
   echo "___________________________________"
   echo 
 }
-
-mkdir java/out
-clear
 
 # Check for the input arguments
 while getopts "m:t:h" opt

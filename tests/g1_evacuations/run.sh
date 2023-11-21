@@ -5,7 +5,7 @@ STRIPE_SIZE=32768
 
 JAVA="../../jdk17/build/base-linux/jdk/bin/java"
  
-FLAGS="-Xbootclasspath/a:../../tests/evacuations/Whitebox/wb.jar -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI \
+FLAGS="-Xbootclasspath/a:../../tests/g1_evacuations/Whitebox/wb.jar -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI \
 	-XX:+UseG1GC -XX:G1HeapRegionSize=1m \
 	-XX:-UseCompressedClassPointers -XX:-UseCompressedOops \
 	-XX:InitialTenuringThreshold=5 -XX:MaxTenuringThreshold=7 \

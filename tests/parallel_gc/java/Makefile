@@ -11,9 +11,9 @@
 #
 ####################################################
 
-JAVA_REPO := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))../../../jdk17
-JAVAC=$(JAVA_REPO)/build/base-linux/jdk/bin/javac -d ./bin
-PROJECT_DIR := $(shell pwd)/../../..
+JAVA_REPO := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))../../jdk17u067
+JAVAC=$(JAVA_REPO)/build/linux-x86_64-server-fastdebug/jdk/bin/javac
+PROJECT_DIR := $(shell pwd)/../..
 
 TARGET=Array.class Array_List.class Array_List_Int.class List_Large.class \
 	   MultiList.class Simple_Lambda.class Extend_Lambda.class \
@@ -77,10 +77,10 @@ PrimitiveObjects.class: PrimitiveObjects.java
 clean:
 	-rm core.*
 	-rm hs_err_pid*
-	-rm -r out
+	-rm err out
 	-rm hotspot_pid*
 	-rm replay_pid*
 	-rm llarge_teraCache.txt
 
 distclean: clean
-	-rm -rf bin
+	-rm -f *.class

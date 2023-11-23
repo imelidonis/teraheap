@@ -25,7 +25,9 @@ cd ..
 make -C java GC.class
 
 # Thirdly : compile any benchmark you want
-make -C phases Phase1.java
+# make -C phases Phase1.java
 
+# Or compile all of them:
+make -C phases
 
 

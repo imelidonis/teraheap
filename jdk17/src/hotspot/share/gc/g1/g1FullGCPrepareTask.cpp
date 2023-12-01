@@ -161,7 +161,13 @@ G1FullGCPrepareTask::G1PrepareCompactLiveClosure::G1PrepareCompactLiveClosure(G1
 
 size_t G1FullGCPrepareTask::G1PrepareCompactLiveClosure::apply(oop object) {
   size_t size = object->size();
-  _cp->forward(object, size);
+  if (object->is_marked_move_h2()) {
+    // Give address from H2 and store it in object header.
+    HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size);
+    object->forward_to(cast_to_oop(h2_address));
+  } else {
+    _cp->forward(object, size);
+  }
   return size;
 }
 

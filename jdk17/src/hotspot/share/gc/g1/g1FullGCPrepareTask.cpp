@@ -58,13 +58,17 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
     prepare_for_compaction(hr);
   } else {
     // There is no need to iterate and forward objects in pinned regions ie.
-    // prepare them for compaction. The adjust pointers phase will skip
+    // prepare them for compaction except humongous objects that are marked
+    // to move to H2 (teraheap). The adjust pointers phase will skip
     // work for them.
     assert(hr->containing_set() == nullptr, "already cleared by PrepareRegionsClosure");
     if (hr->is_humongous()) {
       oop obj = cast_to_oop(hr->humongous_start_region()->bottom());
       if (!_bitmap->is_marked(obj)) {
         free_pinned_region<true>(hr);
+      } else if (obj->is_marked_move_h2()) {
+        HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
+        obj->forward_to(cast_to_oop(h2_address));
       }
     } else if (hr->is_open_archive()) {
       bool is_empty = _collector->live_words(hr->hrm_index()) == 0;

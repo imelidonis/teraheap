@@ -196,7 +196,46 @@ class Universe: AllStatic {
   static uintptr_t _verify_oop_mask;
   static uintptr_t _verify_oop_bits;
 
+#ifdef PERF_LOG
+  static int fd;
+#endif
+
  public:
+
+#ifdef PERF_LOG
+  static void perf_init() {
+    struct perf_event_attr pe;
+    memset(&pe, 0, sizeof(struct perf_event_attr));
+    
+    pe.type = PERF_TYPE_HARDWARE;
+    pe.size = sizeof(struct perf_event_attr);
+    pe.config = PERF_COUNT_HW_CACHE_MISSES;
+    pe.disabled = 1;
+    pe.exclude_kernel = 1;
+    pe.exclude_hv = 1;
+
+    fd = syscall(__NR_perf_event_open, &pe, 0, -1, -1, 0);
+    assert(fd != -1, "Error opening perf event");
+
+    ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+  }
+
+  static void perf_start() { ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);  }
+  static void perf_stop () { ioctl(fd, PERF_EVENT_IOC_DISABLE, 0); }
+
+  //reset it each time we stop it, in order to prevent pref counter overlflow
+  static void perf_reset() { ioctl(fd, PERF_EVENT_IOC_RESET, 0);   } 
+  
+  static void perf_close() { close(fd); }
+  
+  static long long perf_count() {
+    // Read and return the count of cache misses
+    long long count;
+    read(fd, &count, sizeof(long long));
+    return count; 
+  }  
+#endif
+
   static void calculate_verify_data(HeapWord* low_boundary, HeapWord* high_boundary) PRODUCT_RETURN;
 
   // Known classes in the VM
@@ -306,6 +345,7 @@ class Universe: AllStatic {
 
   // Accessor to Teraheap
   static TeraHeap* teraHeap() { return _teraHeap; }
+
 
   DEBUG_ONLY(static bool is_gc_active();)
   DEBUG_ONLY(static bool is_in_heap(const void* p);)

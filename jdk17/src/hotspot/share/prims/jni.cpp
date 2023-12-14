@@ -3712,6 +3712,11 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
     // Nothing to do.
   }
 #endif
+
+#ifdef PERF_LOG
+  Universe::perf_start();
+#endif
+
   return result;
 }
 

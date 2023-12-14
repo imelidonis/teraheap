@@ -859,6 +859,17 @@ void G1ConcurrentMark::scan_root_region(const MemRegion* region, uint worker_id)
   while (curr < end) {
     Prefetch::read(curr, interval);
     oop obj = cast_to_oop(curr);
+
+#ifdef TERA_CONC_MARKING
+    if(EnableTeraHeap){
+      if(obj->is_marked_move_h2()){   
+        cl.set_parent_tera(true, obj->get_obj_group_id(), obj->get_obj_part_id() );
+      }else{
+        cl.set_parent_tera(false,0,0);
+      }
+    }    
+#endif
+
     int size = obj->oop_iterate_size(&cl);
     assert(size == obj->size(), "sanity");
     curr += size;
@@ -2550,7 +2561,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
                                bool is_serial) {
   assert(time_target_ms >= 1.0, "minimum granularity is 1ms");
 
-  _start_time_ms = os::elapsedVTime() * 1000.0;
+  _start_time_ms = os::elapsedVTime() * 1000.0; 
 
   // If do_stealing is true then do_marking_step will attempt to
   // steal work from the other G1CMTasks. It only makes sense to

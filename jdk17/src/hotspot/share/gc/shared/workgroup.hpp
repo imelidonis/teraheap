@@ -120,6 +120,10 @@ class WorkGang : public CHeapObj<mtInternal> {
 
   ~WorkGang();
 
+#ifdef CM_LOG
+  double _time_sum; // accessed by all workers. Only works for 1 conc thread. If more then make an array and each worker have its own
+#endif
+
   // Initialize workers in the gang.  Return true if initialization succeeded.
   void initialize_workers();
 

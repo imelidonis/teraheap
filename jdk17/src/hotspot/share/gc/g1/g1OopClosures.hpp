@@ -310,12 +310,27 @@ private:
   G1CollectedHeap* _g1h;
   G1ConcurrentMark* _cm;
   uint _worker_id;
+
+#ifdef TERA_CONC_MARKING
+  bool _is_tera_enabled;
+  uint64_t _rdd_id;
+  uint64_t _part_id;
+#endif
+
 public:
   G1RootRegionScanClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id) :
     _g1h(g1h), _cm(cm), _worker_id(worker_id) { }
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(      oop* p) { do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+
+#ifdef TERA_CONC_MARKING
+  void set_parent_tera( bool is_tera_enabled , uint64_t rdd_id, uint64_t part_id ){  
+    _is_tera_enabled = is_tera_enabled; 
+    _rdd_id = rdd_id;
+    _part_id = part_id;
+  }
+#endif
 };
 
 class G1ConcurrentRefineOopClosure: public BasicOopIterateClosure {

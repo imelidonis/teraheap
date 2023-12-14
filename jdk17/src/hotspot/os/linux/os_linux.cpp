@@ -1294,6 +1294,9 @@ double os::elapsedVTime() {
   struct rusage usage;
   int retval = getrusage(RUSAGE_THREAD, &usage);
   if (retval == 0) {
+    // tv_sec : seconds
+    // tv_usec : microseconds --convert--> /1000*1000 = seconds
+    // tv_sec field stores the whole seconds, and the tv_usec field stores the remaining microseconds. We sum it up for more accuracy
     return (double) (usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) + (double) (usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / (1000 * 1000);
   } else {
     // better than nothing, but not much

@@ -1124,11 +1124,7 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
     return false;
   }
 
-  const bool do_clear_all_soft_refs = clear_all_soft_refs ||
-      soft_ref_policy()->should_clear_all_soft_refs();
-
-
-  #ifdef TERA_AVOID_FULL_GC
+#ifdef TERA_AVOID_FULL_GC
     if(EnableTeraHeap){
       if( mix_gc_happened == true ){
         TERA_REMOVEx( stdprint << "======= AVOID FULL GC ================\n"; )
@@ -1138,7 +1134,16 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
     }else{
       TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
     }
-  #endif
+#endif
+
+#ifdef PERF_LOG
+  Universe::perf_stop();
+  log_info(gc)("Cache Misses : %lld\n", Universe::perf_count() );
+  Universe::perf_reset();
+#endif
+
+  const bool do_clear_all_soft_refs = clear_all_soft_refs ||
+      soft_ref_policy()->should_clear_all_soft_refs();
   
   G1FullCollector collector(this, explicit_gc, do_clear_all_soft_refs, do_maximum_compaction);
   GCTraceTime(Info, gc) tm("Pause Full", NULL, gc_cause(), true);
@@ -1146,6 +1151,10 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
   collector.prepare_collection();
   collector.collect();
   collector.complete_collection();
+
+#ifdef PERF_LOG
+  Universe::perf_start();
+#endif
 
   // Full collection was successfully completed.
   return true;
@@ -1612,6 +1621,10 @@ jint G1CollectedHeap::initialize() {
   Universe::check_alignment(init_byte_size, HeapRegion::GrainBytes, "g1 heap");
   Universe::check_alignment(reserved_byte_size, HeapRegion::GrainBytes, "g1 heap");
   Universe::check_alignment(reserved_byte_size, HeapAlignment, "g1 heap");
+
+#ifdef PERF_LOG
+  Universe::perf_init();
+#endif
 
   // Reserve the maximum.
 
@@ -2542,6 +2555,14 @@ void G1CollectedHeap::gc_threads_do(ThreadClosure* tc) const {
 }
 
 void G1CollectedHeap::print_tracing_info() const {
+
+#ifdef PERF_LOG
+  // print before exit
+  Universe::perf_stop();
+  log_info(gc)("Cache Misses : %lld\n", Universe::perf_count() );
+  Universe::perf_close();
+#endif
+
   rem_set()->print_summary_info();
   concurrent_mark()->print_summary_info();
 }
@@ -2945,6 +2966,12 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
   assert_at_safepoint_on_vm_thread();
   guarantee(!is_gc_active(), "collection is not reentrant");
 
+#ifdef PERF_LOG
+  Universe::perf_stop();
+  log_info(gc)("Cache Misses : %lld\n", Universe::perf_count() );
+  Universe::perf_reset();
+#endif
+
   if (GCLocker::check_active_before_gc()) {
     return false;
   }
@@ -2953,17 +2980,15 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
   if( EnableTeraHeap && TeraHeapStatistics ){
 
     Universe::teraHeap()->get_tera_stats()->set_is_in_mix(collector_state()->in_mixed_phase());
-    Ticks start = Ticks::now();
-
     do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
-
-    Universe::teraHeap()->get_tera_stats()->record_evacuation_time( (Ticks::now() - start).seconds() * 1000.0 );
     Universe::teraHeap()->get_tera_stats()->print_gc_stats();
   }else{
-    do_collection_pause_at_safepoint_helper(target_pause_time_ms);
+    do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
   }
 
-
+#ifdef PERF_LOG
+  Universe::perf_start();
+#endif
   return true;
 }
 

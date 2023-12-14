@@ -314,6 +314,12 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
 
   // Phase 7: Clear bitmap for next mark.
   phase_clear_bitmap_for_next_mark();
+
+#ifdef CM_LOG
+  // log_info(gc, marking)("Clean Concurrent Marking time (user + sys) %.3fms",( _cm->_concurrent_workers->_time_sum * 1000.0) );
+  log_info(gc)("Clean Concurrent time (user + sys) %.3fms",( _cm->_concurrent_workers->_time_sum * 1000.0) );
+  _cm->_concurrent_workers->_time_sum=0;
+#endif
 }
 
 void G1ConcurrentMarkThread::concurrent_undo_cycle_do() {

@@ -36,8 +36,19 @@
 	#define TERA_REMOVE(code)
 #endif
 
+#define CM_LOG //extend the logging of G1 to include getrusage times (with no idle time)
+
+#define PERF_LOG
+#ifdef PERF_LOG //extend the logging of G1 to print cache misses
+  #include <iostream>
+  #include <linux/perf_event.h>
+  #include <asm/unistd.h>
+  #include <sys/ioctl.h>
+  #include <unistd.h>
+  #include <cstring>
+#endif
+
 #define TERA_AVOID_FULL_GC
-// #define MAX_FULL_GC_COUNT 2
 
 #define TERA_LOG				         // Define logging for TeraHeap
 

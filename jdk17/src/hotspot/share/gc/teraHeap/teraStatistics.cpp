@@ -37,16 +37,8 @@ void TeraStatistics::print_gc_stats() {
     thlog_or_tty->print_cr("[MIXED] | BACK_PTRS = %lu", backward_ref);
     thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS  = %lu", total_objects_moved);
     thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS_SIZE = %lu", total_objects_size);
-    thlog_or_tty->print_cr("[MIXED] | TIME_SCAN_H2_CT %.3lfms", h2_card_table_scan_time_ms);
-    thlog_or_tty->print_cr("[MIXED] | TIME_EVACUATION %.3lfms\n", evac_time_ms); 
+    thlog_or_tty->print_cr("[MIXED] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
     
-  }else{
-    thlog_or_tty->print_cr("[YOUNG] | BACK_PTRS = %lu", backward_ref);
-    thlog_or_tty->print_cr("[YOUNG] | TOTAL_OBJECTS  = %lu", total_objects_moved);
-    thlog_or_tty->print_cr("[YOUNG] | TOTAL_OBJECTS_SIZE = %lu", total_objects_size);
-    thlog_or_tty->print_cr("[YOUNG] | TIME_SCAN_H2_CT %.3lfms", h2_card_table_scan_time_ms);
-    thlog_or_tty->print_cr("[YOUNG] | TIME_EVACUATION %.3lfms\n", evac_time_ms);
-
   }
 
 

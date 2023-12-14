@@ -274,6 +274,13 @@ inline void G1RootRegionScanClosure::do_oop_work(T* p) {
       }
 #endif
 
+#ifdef TERA_CONC_MARKING  
+  // if papa has tera flag enabled
+  // enable tera flag at child too
+  if( EnableTeraHeap && _is_tera_enabled ) 
+    obj->mark_move_h2( _rdd_id, _part_id);
+#endif
+
   _cm->mark_in_next_bitmap(_worker_id, obj); // mark only the objs that are bellow TAMPs
                                              // young regions have bottom == TAMPs
 }

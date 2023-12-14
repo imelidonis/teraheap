@@ -1138,7 +1138,7 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
 
 #ifdef PERF_LOG
   Universe::perf_stop();
-  log_info(gc)("Cache Misses : %lld\n", Universe::perf_count() );
+  log_info(gc)("Cache Misses : %lld", Universe::perf_count() );
   Universe::perf_reset();
 #endif
 
@@ -2559,7 +2559,7 @@ void G1CollectedHeap::print_tracing_info() const {
 #ifdef PERF_LOG
   // print before exit
   Universe::perf_stop();
-  log_info(gc)("Cache Misses : %lld\n", Universe::perf_count() );
+  log_info(gc)("Cache Misses : %lld", Universe::perf_count() );
   Universe::perf_close();
 #endif
 
@@ -2968,7 +2968,7 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
 
 #ifdef PERF_LOG
   Universe::perf_stop();
-  log_info(gc)("Cache Misses : %lld\n", Universe::perf_count() );
+  log_info(gc)("Cache Misses : %lld", Universe::perf_count() );
   Universe::perf_reset();
 #endif
 

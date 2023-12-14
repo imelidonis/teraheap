@@ -21,7 +21,7 @@ FLAGS=" \
 # 	"Rehashing" "Clone" "Groupping")
 
 EXEC_DIR_NAME="phases"
-EXEC=("Phase1_MarkOneObject" "Phase1_MarkSubObject")
+EXEC=("Phase1_MarkOneObject" "Phase1_MarkSubObject" "Phase2_GiveAddressesFromH2")
 
 # Export Enviroment Variables
 export_env_vars() {

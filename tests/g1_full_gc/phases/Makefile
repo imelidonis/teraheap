@@ -20,7 +20,7 @@ JAVAC=$(JAVA_COMP) -d ./bin
 
 GDB=gdb
 
-TARGET=Phase1_MarkOneObject.class Phase1_MarkSubObject.class
+TARGET=Phase1_MarkOneObject.class Phase1_MarkSubObject.class Phase2_GiveAddressesFromH2.class
 
 all: $(TARGET)
 
@@ -28,6 +28,9 @@ Phase1_MarkOneObject.class: Phase1_MarkOneObject.java
 	$(JAVAC) $<
 
 Phase1_MarkSubObject.class: Phase1_MarkSubObject.java
+	$(JAVAC) $<
+
+Phase2_GiveAddressesFromH2.class: Phase2_GiveAddressesFromH2.java
 	$(JAVAC) $<
 
 clean:

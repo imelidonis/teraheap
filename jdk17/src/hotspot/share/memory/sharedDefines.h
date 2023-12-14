@@ -111,6 +111,8 @@
   * States of TeraFlag
   **********************************/
 #define MOVE_TO_TERA			255	    //< Move this object to tera cache
+#define DUMMY_H2_ADDRESS  256     //< Mark that object took address.
+//                                // NOTE: will be removed.
 
 #define TERA_TO_OLD		    328	    //< Pointer from TeraCache to Old Gen. Move
   // this object to TeraCache

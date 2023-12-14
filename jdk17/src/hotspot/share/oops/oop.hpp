@@ -91,6 +91,11 @@ class oopDesc {
   // Check if an object is marked to be moved in H2
   inline bool is_marked_move_h2();
 
+  // NOTE: will be removed. Just to avoid brake when giving address
+  // from H2.
+  inline void dummy_give_h2_address();
+  inline bool dummy_has_h2_address();
+
   // Mark this object that is located in TeraCache
   inline void set_in_h2();
 

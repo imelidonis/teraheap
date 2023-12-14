@@ -65,7 +65,17 @@ void oopDesc::mark_move_h2(uint64_t rdd_id, uint64_t part_id) {
 
 // Check if an object is marked to be moved in H2
 bool oopDesc::is_marked_move_h2() { 
-  return (_tera_flag & 0xffffffff) == MOVE_TO_TERA ;
+  // return (_tera_flag & 0xffffffff) == MOVE_TO_TERA ;
+  return (_tera_flag & 0xff) == MOVE_TO_TERA ;
+}
+
+// NOTE: will be removed
+void oopDesc::dummy_give_h2_address() {
+  _tera_flag |= DUMMY_H2_ADDRESS;
+}
+
+bool oopDesc::dummy_has_h2_address() {
+  return (_tera_flag & 0xf00) == DUMMY_H2_ADDRESS;
 }
 
 // Mark this object that is located in TeraCache

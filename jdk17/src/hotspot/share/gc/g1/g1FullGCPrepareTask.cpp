@@ -67,8 +67,11 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
       if (!_bitmap->is_marked(obj)) {
         free_pinned_region<true>(hr);
       } else if (obj->is_marked_move_h2()) {
-        HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
-        obj->forward_to(cast_to_oop(h2_address));
+        // HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
+        // obj->forward_to(cast_to_oop(h2_address));
+        // FIXME: for now, we dont store the pointer to the header because
+        // it brakes. It needs phase 4 to work.
+        obj->dummy_give_h2_address();
       }
     } else if (hr->is_open_archive()) {
       bool is_empty = _collector->live_words(hr->hrm_index()) == 0;
@@ -169,8 +172,12 @@ size_t G1FullGCPrepareTask::G1PrepareCompactLiveClosure::apply(oop object) {
   size_t size = object->size();
   if (object->is_marked_move_h2()) {
     // Give address from H2 and store it in object header.
-    HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size);
-    object->forward_to(cast_to_oop(h2_address));
+    // HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size);
+    // object->forward_to(cast_to_oop(h2_address));
+    // FIXME: for now, we dont store the H2 pointer to the header
+    // because it brakes. It needs phase 4 to work.
+    object->dummy_give_h2_address();
+    _cp->forward(object, size);
   } else {
     _cp->forward(object, size);
   }

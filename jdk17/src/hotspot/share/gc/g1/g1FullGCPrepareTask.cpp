@@ -192,6 +192,8 @@ size_t G1FullGCPrepareTask::G1RePrepareClosure::apply(oop obj) {
     return obj->size();
   }
 
+  assert(!obj->is_marked_move_h2(), "Objects marked to move to H2 should already be forwarded.");
+
   // Get size and forward.
   size_t size = obj->size();
   _cp->forward(obj, size);

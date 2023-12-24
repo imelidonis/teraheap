@@ -82,10 +82,6 @@
 
 #include "gc/teraHeap/teraHeap.hpp"
 
-#ifdef PERF_LOG
-  int Universe::fd = -1; //init
-#endif
-
 // Known objects
 Klass* Universe::_typeArrayKlassObjs[T_LONG+1]        = { NULL /*, NULL...*/ };
 Klass* Universe::_objectArrayKlassObj                 = NULL;

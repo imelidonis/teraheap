@@ -155,8 +155,9 @@ void G1ConcurrentMarkThread::run_service() {
 
 #ifdef CM_LOG
     // log_info(gc, marking)("Clean Concurrent Marking time (user + sys) %.3fms",( _cm->_concurrent_workers->_time_sum * 1000.0) );
-    log_info(gc)("Clean Concurrent time (user + sys) %.3fms",( _cm->_concurrent_workers->_time_sum * 1000.0) );
-    _cm->_concurrent_workers->_time_sum=0;
+    
+    log_info(gc)("Clean Concurrent time (user + sys) %.3fms",( _cm->_concurrent_workers->get_sum_time() * 1000.0) );
+    _cm->_concurrent_workers->reset_time();
 #endif
 
     _vtime_accum = (os::elapsedVTime() - _vtime_start);

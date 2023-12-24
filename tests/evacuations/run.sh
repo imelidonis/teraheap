@@ -11,14 +11,16 @@ FLAGS="-Xbootclasspath/a:../../tests/evacuations/Whitebox/wb.jar -XX:+UnlockExpe
 	-XX:InitialTenuringThreshold=5 -XX:MaxTenuringThreshold=7 \
 	-XX:G1MixedGCCountTarget=4 -XX:G1HeapWastePercent=0 -XX:G1MixedGCLiveThresholdPercent=100 -XX:MaxGCPauseMillis=30000 \
 	-XX:InitiatingHeapOccupancyPercent=100 -XX:-G1UseAdaptiveIHOP \
-    -XX:ParallelGCThreads=${PARALLEL_GC_THREADS} "
+    -XX:ParallelGCThreads=${PARALLEL_GC_THREADS} -XX:ConcGCThreads=4 \
+	-Xlog:gc*=debug:./java/out/gc_log.log:level"
 
-EXEC=("MultiHashMap" "HashMap" "Test_WeakHashMap" "ClassInstance" \
-	"Array" "Array_List" "Array_List_Int" "List_Large" "MultiList" \
-	"Simple_Lambda" "Extend_Lambda" "Test_Reflection" "Test_Reference" \
-	"Rehashing" "Clone" "Groupping")
+# EXEC=("MultiHashMap" "HashMap" "Test_WeakHashMap" "ClassInstance" \
+# 	"Array" "Array_List" "Array_List_Int" "List_Large" "MultiList" \
+# 	"Simple_Lambda" "Extend_Lambda" "Test_Reflection" "Test_Reference" \
+# 	"Rehashing" "Clone" "Groupping")
 
 
+EXEC=("HashMap")
 
 # Export Enviroment Variables
 export_env_vars() {
@@ -69,6 +71,7 @@ function run_tests() {
 		-XX:+UnlockDiagnosticVMOptions \
 		-server \
 		-XX:ErrorFile=./java/out/$1_hs_err.log -cp ./java/bin $1  > ./java/out/$1_out 2>&1 
+
 }
 
 # Run tests using gdb
@@ -92,6 +95,13 @@ echo
 echo "         Run JAVA Tests"
 echo "___________________________________"
 echo 
+
+# if the file does not exist then create it
+if [ ! -f /tmp/nvme/mariach/H2.txt ]
+then
+  fallocate -l 700G /tmp/nvme/mariach/H2.txt
+fi
+
 
 for exec_file in "${EXEC[@]}"
 do
@@ -140,3 +150,5 @@ do
 		break
 	fi    
 done
+
+rm -f /tmp/nvme/mariach/H2.txt

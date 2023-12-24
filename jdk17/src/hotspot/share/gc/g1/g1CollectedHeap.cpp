@@ -1136,11 +1136,6 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
     }
 #endif
 
-#ifdef PERF_LOG
-  Universe::perf_stop();
-  log_info(gc)("Cache Misses : %lld", Universe::perf_count() );
-  Universe::perf_reset();
-#endif
 
   const bool do_clear_all_soft_refs = clear_all_soft_refs ||
       soft_ref_policy()->should_clear_all_soft_refs();
@@ -1152,9 +1147,6 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
   collector.collect();
   collector.complete_collection();
 
-#ifdef PERF_LOG
-  Universe::perf_start();
-#endif
 
   // Full collection was successfully completed.
   return true;
@@ -1622,9 +1614,6 @@ jint G1CollectedHeap::initialize() {
   Universe::check_alignment(reserved_byte_size, HeapRegion::GrainBytes, "g1 heap");
   Universe::check_alignment(reserved_byte_size, HeapAlignment, "g1 heap");
 
-#ifdef PERF_LOG
-  Universe::perf_init();
-#endif
 
   // Reserve the maximum.
 
@@ -2555,14 +2544,9 @@ void G1CollectedHeap::gc_threads_do(ThreadClosure* tc) const {
 }
 
 void G1CollectedHeap::print_tracing_info() const {
-
-#ifdef PERF_LOG
-  // print before exit
-  Universe::perf_stop();
-  log_info(gc)("Cache Misses : %lld", Universe::perf_count() );
-  Universe::perf_close();
+#ifdef REFINE_LOG
+  _cr->print_summary_info();
 #endif
-
   rem_set()->print_summary_info();
   concurrent_mark()->print_summary_info();
 }
@@ -2966,16 +2950,9 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
   assert_at_safepoint_on_vm_thread();
   guarantee(!is_gc_active(), "collection is not reentrant");
 
-#ifdef PERF_LOG
-  Universe::perf_stop();
-  log_info(gc)("Cache Misses : %lld", Universe::perf_count() );
-  Universe::perf_reset();
-#endif
-
   if (GCLocker::check_active_before_gc()) {
     return false;
   }
-
 
   if( EnableTeraHeap && TeraHeapStatistics ){
 
@@ -2986,9 +2963,6 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
     do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
   }
 
-#ifdef PERF_LOG
-  Universe::perf_start();
-#endif
   return true;
 }
 

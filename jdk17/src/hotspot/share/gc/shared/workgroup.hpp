@@ -115,14 +115,34 @@ class WorkGang : public CHeapObj<mtInternal> {
 
   GangWorker* allocate_worker(uint which);
 
+#ifdef CM_LOG
+  double* _time_sum;
+#endif
+
  public:
+  
+#ifdef CM_LOG
+  void add_time(uint worker_id , double elapsed_time){
+    _time_sum[worker_id] += elapsed_time;
+  }
+
+  void reset_time(){
+    for(uint i=0 ; i < _total_workers ; i++ )
+      _time_sum[i] = 0;
+  }
+
+  double get_sum_time(){
+    double sum = 0.0;
+    for(uint i=0 ; i < _total_workers ; i++ )
+      sum += _time_sum[i];
+
+    return sum;
+  }
+#endif  
+  
   WorkGang(const char* name, uint workers, bool are_GC_task_threads, bool are_ConcurrentGC_threads);
 
   ~WorkGang();
-
-#ifdef CM_LOG
-  double _time_sum; // accessed by all workers. Only works for 1 conc thread. If more then make an array and each worker have its own
-#endif
 
   // Initialize workers in the gang.  Return true if initialization succeeded.
   void initialize_workers();

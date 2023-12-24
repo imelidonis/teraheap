@@ -471,6 +471,14 @@ static void log_refinement_stats(const char* kind, const G1ConcurrentRefineStats
             stats.refined_cards(),
             stats.precleaned_cards(),
             stats.dirtied_cards());
+            
+#ifdef REFINE_LOG
+  log_info(gc)
+           ("%s refinement vtime: %.2fms" ,
+            kind,
+            stats.refinement_vtime() * 1000.0
+            );
+#endif
 }
 
 void G1Policy::record_concurrent_refinement_stats() {

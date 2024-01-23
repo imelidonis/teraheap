@@ -161,8 +161,9 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
     __ decrement(count);
     __ jcc(Assembler::greaterEqual, L_loop);
 #endif
-    // in h1
     __ jmp(L_done);
+
+    // in h1
     __ bind(L_h1);
   }
 #endif

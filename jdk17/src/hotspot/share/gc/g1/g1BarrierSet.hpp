@@ -80,7 +80,24 @@ class G1BarrierSet: public CardTableBarrierSet {
   void invalidate(MemRegion mr);
 
   void write_region(MemRegion mr)         { invalidate(mr); }
-  void write_ref_array_work(MemRegion mr) { invalidate(mr); }
+
+  void write_ref_array_work(MemRegion mr) { 
+#ifdef TERA_INTERPRETER
+    if(EnableTeraHeap){
+      if( Universe::is_in_h2(mr.start()) ){
+        CardValue* cur  = _th_card_table->byte_for(mr.start());
+        CardValue* last = _th_card_table->byte_after(mr.last());
+        while (cur < last) {
+          *cur = CardTable::dirty_card_val();
+          cur++;
+        }
+        return;
+      }
+    }
+#endif
+
+    invalidate(mr); 
+  }
 
   template <DecoratorSet decorators, typename T>
   void write_ref_field_post(T* field, oop new_val);

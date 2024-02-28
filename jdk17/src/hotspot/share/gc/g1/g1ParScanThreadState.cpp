@@ -251,7 +251,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 #ifdef TERA_MAINTENANCE
   if(EnableTeraHeap){
     
-#if defined(TERA_CARDS) && !defined(TERA_ASYNC) 
+#ifdef TERA_CARDS 
     // h2 -> h1/h2 (newly evacuated)
     if( Universe::is_field_in_h2((void*) p) ){
       th_ref_update( p, obj, region_attr ); 
@@ -291,9 +291,6 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   oop to_obj = from_obj->forwardee();
   assert(from_obj != to_obj, "should not be chunking self-forwarded objects");
 
-#if defined(TERA_EVAC_MOVE) && defined(TERA_ASYNC)
-  DEBUG_ONLY( if( EnableTeraHeap ) assert( !Universe::is_in_h2(to_obj) , "to_array is in H2. H2-transfered-arrays should not be sliced. They are processed directly" ); )
-#endif
 
   assert(to_obj->is_objArray(), "must be obj array");
   objArrayOop to_array = objArrayOop(to_obj);
@@ -306,7 +303,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
   }
 
-#if defined(TERA_EVAC_MOVE) && !defined(TERA_ASYNC)
+#ifdef TERA_EVAC_MOVE
   //check if array is forwarded in h2
   if( EnableTeraHeap && Universe::is_in_h2(to_array) ){    
     G1ScanInYoungSetter x(&_scanner, true );
@@ -339,24 +336,6 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   assert(from_obj->is_forwarded(), "precondition");
   assert(from_obj->forwardee() == to_obj, "precondition");
   assert(from_obj != to_obj, "should not be scanning self-forwarded objects");
-
-
-#if defined(TERA_EVAC_MOVE) && defined(TERA_ASYNC) 
-  if( EnableTeraHeap && Universe::is_in_h2(to_obj) ){    
-    assert(from_obj->is_objArray(), "precondition");
-
-    objArrayOop from_array = objArrayOop(from_obj);
-
-    // Process the whole from_array array, because the to_array object 
-    // has not been evacuated yet. Therefore we can not split the array into chunks 
-    // because the to_array->length() is used to keep track of the from_array split iteration
-    // But in the case of an h2-transfered-obj the to_array does not exist yet
-    from_array->oop_iterate_range(&_tera_scanner, 0, from_array->length() );
-    return;
-  }
-#endif
-
-
   assert(to_obj->is_objArray(), "precondition");
 
   objArrayOop to_array = objArrayOop(to_obj);
@@ -706,13 +685,8 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     //Thus it return that new location of h2, which is not h2_obj_addr 
     const oop forward_ptr = obj->forward_to_atomic( h2_obj, old_mark , memory_order_relaxed);
     assert(forward_ptr == NULL, "Sanity check");
-
-#ifdef TERA_ASYNC
-    obj->set_in_h2();
-    Universe::teraHeap()->remember_h2_oop(obj);
-#else
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
-#endif
+
 
     h2_obj->set_mark(old_mark);
 
@@ -741,19 +715,13 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     return h2_obj;
   }
 
-
-#ifdef TERA_ASYNC
-  obj->oop_iterate_backwards(&_tera_scanner, klass);
-#else
-    h2_obj->oop_iterate_backwards(&_tera_scanner, klass);
-#endif
-
+  h2_obj->oop_iterate_backwards(&_tera_scanner, klass);
   return h2_obj;
 
 }
 #endif
 
-#if defined(TERA_CARDS) && !defined(TERA_ASYNC)
+#ifdef TERA_CARDS
 
 // p->obj
 // p may be found through:

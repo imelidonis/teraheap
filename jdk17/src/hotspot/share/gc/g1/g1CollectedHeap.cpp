@@ -3139,41 +3139,10 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
            
        
-       if (may_do_optional_evacuation) {
-          
-
+       if (may_do_optional_evacuation) { 
           evacuate_optional_collection_set(&per_thread_states);
        }
-#if defined(TERA_ASYNC) && defined(TERA_EVAC_MOVE)
-// Move the labeled objects in H2
-      
-      if ( EnableTeraHeap && collector_state()->in_mixed_phase() ) {
-        H2EvacutationClosure _h2_evac(this);
-
-        oop obj = Universe::teraHeap()->get_next_h2_oop_in_cset();
-        oop forwardee = obj->forwardee();
-        size_t size = obj->size();
-
-        while( obj != NULL ){
-
-          assert( Universe::heap()->is_in(obj) , "obj should be in h1");
-          assert( Universe::teraHeap()->is_in_h2(forwardee) , "forwardee should be in h2");
-          
-          Universe::teraHeap()->enable_groups( cast_from_oop<HeapWord*>(obj), cast_from_oop<HeapWord*>(forwardee) );  
-          obj->oop_iterate_backwards(&_h2_evac);
-          Universe::teraHeap()->disable_groups();
-
-          obj->init_mark(); //erase forwardee in obj header
-          Universe::teraHeap()->h2_move_obj( cast_from_oop<HeapWord*>(obj) , cast_from_oop<HeapWord*>(forwardee) , size) ;
-
-
-          obj = Universe::teraHeap()->get_next_h2_oop_in_cset();
-        }
-
-      }
-#endif
-        
-        
+       
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
 

@@ -129,22 +129,7 @@ public:
 
 
 #ifdef TERA_EVAC_MOVE
-
-#ifdef TERA_ASYNC
-//For async move into the h2
-class H2EvacutationClosure : public BasicOopIterateClosure{
-  G1CollectedHeap* _g1h;
-  public:
-  H2EvacutationClosure(G1CollectedHeap* g1h) : _g1h(g1h){}
-
-  template <class T> void do_oop_work(T* p);
-  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-  virtual void do_oop(oop* p)       { do_oop_work(p); }
-};
-#endif
-
 // scans an h2 obj 
-// TERA_ASYNC : the h2 obj is not yet evacueted in h2. Though its forwarding pointer is set, and its tera flag indicates that the obj is in h2 (even though it is not yet moved)
 class ScanH2ObjClosure : public G1ScanClosureBase {
 public:
   ScanH2ObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :

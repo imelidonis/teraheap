@@ -150,9 +150,7 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
 #ifdef TERA_EVAC_MOVE
 //an object was found that needs to be evacuated in h2, and we are now scanning its fields
 //*p is the field of the h2 obj
-// The obj has not been evacuated yet if TERA_ASYNC is defined (its still in h1)
-// TERA_ASYNC :  p(h1 but soon will move in h2) -> obj (h1 or h2)
-// ! TERA_ASYNC : p(just evacuated in h2) -> obj (h1 or h2)
+// p(just evacuated in h2) -> obj (h1 or h2)
 template <class T>
 inline void ScanH2ObjClosure::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
@@ -166,15 +164,10 @@ inline void ScanH2ObjClosure::do_oop_work(T* p) {
   assert( Universe::is_field_in_h2(p) , "Parent must be an h2 obj. wrong closure");
 
 
-  // h2->h2
+  // h2->h2 : Fence, Update dependency list
   if (EnableTeraHeap && (Universe::is_in_h2(obj))){
-  #ifdef TERA_ASYNC //Fence, Later on update dependency list
-    return;
-
-  #else            //Fence, Update dependency list
     Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
     return;
-  #endif  
   }
   
 
@@ -188,40 +181,12 @@ inline void ScanH2ObjClosure::do_oop_work(T* p) {
     prefetch_and_push(p, obj); 
   } else {
     
-#if defined(TERA_CARDS) && !defined(TERA_ASYNC)
+#ifdef TERA_CARDS
     // h2 -> (h1 out of cset) : Update h2 card table flag
    handle_non_cset_obj_common_tera(region_attr, p, obj);      
 #endif
    
   }
-}
-#endif
-
-#ifdef TERA_ASYNC
-//an object was found that needs to be evacuated in h2, and we are now scanning its fields
-//*p is the field of the h2 obj. The obj has not been evacuated yet, its still in h1
-// p(h1 but soon will moved in h2) -> obj (h1 or h2)
-template <class T>
-inline void H2EvacutationClosure::do_oop_work(T* p) {
-  T heap_oop = RawAccess<>::oop_load(p);
-
-  if (CompressedOops::is_null(heap_oop)) {
-    return;
-  }
-  
-  oop o = CompressedOops::decode_not_null(heap_oop);
-
-  // p may point to 
-  //  - h1 obj
-  //  - h1 obj but soon to be evauated in h2 (forwardee is in h2)
-  //  - h2 obj (flashed from buffer or was already there)
-  oop obj = ( o->is_forwarded() ) ? o->forwardee() : o; 
- 
-  //h2->h2 : Update dependency list
-  //h2->h1 : Update h2 card table flag
-  Universe::teraHeap()->group_region_enabled_g1(cast_from_oop<HeapWord *>(obj), (void *) p , _g1h);
-  
- 
 }
 #endif
 

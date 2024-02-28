@@ -17,7 +17,7 @@
   * Source code that we need to remove after testing
   ************************************/
 
-#define TERA_AVOID_FULL_GC
+// #define TERA_AVOID_FULL_GC
 
 #define TERA_LOG				         // Define logging for TeraHeap
 
@@ -30,25 +30,6 @@
 
 #define TERA_CONC_MARKING   // Do the marking : mark transitive closure, old region statistics (h2 liveness) , sort based on garbage-1st policy 
 #define TERA_EVAC_MOVE    // Move objs that have their tera flag enabled, to h2
-
-
-
-// Async move in H2:
-// -----------------
-// Phase 1 (While traversing the cset to evacuate in H1)
-//   -Find all objects in the cset that have their tera flag enabled.
-//    For each one of them:
-//      -Push in the "to be evacuated queue"
-//      -Find its H2 new location, and set its forwarding pointer
-//      -Set its tera flag to indicate that it is in H2  (simulate its evacuation)
-//
-// Phase 2 (All H1 objects have been evacuated, and all H2 objects know their new-H2-location and have their pointers adjusted)
-//   -Pop them from the "to be evacuated queue"
-//   -Evacuate them in H2
-//   -Update dependency lists and card table
-
-// #define TERA_ASYNC        // Move the objects asynchronously in H2
-
 
 
   // #define BACK_REF_STAT            //< Collect statistics for backward

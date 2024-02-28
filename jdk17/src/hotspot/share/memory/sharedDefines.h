@@ -17,7 +17,7 @@
   * Source code that we need to remove after testing
   ************************************/
 
-// #define TERA_AVOID_FULL_GC
+#define TERA_AVOID_FULL_GC       // if full gc is not aware of H2, this should be enabled
 
 #define TERA_LOG				         // Define logging for TeraHeap
 

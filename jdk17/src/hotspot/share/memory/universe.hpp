@@ -316,8 +316,10 @@ class Universe: AllStatic {
   static bool is_in_h2(const void* p);
   static bool is_in_h2(HeapWord *p);
   static bool is_in_h2(const oop obj);
+  static bool is_obj_in_h2(const oop obj);
+
   
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
   static bool in_h2(const oop obj);
 #endif
   

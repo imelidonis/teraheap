@@ -139,24 +139,11 @@ WorkGang::WorkGang(const char* name, uint workers, bool are_GC_task_threads, boo
     _are_ConcurrentGC_threads(are_ConcurrentGC_threads),
     _dispatcher(new GangTaskDispatcher())
   { 
-#ifdef CM_LOG
-    if( _are_ConcurrentGC_threads ) {
-      _time_sum = NEW_C_HEAP_ARRAY(double, _total_workers, mtInternal);
 
-      for(uint i=0 ; i < _total_workers ; i++)
-        _time_sum[i]=0;      
-    }
-#endif
   }
 
 WorkGang::~WorkGang() {
   delete _dispatcher;
-
-#ifdef CM_LOGx
-  // never printed. The G1ConcurrentMark instance in never freed
-    if( _are_ConcurrentGC_threads )
-      log_info(gc, marking)("Total Concurrent time (user + sys) %.3fms",( _time_sum * 1000.0) );
-#endif
 }
 
 // The current implementation will exit if the allocation
@@ -271,20 +258,7 @@ void GangWorker::run_task(WorkData data) {
 void GangWorker::loop() {
   while (true) {
     WorkData data = wait_for_task();
-
-#ifdef CM_LOG
-    double _start_time;
-    if( is_ConcurrentGC_thread() )
-      _start_time = os::elapsedVTime();   
-#endif
-
     run_task(data);
-
-#ifdef CM_LOG
-    if( is_ConcurrentGC_thread() ) 
-      gang()->add_time( id() , os::elapsedVTime() - _start_time );
-#endif
-
     signal_task_done();
   }
 }

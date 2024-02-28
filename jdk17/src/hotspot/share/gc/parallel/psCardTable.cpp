@@ -401,30 +401,6 @@ void PSCardTable::h2_scavenge_contents_parallel(
 	// 16K.
 	size_t slice_width = ssize * stripe_total;
 
-
-TERA_REMOVE(
-  if( stripe_number == 0 ){
-    stdprint << "Top is obj " << space_top << " in Card " << addr_for(byte_for(space_top)) << "\n";
-
-    for (CardValue* card = start_card; card < end_card; card ++) {
-      stdprint << "Card " << addr_for(card) << " ";
-      stdprint << "th_clean:" << th_card_is_clean(*card, scan_old) << " its ";
-      if( card_is_oldgen(*card) )
-            stdprint << "old\n";
-          else if( card_is_newgen(*card) )
-            stdprint << "young\n";
-          else if( card_is_dirty(*card) )
-            stdprint << "dirty\n";
-          else if( card_is_verify(*card) )
-            stdprint << "verify\n";
-          else  if( card_is_clean(*card) )
-            stdprint << "clean\n";
-          else stdprint << "idk\n";
-    }
-  }
-)
-
-
   // scan until the top of the tera heap is met
 	for (CardValue* slice = start_card; slice < end_card; slice += slice_width) {
 
@@ -437,15 +413,7 @@ TERA_REMOVE(
 		if (worker_end_card > end_card) {
 			worker_end_card = end_card;
 		}
-
-    TERA_REMOVE( stdprint 
-    << "start_card: " << addr_for(start_card)
-    << "  -  end card: " << addr_for(end_card)
-    << "\nworker_start_card: " << addr_for(worker_start_card)
-    << "  -  worker_end_card: " << addr_for(worker_end_card)
-    << "\n";
-    )
-	
+ 
 		// We do not want to scan objects more than once. In order to accomplish
 		// this, we assert that any object with an object head inside our
 		// 'slice' belongs to us. We may need to extend the range of scanned
@@ -485,20 +453,8 @@ TERA_REMOVE(
 		CardValue* current_card = worker_start_card;
 		while (current_card < worker_end_card) {
 			
-
-      TERA_REMOVE( fprintf(stdout, "Skip clean cards:\n "); )
-
       // skip any clean cards (no back refs here)
       while (current_card < worker_end_card && th_card_is_clean(*current_card, scan_old)) {
-				
-        TERA_REMOVE(        
-          if( card_is_oldgen(*current_card) )
-              fprintf(stdout, "old ");
-          else if( card_is_clean(*current_card) )
-              fprintf(stdout, "clean ");
-          else fprintf(stdout, "idk-1");
-        )
-
         current_card++;
 			}
 
@@ -587,43 +543,20 @@ TERA_REMOVE(
                following_clean_card, worker_end_card);
 
         
-        TERA_REMOVE( fprintf(stdout, "\nFind dirty cards to be scanned:\n "); )
        
         //clear all the dirty cards in the sequence we found
         //dirty cards are the non-clean cards found for the corresponding collection
         //Later on they become old/young or stay clean
 				while (first_unclean_card < following_clean_card) {
-
-          TERA_REMOVE(         
-            if( card_is_oldgen(*first_unclean_card) )
-              fprintf(stdout, "old ");
-            else if( card_is_newgen(*first_unclean_card) )
-              fprintf(stdout, "young ");
-            else if( card_is_dirty(*first_unclean_card) )
-              fprintf(stdout, "dirty ");
-            else if( card_is_verify(*first_unclean_card) )
-              fprintf(stdout, "verify ");
-            else  if( card_is_clean(*first_unclean_card) )
-              fprintf(stdout, "clean ");
-            else fprintf(stdout, "idk ");
-          )
-
 					*first_unclean_card++ = clean_card;
 				}
 
-        TERA_REMOVE(      
-          stdprint << "H2 ITERATION will scan until addr : " << (HeapWord*)to << "\n";
-          stdprint << "\n";
-        )
-
+       
         // p : the first obj in the dirty card sequence
         // to: the following-obj after the top-obj
         // traverse all the objects in between and find all the back ptrs
 				while (p < to) {          
 					oop m = cast_to_oop(p);
-
-          
-         TERA_REMOVE( stdprint << "ITERATE AN OBJ IN H2  : (" << (HeapWord*)m << ")  size:" << m->size() << "  " << m->klass()->signature_name() << "\n"; )
 
           assert(!Universe::teraHeap()->is_metadata(m), "its metadata");
 
@@ -645,8 +578,6 @@ TERA_REMOVE(
 				}
 
 				last_scanned = p;
-        TERA_REMOVE( stdprint << "H2 ITERATION finished. Last scanned obj is (" << (HeapWord*)last_scanned << ")\n"; )
-
 			}
 			// "current_card" is still the "following_clean_card" or
 			// the current_card is >= the worker_end_card so the
@@ -660,8 +591,6 @@ TERA_REMOVE(
 			// found on it an updated.  If it is now dirty, it cannot be
 			// be safely cleaned in the next iteration.
 			current_card++;
-
-      TERA_REMOVE( fprintf(stdout,"\n" ); )
 		}
 	} 
   

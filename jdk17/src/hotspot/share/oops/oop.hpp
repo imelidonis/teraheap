@@ -94,7 +94,7 @@ class oopDesc {
   // Mark this object that is located in TeraCache
   inline void set_in_h2();
 
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
   bool is_in_h2() {	  return (_tera_flag & 0xffffffff) == IN_TERA_CACHE;  }
 #endif
 

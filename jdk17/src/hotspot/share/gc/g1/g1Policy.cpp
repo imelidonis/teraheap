@@ -472,13 +472,6 @@ static void log_refinement_stats(const char* kind, const G1ConcurrentRefineStats
             stats.precleaned_cards(),
             stats.dirtied_cards());
             
-#ifdef REFINE_LOG
-  log_info(gc)
-           ("%s refinement vtime: %.2fms" ,
-            kind,
-            stats.refinement_vtime() * 1000.0
-            );
-#endif
 }
 
 void G1Policy::record_concurrent_refinement_stats() {
@@ -1324,11 +1317,7 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
 
   double optional_threshold_ms = time_remaining_ms * optional_prediction_fraction();
 
-#ifdef FORCE_OPT
-  const uint min_old_cset_length = 1; //must be one or above, so we will traverse the h2 ct for sure
-#else
   const uint min_old_cset_length = calc_min_old_cset_length(candidates);
-#endif
   const uint max_old_cset_length = MAX2(min_old_cset_length, calc_max_old_cset_length());
   const uint max_optional_regions = max_old_cset_length - min_old_cset_length;
   bool check_time_remaining = use_adaptive_young_list_length();
@@ -1367,25 +1356,18 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
     } else {
 
       // Keep adding regions to old set until we reach the optional threshold
-#ifdef FORCE_OPT
-      if (time_remaining_ms > optional_threshold_ms || time_remaining_ms > 0) {
-#else
       if (time_remaining_ms > optional_threshold_ms) {
 
         predicted_old_time_ms += predicted_time_ms;
         num_initial_regions++;
       } else if (time_remaining_ms > 0) {
-#endif
 
-#ifdef NO_OPT
-        log_debug(gc, ergo, cset)("Finish adding old regions to collection set (Predicted time too high).");
-        break;
-#else
+
         // Keep adding optional regions until time is up.
         assert(num_optional_regions < max_optional_regions, "Should not be possible.");
         predicted_optional_time_ms += predicted_time_ms;
         num_optional_regions++;
-#endif
+
 
       } else {
         log_debug(gc, ergo, cset)("Finish adding old regions to collection set (Predicted time too high).");
@@ -1421,7 +1403,6 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionSetCandidat
 
   HeapRegion* r = candidates->at(candidate_idx);
 
-  TERA_REMOVE( stdprint << "Region chosen : "; )
   while (num_optional_regions < max_optional_regions) {
     assert(r != NULL, "Region must exist");
     prediction_ms += predict_region_total_time_ms(r, false);
@@ -1435,12 +1416,8 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionSetCandidat
 
     time_remaining_ms -= prediction_ms;
     num_optional_regions++;
-
-    TERA_REMOVE( stdprint << r->hrm_index() << " , "; )
-
     r = candidates->at(++candidate_idx);
   }
-  TERA_REMOVE( stdprint<<"\n"; )
 
   log_debug(gc, ergo, cset)("Prepared %u regions out of %u for optional evacuation. Predicted time: %.3fms",
                             num_optional_regions, max_optional_regions, prediction_ms);

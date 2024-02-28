@@ -547,7 +547,6 @@ public:
       oop obj = CompressedOops::decode_not_null(heap_oop);
 
 #ifdef TERA_MAINTENANCE
-    //##!! if obj in H2
     if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
         return;
     }
@@ -613,7 +612,7 @@ public:
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
 
-      //##!! p->obj
+      //p->obj
       //it checks that obj-region, contains in its rem set the ref p
       //But if obj is in H2, then it wont even have a rem set
 #ifdef TERA_MAINTENANCE    

@@ -381,15 +381,6 @@ public:
 
 #ifdef TERA_CONC_MARKING
   void add_to_h2_marked_bytes(size_t incr_bytes) {
-    
-    TERA_REMOVE(
-      if( incr_bytes > 0 ){ 
-        // words = incr_bytes/8
-        stdprint << "H2 liveness " << incr_bytes << " added to region " << hrm_index() << "\n";
-        stdprint << "Total liveness " << _next_marked_bytes << " added to region " << hrm_index() << "\n\n";
-      }
-    )
-    
     _h2_marked_bytes = _h2_marked_bytes + incr_bytes;
   }
 

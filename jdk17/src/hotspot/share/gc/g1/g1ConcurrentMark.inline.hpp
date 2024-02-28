@@ -210,7 +210,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
       
 #ifdef TERA_MAINTENANCE   
-      //##!! If obj is in H2
+      //If obj is in H2
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
       if (EnableTeraHeap && (Universe::is_in_h2(obj))){    
@@ -241,7 +241,6 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 
 #ifdef TERA_CONC_MARKING
           if ( EnableTeraHeap && obj->is_marked_move_h2() ) {
-              TERA_REMOVE( stdprint << "During marking scan obj " << obj->klass()->signature_name() << "  (" <<  cast_from_oop<HeapWord*>(obj) << ")\n"; )           
               
               //iterate this oop, in tera mode
               _cm_oop_closure->enable_tera_traversal(obj);    
@@ -272,14 +271,11 @@ inline size_t G1CMTask::scan_objArray(objArrayOop obj, MemRegion mr) {
 
 #ifdef TERA_CONC_MARKING
     if ( EnableTeraHeap && obj->is_marked_move_h2()) {
-        TERA_REMOVE( stdprint << obj->klass()->signature_name() << " sarch under it\n"; )
         
         //iterate this oop, in tera mode
         _cm_oop_closure->enable_tera_traversal(obj); 
         obj->oop_iterate(_cm_oop_closure, mr);
         _cm_oop_closure->disable_tera_traversal(); 
-
-        TERA_REMOVE( stdprint << "Finished searching H2 obj\n"; )
     }
     else
 #endif
@@ -336,7 +332,7 @@ inline void G1CMTask::abort_marking_if_regular_check_fail() {
 inline bool G1CMTask::make_reference_grey(oop obj) {
 
 #ifdef TERA_MAINTENANCE
-  //##!! If obj is in H2
+  //If obj is in H2
   //  (1) set H2 region live bit
   //  (2) Fence heap traversal to H2
   //  return false (did not add anything to the bitmap)
@@ -355,23 +351,18 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 
 
 #ifdef TERA_CONC_MARKING
-  //##!! 
-  //objs that are going to be moved in h2
-  //    (1) mark them on the bitmap (treat like H1 objs)
-  //    (2) increase liveness
-  //    (3) detect that the obj should be moved in h2
-  //        --> enable its tera flag (if not already enabled from unsafe.cpp)
-  //        --> increase h2 liveness (mark_in_next_bitmap before)
 
-  //if its parent has tera flag enabled (to be moved in h2)
-  //        (1) enable the tera flag of this child obj too (if it's not already enabled)
-  //        (2) increase the h2 liveness of that region -mark_in_next_bitmap before-
+  //If parent object is going to be moved in h2, then child object is going to be moved too
+
+  //For every object that is going to be moved in H2
+  //    (1) mark them as live on the bitmap
+  //    (2) enable their tera flag
+  //    (3) increase h2-liveness and liveness of region
 
   // if parent doesnt have its tera flag enabled, but this obj has its tera flag enabled
-  // then this obj was previously visited by the unsafe class, and got it marked to be moved in h2 
-  // (through a command of tha java application) but did not update the h2 liveness 
-  // of that region bcs no concurrent marking was happening at the moment
-  //        (1) incease the h2 liveness of that region -mark_in_next_bitmap before-
+  // then this obj was previously visited by the unsafe class, and got labeled to be moved in h2, 
+  // but the h2 liveness of the region was not updated, bcs no concurrent marking was happening at the moment
+  //        (1) incease the h2-liveness of that region
 
 
   if( EnableTeraHeap && is_tera_traversal() ){
@@ -381,7 +372,6 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
       obj->mark_move_h2( _cm_oop_closure->get_cur_obj_group_id(),
                          _cm_oop_closure->get_cur_obj_part_id());
       
-      TERA_REMOVE( stdprint << "\t" << obj->klass()->signature_name() << " marked to be moved in H2 : " << (HeapWord*) obj << "\n"; )
     }
   }
 #endif
@@ -432,12 +422,6 @@ inline bool G1CMTask::deal_with_reference(T* p) {
   if (obj == NULL) {
     return false;
   }
-
-  TERA_REMOVE(
-    if( is_tera_traversal() ){    
-      stdprint << "\tmarked " << obj->klass()->signature_name() << "  (" << cast_from_oop<HeapWord*>(obj) << ")\n";
-    }
-  )
   
   return make_reference_grey(obj);
 }

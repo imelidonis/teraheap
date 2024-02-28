@@ -513,9 +513,6 @@ void G1DirtyCardQueueSet::handle_completed_buffer(BufferNode* new_node,
     return;
   }
 
-#ifdef REFINE_LOG
-  double _vtime_start = os::elapsedVTime();
-#endif
 
   BufferNode* node = get_completed_buffer();
   if (node == NULL) return;     // Didn't get a buffer to process.
@@ -529,9 +526,6 @@ void G1DirtyCardQueueSet::handle_completed_buffer(BufferNode* new_node,
   // Deal with buffer after releasing id, to let another thread use id.
   handle_refined_buffer(node, fully_processed);
 
-#ifdef REFINE_LOG
-  stats->inc_refinement_vtime(os::elapsedVTime() - _vtime_start);
-#endif
 }
 
 bool G1DirtyCardQueueSet::refine_completed_buffer_concurrently(uint worker_id,

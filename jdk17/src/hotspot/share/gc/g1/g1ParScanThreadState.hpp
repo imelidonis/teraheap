@@ -129,7 +129,7 @@ public:
   bool queue_is_empty() const { return _task_queue->is_empty(); }
 #endif
 
-#if defined(TERA_CARDS) && !defined(TERA_REFACTOR)
+#if defined(TERA_CARDS) && !defined(TERA_ASYNC)
   template <class T>
   // h2->h2 update the dependency list
   // h2->h1 update the h2 card table flag

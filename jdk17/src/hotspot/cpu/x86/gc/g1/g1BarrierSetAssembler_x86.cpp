@@ -362,10 +362,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   if (EnableTeraHeap) {
     Label L_in_h1;
     Label L_in_h2;
-    
-    // check if the obj updated is in h2. if so then return. no need to keep it in rem set log
-    // if ( h2_store_check(masm, store_addr) ) return;
-
+ 
     AddressLiteral h2_start_addr((address)Universe::teraHeap()->h2_start_addr(), relocInfo::none);
     // Push the teraCache address in r11
     __ lea(tmp, h2_start_addr); // register tmp = h2 start addr
@@ -410,7 +407,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
     __ cmpb(th_card_addr, dirty);
     __ jcc(Assembler::equal, done);
     __ movb(th_card_addr, dirty);    
-    __ jmp(done); //ok
+    __ jmp(done);
 
     __ bind(L_in_h1);
   }
@@ -477,8 +474,6 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ push(store_addr);
 #ifdef _LP64
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, r15_thread);
-  // __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_ref), card_addr, store_addr);
-  // __ call_VM_leaf0(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::my_print_ref));
 #else
   __ push(thread);
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, thread);

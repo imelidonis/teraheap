@@ -226,16 +226,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
     obj = cast_to_oop(m.decode_pointer());
   } else {
 
-    //##!! If obj is marked to be moved in H2 && is mix collection
-    //  (1) evacuate obj in H2 (obj may be humongous)
-    //  (2) set forwarding ptr of obj
-    //  (3) forwardee = new address of obj in H2  
-    //  (4) transitive closure : find obj children 
-    //        *mark them to be moved in H2
-    //        *mporei na eine idi evacuated (if its child of a root and root at the same time) -> skip
-    //        *push them to the queue (G1ScanClosureBase::prefetch_and_push)
-    //        *back refs ???
-    //else call copy_to_survivor_space (line below)
+
 #ifdef TERA_EVAC_MOVE      
     if( EnableTeraHeap  
         && _g1h->collector_state()->in_mixed_phase() 
@@ -260,7 +251,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 #ifdef TERA_MAINTENANCE
   if(EnableTeraHeap){
     
-#if defined(TERA_CARDS) && !defined(TERA_REFACTOR) 
+#if defined(TERA_CARDS) && !defined(TERA_ASYNC) 
     // h2 -> h1/h2 (newly evacuated)
     if( Universe::is_field_in_h2((void*) p) ){
       th_ref_update( p, obj, region_attr ); 
@@ -300,7 +291,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   oop to_obj = from_obj->forwardee();
   assert(from_obj != to_obj, "should not be chunking self-forwarded objects");
 
-#if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR)
+#if defined(TERA_EVAC_MOVE) && defined(TERA_ASYNC)
   DEBUG_ONLY( if( EnableTeraHeap ) assert( !Universe::is_in_h2(to_obj) , "to_array is in H2. H2-transfered-arrays should not be sliced. They are processed directly" ); )
 #endif
 
@@ -315,7 +306,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
     push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
   }
 
-#if defined(TERA_EVAC_MOVE) && !defined(TERA_REFACTOR)
+#if defined(TERA_EVAC_MOVE) && !defined(TERA_ASYNC)
   //check if array is forwarded in h2
   if( EnableTeraHeap && Universe::is_in_h2(to_array) ){    
     G1ScanInYoungSetter x(&_scanner, true );
@@ -350,7 +341,7 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   assert(from_obj != to_obj, "should not be scanning self-forwarded objects");
 
 
-#if defined(TERA_EVAC_MOVE) && defined(TERA_REFACTOR) 
+#if defined(TERA_EVAC_MOVE) && defined(TERA_ASYNC) 
   if( EnableTeraHeap && Universe::is_in_h2(to_obj) ){    
     assert(from_obj->is_objArray(), "precondition");
 
@@ -636,10 +627,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
         assert(klass->is_typeArray_klass(), "invariant");
       }
       
-      TERA_REMOVE(
-         stdprint << "MOVE OBJ (" << (HeapWord*) old 
-         << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
-      )
+  
 
       return obj;
     }
@@ -654,21 +642,10 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       _string_dedup_requests.add(old);
     }
 
-    TERA_REMOVE(
-      stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")\n";   
-      stdprint << "MOVE OBJ (" << (HeapWord*) old << ")  ---TO H1---> (" <<  (HeapWord*) obj << ")  :  "
-      << obj->klass()->signature_name() << "  :  Childs  :  ";
-
-      PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
-      obj->oop_iterate_backwards(&cl); 
-
-      stdprint << "\n";
-    )    
 
     G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
     obj->oop_iterate_backwards(&_scanner, klass);
 
-    TERA_REMOVE( stdprint << "\n"; )
 
     return obj;
 
@@ -711,16 +688,12 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return
     if (obj->is_forwarded()) return obj->forwardee(); 
     
-    TERA_REMOVEx( G1CollectedHeap::h2++; G1CollectedHeap::h2_bytes_copied+=obj->size(); ) 
 
     if(TeraHeapStatistics)
       Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*HeapWordSize );
 
 
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object( obj , word_sz );
-
-
-    TERA_REMOVE( stdprint << "  addr in H2 to be moved : " << h2_obj_addr << "\n"; )
     
     assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");
     assert(Universe::is_in_h2( cast_to_oop(h2_obj_addr) ), "Pointer from H2 is not valid");
@@ -734,7 +707,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     const oop forward_ptr = obj->forward_to_atomic( h2_obj, old_mark , memory_order_relaxed);
     assert(forward_ptr == NULL, "Sanity check");
 
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
     obj->set_in_h2();
     Universe::teraHeap()->remember_h2_oop(obj);
 #else
@@ -765,48 +738,22 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
       assert(klass->is_typeArray_klass(), "invariant");
     }
 
-    TERA_REMOVE( 
-      stdprint << "MOVE OBJ (" << (HeapWord*) obj 
-      << ")  ---TO H2---> (" <<  h2_obj_addr 
-      << ")  size " << obj->size() <<"\n";
-    )
-
     return h2_obj;
   }
 
 
-
-  TERA_REMOVE(
-    stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  size " << obj->size() <<"\n";
-
-
-    stdprint << "MOVE OBJ (" << (HeapWord*) obj << ")  ---TO H2---> (" <<  h2_obj_addr << ")  :  "
-    << obj->klass()->signature_name() << "  :  Childs  :  ";
-
-    PrintFieldsClosure_inline cl(G1CollectedHeap::heap());
-    obj->oop_iterate_backwards(&cl); 
-
-    stdprint << "\n";
-  )
-
-
-
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
   obj->oop_iterate_backwards(&_tera_scanner, klass);
 #else
     h2_obj->oop_iterate_backwards(&_tera_scanner, klass);
 #endif
 
-  TERA_REMOVE( stdprint << "\n"; )
-
-
   return h2_obj;
 
 }
-
 #endif
 
-#if defined(TERA_CARDS) && !defined(TERA_REFACTOR)
+#if defined(TERA_CARDS) && !defined(TERA_ASYNC)
 
 // p->obj
 // p may be found through:

@@ -50,9 +50,6 @@ public:
   static void h2_wb_post(void* obj);
 #endif
 
-
-  TERA_REMOVE( static void my_print_array(){ stdprint <<  "write barrier post array\n"; } )
-  TERA_REMOVE( static void my_print_ref(){ stdprint <<  "write barrier post ref\n"; } )
 };
 
 #endif // SHARE_GC_G1_G1BARRIERSETRUNTIME_HPP

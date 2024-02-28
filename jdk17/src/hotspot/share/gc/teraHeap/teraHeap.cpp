@@ -16,7 +16,7 @@ char *TeraHeap::_stop_addr = NULL;
 Stack<oop *, mtGC> TeraHeap::_tc_stack;
 Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
 
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
 Stack<oop, mtGC> TeraHeap::_tc_evac;
 #endif
 
@@ -43,8 +43,6 @@ TeraHeap::TeraHeap() {
 
   _start_addr = start_addr_mem_pool();
   _stop_addr = stop_addr_mem_pool();
-
-  TERA_REMOVEx( stdprint << "TERA addr : " << (HeapWord*)_start_addr << "  -  " << (HeapWord*)_stop_addr << "\n"; )
 
   // Initilize counters for TeraHeap
   // These counters are used for experiments
@@ -325,12 +323,12 @@ void TeraHeap::h2_push_backward_reference(void *p, oop o) {
 	assert(!_tc_adjust_stack.is_empty(), "Sanity Check");
 }
 
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
 void TeraHeap::remember_h2_oop(oop obj){
 	_tc_evac.push(obj);
 }
 
-oop TeraHeap::get_next_h2_oop_into_cset(){
+oop TeraHeap::get_next_h2_oop_in_cset(){
 	return (_tc_evac.is_empty() ? NULL : _tc_evac.pop());
 }
 
@@ -732,7 +730,7 @@ void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
 	ct->th_write_ref_field(h2_obj_field);
 }
 
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
 #include "gc/g1/g1CollectedHeap.hpp"
 void TeraHeap::group_region_enabled_g1(HeapWord* obj, void *obj_field , G1CollectedHeap* _g1h) {
 	
@@ -787,7 +785,6 @@ long TeraHeap::get_promote_tag() {
 // - Instance Reference Klass
 // - Instance Class Loader Klass
 // If yes return true, otherwise false
-//##!! It doesnt filter out the metadata in the obj header
 bool TeraHeap::is_metadata(oop obj) {
   if (obj->klass()->is_instance_klass()) {
     InstanceKlass *ik = (InstanceKlass *) obj->klass();

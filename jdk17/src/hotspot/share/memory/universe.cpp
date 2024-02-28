@@ -1264,7 +1264,7 @@ bool Universe::is_in_heap(const void* p) {
 
 
 bool Universe::is_in_h2(const void* p) {
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
   return teraHeap()->is_in_h2(p) || cast_to_oop(p)->is_in_h2();
 #else
   return teraHeap()->is_in_h2(p);
@@ -1272,7 +1272,7 @@ bool Universe::is_in_h2(const void* p) {
 }
 
 bool Universe::is_in_h2(HeapWord *p) {
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
   return teraHeap()->is_in_h2(p) || cast_to_oop(p)->is_in_h2();
 #else
   return teraHeap()->is_in_h2(p);
@@ -1280,20 +1280,16 @@ bool Universe::is_in_h2(HeapWord *p) {
 }
 
 bool Universe::is_in_h2(const oop obj) {
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
   return teraHeap()->is_obj_in_h2(obj) || obj->is_in_h2();
 #else
   return teraHeap()->is_obj_in_h2(obj);
 #endif
 }
 
-
-#ifdef TERA_REFACTOR
-bool Universe::in_h2(const oop obj) {
+bool Universe::is_obj_in_h2(const oop obj) {
   return teraHeap()->is_obj_in_h2(obj);
 }
-#endif
-
 
 bool Universe::is_field_in_h2(void* p) {
   return teraHeap()->is_field_in_h2(p);

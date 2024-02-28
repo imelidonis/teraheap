@@ -115,13 +115,6 @@
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
 
-TERA_REMOVEx(
-  long int G1CollectedHeap::h1=0;
-  long int G1CollectedHeap::h2=0;
-  long int G1CollectedHeap::h2_bytes_copied=0;
-  long G1CollectedHeap::count=0;  
-)
-
 #ifdef TERA_AVOID_FULL_GC
   bool G1CollectedHeap::mix_gc_happened=false;
 #endif
@@ -1127,12 +1120,8 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
 #ifdef TERA_AVOID_FULL_GC
     if(EnableTeraHeap){
       if( mix_gc_happened == true ){
-        TERA_REMOVEx( stdprint << "======= AVOID FULL GC ================\n"; )
         return false;
       }
-      TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
-    }else{
-      TERA_REMOVEx( stdprint << "======= FULL GC ================\n"; )
     }
 #endif
 
@@ -2544,9 +2533,6 @@ void G1CollectedHeap::gc_threads_do(ThreadClosure* tc) const {
 }
 
 void G1CollectedHeap::print_tracing_info() const {
-#ifdef REFINE_LOG
-  _cr->print_summary_info();
-#endif
   rem_set()->print_summary_info();
   concurrent_mark()->print_summary_info();
 }
@@ -3004,8 +2990,6 @@ public:
     
     G1ParScanThreadState* pss = _per_thread_states->state_for_worker(worker_id);
     
-    TERA_REMOVEx( ResourceMark rm; )//so you can print c_strings
-
     H2ToH1Closure cl(_g1h, pss, worker_id);
     _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );
   }
@@ -3109,13 +3093,6 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
       if( collector_state()->in_mixed_phase()  ) mix_gc_happened = true;
 #endif
 
-      TERA_REMOVEx(
-        if( collector_state()->in_mixed_phase()  ){
-          stdprint << "\n#GC ===== MIXED gc ====\n";
-        }else if( collector_state()->in_concurrent_start_gc() )
-          stdprint << "\n#GC ===== Young gc + init marking ====\n";
-        else stdprint << "\n#GC ===== YOUNG gc ====\n";
-      )
 
 #ifdef TERA_MAINTENANCE
         if (EnableTeraHeap) {      
@@ -3141,22 +3118,6 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
         bool may_do_optional_evacuation = _collection_set.optional_region_length() != 0;
         
-#ifdef NO_OPT
-      if(EnableTeraHeap) assert( may_do_optional_evacuation==false , "opt cset should not be triggered" );
-#endif
-
-      TERA_REMOVEx( 
-        G1CollectedHeap::count++;
-        stdprint << "GC count " << G1CollectedHeap::count << "\n";
-        h1=h2=h2_bytes_copied=0;
-      )
-
-
-#ifdef TERA_DEBUGx
-        if( EnableTeraHeap && !Universe::teraHeap()->h2_is_empty() )   
-          Universe::teraHeap()->h2_pre_scan(_th_card_table);
-#endif
-
 
 #ifdef TERA_CARDS
 
@@ -3176,31 +3137,20 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         // Actually do the work...        
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 
-      TERA_REMOVEx(
-        if(h2>0){
-          stdprint << "Initial Evac : Moved in H1=" << h1 << " , H2="<<h2<<" -> size in bytes="<<h2_bytes_copied*8<<"\n";
-          h1=h2=h2_bytes_copied=0;
-        }
-      )
            
        
        if (may_do_optional_evacuation) {
           
-          TERA_REMOVE( stdprint << "-----------> Opt cset is evac\n"; )
 
           evacuate_optional_collection_set(&per_thread_states);
-          
-          TERA_REMOVEx(
-              stdprint << "Optional Evac : Moved in H1=" << h1 << " , H2="<<h2<<" -> size in bytes="<<h2_bytes_copied*8<<"\n";
-              h1=h2=0;            
-          )      
-        }
-
-#if defined(TERA_REFACTOR) && defined(TERA_EVAC_MOVE)
+       }
+#if defined(TERA_ASYNC) && defined(TERA_EVAC_MOVE)
+// Move the labeled objects in H2
+      
       if ( EnableTeraHeap && collector_state()->in_mixed_phase() ) {
         H2EvacutationClosure _h2_evac(this);
 
-        oop obj = Universe::teraHeap()->get_next_h2_oop_into_cset();
+        oop obj = Universe::teraHeap()->get_next_h2_oop_in_cset();
         oop forwardee = obj->forwardee();
         size_t size = obj->size();
 
@@ -3217,15 +3167,12 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
           Universe::teraHeap()->h2_move_obj( cast_from_oop<HeapWord*>(obj) , cast_from_oop<HeapWord*>(forwardee) , size) ;
 
 
-          obj = Universe::teraHeap()->get_next_h2_oop_into_cset();
+          obj = Universe::teraHeap()->get_next_h2_oop_in_cset();
         }
 
       }
 #endif
         
-     
-        TERA_REMOVEx( stdprint << "===============================(gc done)\n"; )
-
         
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 

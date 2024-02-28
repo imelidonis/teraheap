@@ -38,10 +38,6 @@ class G1ConcurrentRefineStats : public CHeapObj<mtGC> {
   size_t _precleaned_cards;
   size_t _dirtied_cards;
 
-#ifdef REFINE_LOG
-  double _refinement_vtime;
-#endif
-
 public:
   G1ConcurrentRefineStats();
 
@@ -62,11 +58,6 @@ public:
   void inc_refined_cards(size_t cards) { _refined_cards += cards; }
   void inc_precleaned_cards(size_t cards) { _precleaned_cards += cards; }
   void inc_dirtied_cards(size_t cards) { _dirtied_cards += cards; }
-
-#ifdef REFINE_LOG
-  void inc_refinement_vtime(double vt) { _refinement_vtime += vt; }
-  double refinement_vtime() const { return _refinement_vtime; }
-#endif
 
 
   G1ConcurrentRefineStats& operator+=(const G1ConcurrentRefineStats& other);

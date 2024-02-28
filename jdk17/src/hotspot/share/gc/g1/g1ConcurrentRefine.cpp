@@ -59,17 +59,6 @@ G1ConcurrentRefineThreadControl::G1ConcurrentRefineThreadControl() :
 {
 }
 
-#ifdef REFINE_LOG
-  void G1ConcurrentRefineThreadControl::print(){
-    long double sum = 0.0;
-    for (uint i = 0; i < _num_max_threads; i++) {
-      G1ConcurrentRefineThread* t = _threads[i];
-      if (t != NULL) sum += t->vtime_accum();
-    }
-
-    log_info(gc)("Refinement thread time %.3Lfms" , sum*1000.0);
-  }
-#endif
 
 G1ConcurrentRefineThreadControl::~G1ConcurrentRefineThreadControl() {
   for (uint i = 0; i < _num_max_threads; i++) {
@@ -456,10 +445,6 @@ void G1ConcurrentRefine::maybe_activate_more_threads(uint worker_id, size_t num_
 bool G1ConcurrentRefine::do_refinement_step(uint worker_id,
                                             G1ConcurrentRefineStats* stats) {
 
-#ifdef REFINE_LOG
-  double _vtime_start = os::elapsedVTime();
-#endif
-
   G1DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
 
   size_t curr_cards = dcqs.num_cards();
@@ -471,18 +456,9 @@ bool G1ConcurrentRefine::do_refinement_step(uint worker_id,
 
   maybe_activate_more_threads(worker_id, curr_cards);
 
-#ifdef REFINE_LOG
-  bool ret = dcqs.refine_completed_buffer_concurrently(worker_id + worker_id_offset(),
-                                                   deactivation_threshold(worker_id),
-                                                   stats);
-
-  stats->inc_refinement_vtime(os::elapsedVTime() - _vtime_start);
-  return ret;
-  
-#else
   // Process the next buffer, if there are enough left.
   return dcqs.refine_completed_buffer_concurrently(worker_id + worker_id_offset(),
                                                    deactivation_threshold(worker_id),
                                                    stats);
-#endif
+
 }

@@ -21,10 +21,6 @@
 //class ParCompactionManager;
 class PSCardTable;
 
-#ifdef TERA_DEBUG
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#endif
-
 
 class TeraHeap: public CHeapObj<mtInternal> {
 private:
@@ -46,8 +42,8 @@ private:
   // during adjust phase of the Full GC.
   static Stack<oop *, mtGC> _tc_adjust_stack;
 
-#ifdef TERA_REFACTOR
-  static Stack<oop, mtGC> _tc_evac; // evacuations of g1, use this stack to keep track of h2 objects that are going to be evacuated from h1 to h2
+#ifdef TERA_ASYNC
+  static Stack<oop, mtGC> _tc_evac; // mixed GCs of G1, use this stack to keep track of objects that are going to be evacuated from h1 to h2
 #endif
 
 #ifdef TERA_TIMERS
@@ -262,9 +258,9 @@ public:
   // We need to make an fsync when we use fastmap
   void h2_fsync();
 
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
   void remember_h2_oop(oop obj);
-  oop get_next_h2_oop_into_cset();
+  oop get_next_h2_oop_in_cset();
   void clear_remembered_h2_oops();
   void group_region_enabled_g1(HeapWord *obj, void *obj_field, G1CollectedHeap* _g1h);
 #endif
@@ -427,21 +423,6 @@ public:
   // and backward references.
   TeraStatistics* get_tera_stats();
 
-
-
-#ifdef TERA_DEBUGx
-void h2_pre_scan(PSCardTable* th_card_table){	
-	//dirty all cards in card table	
-	if( G1CollectedHeap::count > 300 ){
-		CardTable::CardValue* start_card = th_card_table->byte_for(h2_start_addr());
-		CardTable::CardValue* top_card = th_card_table->byte_for((HeapWord *)h2_top_addr());
-
-		for (CardTable::CardValue* card = start_card; card <= top_card; card ++) {		
-			*card = CardTable::dirty_card_val();
-		}
-	}
-}
-#endif
 };
 
 #endif

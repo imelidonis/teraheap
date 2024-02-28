@@ -59,10 +59,6 @@ public:
 
   void worker_threads_do(ThreadClosure* tc);
   void stop();
-
-#ifdef REFINE_LOG
-  void print();
-#endif
 };
 
 // Controls refinement threads and their activation based on the number of
@@ -146,12 +142,6 @@ public:
   size_t green_zone() const      { return _green_zone;  }
   size_t yellow_zone() const     { return _yellow_zone; }
   size_t red_zone() const        { return _red_zone;    }
-
-#ifdef REFINE_LOG
-  void print_summary_info(){
-    _thread_control.print();
-  }
-#endif
 };
 
 #endif // SHARE_GC_G1_G1CONCURRENTREFINE_HPP

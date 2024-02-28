@@ -128,25 +128,8 @@ public:
 #ifdef TERA_CONC_MARKING
   void add_h2_live_words(oop obj);
   void add_h2_live_words(uint region_idx, size_t h2_live_words) {
-    G1RegionMarkStatsCacheEntry* const cur = find_for_add(region_idx);
-    
-    TERA_REMOVE( 
-      stdprint << "ADD H2 RATIO:"
-      << "\n   Region idx = " << region_idx 
-      << "\n   obj size = " << h2_live_words 
-      << "\n   region liveness ratio = " << cur->_stats._live_words 
-      << "\n   region h2 ratio b4 = " << cur->_stats._h2_live_words ;
-    )
-    
-    
+    G1RegionMarkStatsCacheEntry* const cur = find_for_add(region_idx);    
     cur->_stats._h2_live_words += h2_live_words;
-    
-    TERA_REMOVE(
-      stdprint
-      << "\n   region h2 ratio = " << cur->_stats._h2_live_words 
-      << "\n";
-    )
-
   }
 #endif
 

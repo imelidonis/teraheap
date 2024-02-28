@@ -130,13 +130,12 @@ public:
 
 #ifdef TERA_EVAC_MOVE
 
-#ifdef TERA_REFACTOR
+#ifdef TERA_ASYNC
 //For async move into the h2
 class H2EvacutationClosure : public BasicOopIterateClosure{
   G1CollectedHeap* _g1h;
   public:
   H2EvacutationClosure(G1CollectedHeap* g1h) : _g1h(g1h){}
-  // virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
@@ -145,7 +144,7 @@ class H2EvacutationClosure : public BasicOopIterateClosure{
 #endif
 
 // scans an h2 obj 
-// TERA_REFACTOR : the h2 obj is not yet evacueted in h2. it has been forwarded and its tera flag, is set to indicated that the obj is in h2 (even though it is not yet moved)
+// TERA_ASYNC : the h2 obj is not yet evacueted in h2. Though its forwarding pointer is set, and its tera flag indicates that the obj is in h2 (even though it is not yet moved)
 class ScanH2ObjClosure : public G1ScanClosureBase {
 public:
   ScanH2ObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
@@ -155,7 +154,6 @@ public:
   virtual void do_oop(oop* p)          { do_oop_work(p); }
   virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
 
-  // We need to do reference discovery while processing evacuated objects.
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
 
   void set_ref_discoverer(ReferenceDiscoverer* rd) {
@@ -387,33 +385,6 @@ class H2ToH1Closure : public G1ScanClosureBase {
   // }
 };
 #endif
-
-
-TERA_REMOVE(
-  class PrintFieldsClosure : public BasicOopIterateClosure {
-    G1CollectedHeap* _g1h;
-  public:
-    PrintFieldsClosure(G1CollectedHeap* g1h){ g1h=_g1h; }
-
-    template <class T> void do_oop_work(T* p);
-    virtual void do_oop(oop* p)          { do_oop_work(p); }
-    virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
-
-  };
-)
-
-TERA_REMOVE(
-  class PrintFieldsClosure_inline : public BasicOopIterateClosure {
-    G1CollectedHeap* _g1h;
-  public:
-    PrintFieldsClosure_inline(G1CollectedHeap* g1h){ g1h=_g1h; }
-
-    template <class T> void do_oop_work(T* p);
-    virtual void do_oop(oop* p)          { do_oop_work(p); }
-    virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
-
-  };
-)
 
 
 #endif // SHARE_GC_G1_G1OOPCLOSURES_HPP

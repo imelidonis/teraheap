@@ -85,7 +85,7 @@ static inline bool requires_marking(const void* entry, G1CollectedHeap* g1h) {
 
 #ifdef TERA_MAINTENANCE
 
-  //##!! If obj is in H2
+  // If obj is in H2
   //  (1) set H2 region live bit
   //  (2) Fence heap traversal to H2
   //   return false

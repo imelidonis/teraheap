@@ -62,13 +62,10 @@ inline void G1BarrierSet::write_ref_field_post(T* field, oop new_val) {
 
     }else{
     
-#ifdef TERA_REFACTOR
+
       //h1->h2 : forward pointer (no need to dirty any card)
-      if( Universe::in_h2(new_val) ) return;
-#else
-      if( Universe::is_in_h2(new_val) ) return;
-#endif
-      
+      if ( Universe::is_obj_in_h2(new_val) ) return;
+
       //h1->h1 : h1 card talbe, dirty card => scan to find outgoing ref and update rem sets
       byte =  _card_table->byte_for(field);
       if (*byte != G1CardTable::g1_young_card_val()) {

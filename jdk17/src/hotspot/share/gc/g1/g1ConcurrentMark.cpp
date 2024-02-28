@@ -1123,9 +1123,6 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
       hr->add_to_marked_bytes(marked_bytes);
       hr->add_to_h2_marked_bytes(h2_bytes);
       _cl->do_heap_region(hr);
-      //##!! TODO or not TODO
-      //modify note_end_of_marking() to swap the h2 liveness as well ??
-      // do we need prev_h2_bytes and next_h2_bytes ??
       hr->note_end_of_marking();
     }
 #endif

@@ -30,7 +30,6 @@
 #include "gc/g1/g1FullGCHeapRegionAttr.hpp"
 #include "oops/oopsHierarchy.hpp"
 
-
 bool G1FullCollector::is_compacting(oop obj) const {
   return _region_attr_table.is_compacting(cast_from_oop<HeapWord *>(obj));
 }
@@ -50,6 +49,32 @@ void G1FullCollector::set_invalid(uint region_idx) {
 void G1FullCollector::update_from_compacting_to_skip_compacting(uint region_idx) {
   _region_attr_table.verify_is_compacting(region_idx);
   _region_attr_table.set_skip_compacting(region_idx);
+}
+
+template<class T>
+inline bool G1FullCollector::h2_should_trace(T* p) {
+  T heap_oop = RawAccess<>::oop_load(p);
+
+  if (CompressedOops::is_null(heap_oop))
+    return false;
+
+  oop obj = CompressedOops::decode_not_null(heap_oop);
+
+  if (Universe::teraHeap()->is_obj_in_h2(obj)) {
+    // Group regions if the references belong to two individual groups
+    Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord *>(obj));
+    return false;
+  } else if (false) {
+    // TODO: see if this is necessary....
+    Universe::teraHeap()->h2_push_backward_reference((void *)p, obj);
+    // inline_write_ref_field_gc...
+    return false;
+  } else {
+    // assert(Universe::teraHeap()->is_in_h2((void *)p), "Error");
+    Universe::teraHeap()->h2_push_backward_reference((void *)p, obj);
+    // inline_write_ref_field_gc...
+    return false;
+  }
 }
 
 #endif // SHARE_GC_G1_G1FULLCOLLECTOR_INLINE_HPP

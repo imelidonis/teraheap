@@ -28,6 +28,7 @@
 #include "gc/g1/g1OopClosures.hpp"
 
 #include "gc/g1/g1CollectedHeap.hpp"
+#include "gc/g1/g1FullCollector.inline.hpp"
 #include "gc/g1/g1ConcurrentMark.inline.hpp"
 #include "gc/g1/g1ParScanThreadState.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
@@ -409,6 +410,10 @@ void H2ToH1Closure::enable_tera_flag(void *p, oop obj){
     obj->mark_move_h2(Universe::teraHeap()->h2_get_region_groupId(p),
                       Universe::teraHeap()->h2_get_region_partId(p));
   }
+}
+template <class T>
+inline void H2ToH1G1PushContentsClosure::do_oop_work(T* p) {
+  G1FullCollector::h2_should_trace(p);
 }
 #endif
 

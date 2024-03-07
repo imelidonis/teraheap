@@ -37,6 +37,8 @@ H2ToH1Closure::H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, ui
       should_mark = _g1h->collector_state()->in_concurrent_start_gc();
       _worker_id = worker_id;  
 }
+
+H2ToH1G1PushContentsClosure::H2ToH1G1PushContentsClosure() { }
 #endif
 
 G1ParCopyHelper::G1ParCopyHelper(G1CollectedHeap* g1h,  G1ParScanThreadState* par_scan_state) :

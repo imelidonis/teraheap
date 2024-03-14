@@ -65,6 +65,17 @@ void G1FullGCMarker::set_h2_candidate_flags(oop obj) {
 void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
                                       ObjArrayTaskQueueSet* array_stacks,
                                       TaskTerminator* terminator) {
+
+  // Drain backward references
+  if (EnableTeraHeap && _worker_id == 0 && !Universe::teraHeap()->h2_is_empty()) {
+    oop *obj = Universe::teraHeap()->h2_get_next_back_reference();
+
+    while (obj) {
+      mark_and_push(obj);
+      obj = Universe::teraHeap()->h2_get_next_back_reference();
+    }
+  }
+
   do {
     drain_stack();
     ObjArrayTask steal_array;

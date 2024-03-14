@@ -37,6 +37,7 @@
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.inline.hpp"
+#include "gc/g1/g1FullGCTeraMarkTask.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/referenceProcessor.hpp"
@@ -267,6 +268,12 @@ public:
 void G1FullCollector::phase1_mark_live_objects() {
   // Recursively traverse all live objects and mark them.
   GCTraceTime(Info, gc, phases) info("Phase 1: Mark live objects", scope()->timer());
+
+  if (EnableTeraHeap && !Universe::teraHeap()->h2_is_empty()) {
+    // Find Backward References.
+    G1FullGCTeraMarkTask tera_marking_task(this);
+    run_task(&tera_marking_task);
+  }
 
   {
     // Do the actual marking.

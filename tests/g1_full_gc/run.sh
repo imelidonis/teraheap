@@ -14,6 +14,8 @@ FLAGS=" \
 	-XX:G1MixedGCCountTarget=4 -XX:G1HeapWastePercent=0 -XX:G1MixedGCLiveThresholdPercent=100 -XX:MaxGCPauseMillis=30000 \
 	-XX:InitiatingHeapOccupancyPercent=100 -XX:-G1UseAdaptiveIHOP \
   -XX:ParallelGCThreads=${PARALLEL_GC_THREADS} "
+# Add the following flag for gdb
+# "-XX:+ShowMessageBoxOnError"
 
 # EXEC=("MultiHashMap" "HashMap" "Test_WeakHashMap" "ClassInstance" \
 # 	"Array" "Array_List" "Array_List_Int" "List_Large" "MultiList" \

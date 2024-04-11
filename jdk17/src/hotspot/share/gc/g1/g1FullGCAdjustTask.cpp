@@ -93,6 +93,18 @@ void G1FullGCAdjustTask::work(uint worker_id) {
   Ticks start = Ticks::now();
   ResourceMark rm;
 
+  if (EnableTeraHeap && worker_id == 0) {
+    oop *obj = Universe::teraHeap()->h2_adjust_next_back_reference();
+
+    while (obj != NULL) {
+      Universe::teraHeap()->enable_groups(NULL, (HeapWord*) obj);
+      _adjust.do_oop(obj);
+      Universe::teraHeap()->disable_groups();
+
+      obj = Universe::teraHeap()->h2_adjust_next_back_reference();
+    }
+  }
+
   // Adjust preserved marks first since they are not balanced.
   G1FullGCMarker* marker = collector()->marker(worker_id);
   marker->preserved_stack()->adjust_during_full_gc();

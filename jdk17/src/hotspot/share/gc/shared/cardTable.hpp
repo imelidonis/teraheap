@@ -167,6 +167,10 @@ public:
     return words / card_size_in_words + 1;
   }
 
+  inline const MemRegion th_heap() {
+    return _th_whole_heap;
+  }
+
 #ifdef TERA_CARDS
   inline size_t th_cards_required(size_t covered_words) {
     // Add one for a guard card, used to detect errors.

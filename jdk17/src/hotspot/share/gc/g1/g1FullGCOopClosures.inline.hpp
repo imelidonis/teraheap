@@ -88,10 +88,8 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
     return;
   }
 
-  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(forwardee)) {
-    // Object is moved to h2.
-    // TODO: CASE (2) {same and cross} and CASE 4
-  }
+  if (EnableTeraHeap)
+    Universe::teraHeap()->group_region_enabled(cast_from_oop<HeapWord*>(forwardee), (void *) p);
 
   // Forwarded, just update.
   assert(G1CollectedHeap::heap()->is_in_reserved(forwardee), "should be in object space");

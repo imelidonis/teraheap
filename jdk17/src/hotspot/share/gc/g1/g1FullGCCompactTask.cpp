@@ -69,7 +69,15 @@ size_t G1FullGCCompactTask::G1CompactRegionClosure::apply(oop obj) {
   // copy object and reinit its mark
   HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
   assert(obj_addr != destination, "everything in this pass should be moving");
-  Copy::aligned_conjoint_words(obj_addr, destination, size);
+
+  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(destination)) {
+    // Move object to H2
+    Universe::teraHeap()->h2_move_obj(obj_addr, destination, size);
+  } else {
+    // Normal Copy
+    Copy::aligned_conjoint_words(obj_addr, destination, size);
+  }
+
   cast_to_oop(destination)->init_mark();
   assert(cast_to_oop(destination)->klass() != NULL, "should have a class");
 

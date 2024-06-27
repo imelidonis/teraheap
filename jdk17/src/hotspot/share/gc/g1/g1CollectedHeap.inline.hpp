@@ -36,6 +36,7 @@
 #include "gc/g1/heapRegionSet.inline.hpp"
 #include "gc/shared/markBitMap.inline.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
 #include "runtime/atomic.hpp"
 
 G1GCPhaseTimes* G1CollectedHeap::phase_times() const {
@@ -89,7 +90,8 @@ inline HeapWord* G1CollectedHeap::bottom_addr_for_region(uint index) const {
 template <class T>
 inline HeapRegion* G1CollectedHeap::heap_region_containing(const T addr) const {
   assert(addr != NULL, "invariant");
-  assert(is_in_reserved((const void*) addr),
+  // TODO: add h2 ranges
+  assert(is_in_reserved((const void*) addr) || Universe::teraHeap()->is_in_h2((const void*) addr),
          "Address " PTR_FORMAT " is outside of the heap ranging from [" PTR_FORMAT " to " PTR_FORMAT ")",
          p2i((void*)addr), p2i(reserved().start()), p2i(reserved().end()));
   return _hrm.addr_to_region((HeapWord*)(void*) addr);
@@ -312,7 +314,7 @@ inline void G1CollectedHeap::reset_evacuation_should_fail() {
 #endif  // #ifndef PRODUCT
 
 inline bool G1CollectedHeap::is_in_young(const oop obj) {
-  if (obj == NULL) {
+  if (obj == NULL || (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj))) {
     return false;
   }
   return heap_region_containing(obj)->is_young();

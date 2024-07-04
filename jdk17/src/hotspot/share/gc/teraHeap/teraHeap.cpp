@@ -15,6 +15,7 @@ char *TeraHeap::_stop_addr = NULL;
 
 Stack<oop *, mtGC> TeraHeap::_tc_stack;
 Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
+Stack<HeapRegion *, mtGC> TeraHeap::_tc_humongous_stack;
 
 uint64_t TeraHeap::total_objects;
 uint64_t TeraHeap::total_objects_size;
@@ -135,6 +136,10 @@ void TeraHeap::h2_clear_back_ref_stacks() {
 		
 	_tc_adjust_stack.clear(true);
 	_tc_stack.clear(true);
+}
+
+void TeraHeap::h2_clear_humongous_stack() {
+  _tc_humongous_stack.clear(true);
 }
 
 // Keep for each thread the time that need to traverse the TeraHeap
@@ -315,6 +320,14 @@ void TeraHeap::h2_push_backward_reference(void *p, oop o) {
 
 	assert(!_tc_stack.is_empty(), "Sanity Check");
 	assert(!_tc_adjust_stack.is_empty(), "Sanity Check");
+}
+
+// Add humongous region that are marked to move to H2 in a
+// seperate stack to move them during the compaction phase.
+void TeraHeap::h2_push_humongous_region(void *p) {
+  MutexLocker x(tera_heap_lock);
+  _tc_humongous_stack.push((HeapRegion *) p);
+  assert(!_tc_humongous_stack.is_empty(), "Sanity Check");
 }
 
 // Init the statistics counters of TeraHeap to zero when a Full GC
@@ -529,6 +542,11 @@ void TeraHeap::print_h2_active_regions(void){
 // Get the next backward reference from the stack to adjust
 oop* TeraHeap::h2_adjust_next_back_reference() {
   return (!_tc_adjust_stack.is_empty() ? _tc_adjust_stack.pop() : NULL);
+}
+
+// Get the next humongous region from the stack to move it to H2
+HeapRegion* TeraHeap::h2_get_next_humongous_region() {
+  return (!_tc_humongous_stack.is_empty() ? _tc_humongous_stack.pop() : NULL);
 }
 
 // Enables groupping with region of obj

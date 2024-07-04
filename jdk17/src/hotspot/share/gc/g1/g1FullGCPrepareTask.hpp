@@ -63,6 +63,7 @@ protected:
     bool should_compact(HeapRegion* hr);
     void prepare_for_compaction(HeapRegion* hr);
     void prepare_for_compaction_work(G1FullGCCompactionPoint* cp, HeapRegion* hr);
+    void tera_prepare_for_compaction(HeapRegion* hr);
 
     void reset_region_metadata(HeapRegion* hr);
 

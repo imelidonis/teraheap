@@ -39,6 +39,10 @@ private:
   // during adjust phase of the Full GC.
   static Stack<oop *, mtGC> _tc_adjust_stack;
 
+  // Stack to keep the humongous objects that are marked to move to H2.
+  // We drain this stack in the compaction phase of a Full GC.
+  static Stack<HeapRegion *, mtGC> _tc_humongous_stack;
+
 #ifdef TERA_TIMERS
   TeraTimers *teraTimer;
 #endif
@@ -160,6 +164,9 @@ public:
   // Deallocate the backward references stacks
   void h2_clear_back_ref_stacks();
   
+  // Deallocate the humongous region stack
+  void h2_clear_humongous_stack();
+
   // Keep for each thread with 'tid' the 'total time' that needed to
   // traverse the TeraHeap card table.
   // Each thread writes the time in a table based on each ID and then we
@@ -215,8 +222,15 @@ public:
   // pointer adjustment phases of major GC.
   void h2_push_backward_reference(void *p, oop o);
 
+  // Add humongous region that are marked to move to H2 in a
+  // seperate stack to move them during the compaction phase.
+  void h2_push_humongous_region(void *p);
+
   // Get the next backward reference from the stack to adjust
   oop* h2_adjust_next_back_reference();
+
+  // Get the next humongous region from the stack to move it to H2
+  HeapRegion* h2_get_next_humongous_region();
 
   // Init the statistics counters of TeraHeap to zero when a Full GC
   // starts

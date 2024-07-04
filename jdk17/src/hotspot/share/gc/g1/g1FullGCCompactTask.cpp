@@ -97,6 +97,32 @@ void G1FullGCCompactTask::compact_region(HeapRegion* hr) {
   hr->reset_compacted_after_full_gc();
 }
 
+void G1FullGCCompactTask::h2_move_humongous(HeapRegion* hr) {
+  if (!EnableTeraHeap)
+    return;
+
+  assert(hr->is_humongous() && cast_to_oop(hr->bottom())->is_marked_move_h2(), "Humongous regions in compaction queue without being marked.");
+  assert(hr->is_starts_humongous(), "Stack should only contain the start of humongous objects.");
+  oop obj = cast_to_oop(hr->bottom());
+  size_t size = obj->size();
+  HeapWord* destination = cast_from_oop<HeapWord*>(obj->forwardee());
+  if (destination == NULL) {
+    // Object not moving
+    return;
+  }
+  assert(Universe::teraHeap()->is_in_h2(destination), "Moving a humongous object to a non-H2 destination.");
+
+  // copy object and reinit its mark
+  HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
+  assert(obj_addr != destination, "everything in this pass should be moving");
+
+  // Move object to H2
+  Universe::teraHeap()->h2_move_obj(obj_addr, destination, size);
+
+  cast_to_oop(destination)->init_mark();
+  assert(cast_to_oop(destination)->klass() != NULL, "should have a class");
+}
+
 void G1FullGCCompactTask::work(uint worker_id) {
   Ticks start = Ticks::now();
   GrowableArray<HeapRegion*>* compaction_queue = collector()->compaction_point(worker_id)->regions();
@@ -104,6 +130,13 @@ void G1FullGCCompactTask::work(uint worker_id) {
        it != compaction_queue->end();
        ++it) {
     compact_region(*it);
+  }
+
+  // Drain stack to move humongous
+  HeapRegion *hum_region = Universe::teraHeap()->h2_get_next_humongous_region();
+  while (hum_region) {
+    h2_move_humongous(hum_region);
+    hum_region = Universe::teraHeap()->h2_get_next_humongous_region();
   }
 
   G1ResetSkipCompactingClosure hc(collector());

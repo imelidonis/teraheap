@@ -63,12 +63,14 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
     // work for them.
     assert(hr->containing_set() == nullptr, "already cleared by PrepareRegionsClosure");
     if (hr->is_humongous()) {
-      oop obj = cast_to_oop(hr->humongous_start_region()->bottom());
+      HeapRegion *hhr_start = hr->humongous_start_region(); 
+      oop obj = cast_to_oop(hhr_start->bottom());
       if (!_bitmap->is_marked(obj)) {
         free_pinned_region<true>(hr);
       } else if (obj->is_marked_move_h2() && obj->forwardee() == NULL) {
         HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
         obj->forward_to(cast_to_oop(h2_address));
+        tera_prepare_for_compaction(hhr_start);
       }
     } else if (hr->is_open_archive()) {
       bool is_empty = _collector->live_words(hr->hrm_index()) == 0;
@@ -209,6 +211,10 @@ void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_for_compaction(Hea
   // Add region to the compaction queue and prepare it.
   _cp->add(hr);
   prepare_for_compaction_work(_cp, hr);
+}
+
+void G1FullGCPrepareTask::G1CalculatePointersClosure::tera_prepare_for_compaction(HeapRegion *hr) {
+  Universe::teraHeap()->h2_push_humongous_region((void *) hr);
 }
 
 void G1FullGCPrepareTask::prepare_serial_compaction() {

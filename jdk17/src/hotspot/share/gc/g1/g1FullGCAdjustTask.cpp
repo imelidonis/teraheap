@@ -97,6 +97,12 @@ void G1FullGCAdjustTask::work(uint worker_id) {
     oop *obj = Universe::teraHeap()->h2_adjust_next_back_reference();
 
     while (obj != NULL) {
+    #ifdef TERA_DBG_PHASES
+      {
+        std::cout << "### Phase 3 Adjusting backrefs obj " << *obj << "\n";
+      }
+    #endif // DEBUG
+
       Universe::teraHeap()->enable_groups(NULL, (HeapWord*) obj);
       _adjust.do_oop(obj);
       Universe::teraHeap()->disable_groups();

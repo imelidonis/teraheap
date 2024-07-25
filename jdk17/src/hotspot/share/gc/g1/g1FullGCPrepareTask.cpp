@@ -69,6 +69,13 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
         free_pinned_region<true>(hr);
       } else if (obj->is_marked_move_h2() && obj->forwardee() == NULL) {
         HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
+
+      #ifdef TERA_DBG_PHASES
+        {
+          std::cout << "### Phase 2 hum.obj " << obj << " will be moved to " << h2_address << "\n";
+        }
+      #endif // DEBUG
+
         obj->forward_to(cast_to_oop(h2_address));
         tera_prepare_for_compaction(hhr_start);
       }
@@ -172,6 +179,13 @@ size_t G1FullGCPrepareTask::G1PrepareCompactLiveClosure::apply(oop object) {
   if (object->is_marked_move_h2()) {
     // Give address from H2 and store it in object header.
     HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size);
+
+  #ifdef TERA_DBG_PHASES
+    {
+      std::cout << "### Phase 2 obj " << object << " will be moved to " << h2_address << "\n";
+    }
+  #endif // DEBUG
+
     object->forward_to(cast_to_oop(h2_address));
   } else {
     _cp->forward(object, size);

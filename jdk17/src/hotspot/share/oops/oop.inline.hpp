@@ -58,6 +58,14 @@ markWord* oopDesc::mark_addr() const {
   // 'id' to locate objects with the same 'id' by to the same region.
   // 'id' is defined by the application.
 void oopDesc::mark_move_h2(uint64_t rdd_id, uint64_t part_id) {   
+#ifdef TERA_DBG_PHASES
+  {
+    std::cout << "### Phase 1 marking for H2 obj " << this << "\n";
+    std::cout << this->klass()->internal_name() << "\n";
+    // std::cout << obj->print_string() << "\n";
+  }
+#endif // DEBUG
+
   _tera_flag = (part_id << 48);
   _tera_flag |= (rdd_id << 32);
   _tera_flag |= MOVE_TO_TERA;

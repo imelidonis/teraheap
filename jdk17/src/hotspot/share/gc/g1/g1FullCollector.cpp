@@ -196,6 +196,12 @@ void G1FullCollector::prepare_collection() {
 }
 
 void G1FullCollector::collect() {
+#ifdef TERA_DEBUG
+  {
+    std::cout << "Begin Collection" << "\n";
+  }
+#endif // DEBUG
+
   phase1_mark_live_objects();
   verify_after_marking();
 
@@ -207,9 +213,20 @@ void G1FullCollector::collect() {
   phase3_adjust_pointers();
 
   phase4_do_compaction();
+
+#ifdef TERA_DEBUG
+  {
+    std::cout << "End Collection" << "\n";
+  }
+#endif // DEBUG
 }
 
 void G1FullCollector::complete_collection() {
+#ifdef TERA_DEBUG
+  {
+    std::cout << "Completing Collection" << "\n";
+  }
+#endif // DEBUG
   // Restore all marks.
   restore_marks();
 
@@ -231,6 +248,11 @@ void G1FullCollector::complete_collection() {
   _heap->verify_after_full_collection();
 
   _heap->print_heap_after_full_collection(scope()->heap_transition());
+#ifdef TERA_DEBUG
+  {
+    std::cout << "Completed Collection" << "\n";
+  }
+#endif // DEBUG
 }
 
 void G1FullCollector::before_marking_update_attribute_table(HeapRegion* hr) {
@@ -266,6 +288,12 @@ public:
 };
 
 void G1FullCollector::phase1_mark_live_objects() {
+#ifdef TERA_DEBUG
+  {
+    std::cout << "Begin Phase 1" << "\n";
+  }
+#endif // DEBUG
+
   // Recursively traverse all live objects and mark them.
   GCTraceTime(Info, gc, phases) info("Phase 1: Mark live objects", scope()->timer());
 
@@ -311,6 +339,12 @@ void G1FullCollector::phase1_mark_live_objects() {
   }
 
   scope()->tracer()->report_object_count_after_gc(&_is_alive);
+
+#ifdef TERA_DEBUG
+  {
+    std::cout << "Finished Phase 1" << "\n";
+  }
+#endif // DEBUG
 }
 
 void G1FullCollector::phase2_prepare_compaction() {

@@ -313,6 +313,11 @@ void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2){
 // adjustment phases of major GC.
 void TeraHeap::h2_push_backward_reference(void *p, oop o) {
 	MutexLocker x(tera_heap_lock);
+
+#ifdef TERA_DBG_PHASES
+  std::cout << "BACKREF: pushing reference " << p << "\n";
+#endif // TERA_DBG_PHASES
+
 	_tc_stack.push((oop *)p);
 	_tc_adjust_stack.push((oop *)p);
 	
@@ -874,6 +879,12 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size) {
   // data in the buffer.
   memcpy(dst, src, size * 8);
 #endif // SYNC
+
+#ifdef TERA_DBG_PHASES
+  {
+    std::cout << "### Phase 4 Moved to H2 from " << src << " to " << dst << "\n";
+  }
+#endif // DEBUG
 }
 
 // Complete the transfer of the objects in H2

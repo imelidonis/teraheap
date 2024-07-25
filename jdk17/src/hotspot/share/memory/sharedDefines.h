@@ -30,11 +30,15 @@
 	#define TERA_REMOVEx(code) 
 	#define TERA_REMOVE(code)
 
+  // Debug TeraHeap (REMOVE)----
+  // #define TERA_DBG_PHASES
+  // ---------------------------
+
 
 #else
 	#define TERA_REMOVEx(code)
 	#define TERA_REMOVE(code)
-#endif
+#endif  // TERA_DEBUG
 
 
 #define TERA_FLAG				         // Define teraFlag word

@@ -96,6 +96,13 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
     G1CollectedHeap::heap()->is_in_reserved(forwardee) ||
     (EnableTeraHeap && Universe::teraHeap()->is_in_h2(forwardee)),
     "should be in object space or H2");
+
+#ifdef TERA_DBG_PHASES
+  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj->forwardee())) {
+    std::cout << "### Phase 3 Adjusting obj (adj-ptr) to point from " << obj << " to " << obj->forwardee() << "\n";
+  }
+#endif // DEBUG
+
   RawAccess<IS_NOT_NULL>::oop_store(p, forwardee);
 }
 

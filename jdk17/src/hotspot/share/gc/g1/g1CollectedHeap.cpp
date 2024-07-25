@@ -1125,10 +1125,22 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
   G1FullCollector collector(this, explicit_gc, do_clear_all_soft_refs, do_maximum_compaction);
   GCTraceTime(Info, gc) tm("Pause Full", NULL, gc_cause(), true);
 
+#ifdef TERA_DEBUG
+  {
+    std::cout << "Begin FULL GC" << "\n";
+  }
+#endif // DEBUG
+
   collector.prepare_collection();
   collector.collect();
   collector.complete_collection();
 
+
+#ifdef TERA_DEBUG
+  {
+    std::cout << "End FULL GC" << "\n";
+  }
+#endif // DEBUG
   // Full collection was successfully completed.
   return true;
 }

@@ -71,6 +71,11 @@ void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
     oop *obj = Universe::teraHeap()->h2_get_next_back_reference();
 
     while (obj) {
+    #ifdef TERA_DBG_PHASES
+      {
+        std::cout << "### Phase 1 mark backward obj: " << *obj << "\n";
+      }
+    #endif // DEBUG
       mark_and_push(obj);
       obj = Universe::teraHeap()->h2_get_next_back_reference();
     }

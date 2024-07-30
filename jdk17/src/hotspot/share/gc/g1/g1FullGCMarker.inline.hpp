@@ -89,7 +89,7 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
 
     if (_is_h2_candidate) {
       // Object is an H2 candidate
-      if (!obj->is_marked_move_h2()) {
+      if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
         obj->mark_move_h2(_h2_group_id, _h2_part_id);
       }
     }

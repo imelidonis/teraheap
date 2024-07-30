@@ -114,6 +114,36 @@
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
+#ifdef TERA_CARDS
+class ScanH2CardTable : public AbstractGangTask {
+protected:
+  G1CollectedHeap* _g1h;
+  G1ParScanThreadStateSet* _per_thread_states;
+  uint _num_workers;
+
+public:
+  ScanH2CardTable(G1ParScanThreadStateSet* per_thread_states,
+                  uint num_workers) :
+    AbstractGangTask("Scan H2 Cards"),
+    _g1h(G1CollectedHeap::heap()),
+    _per_thread_states(per_thread_states),
+    _num_workers(num_workers)
+  { }
+
+  void work(uint worker_id) {
+    if ( ! EnableTeraHeap ) return;
+    if ( Universe::teraHeap()->h2_is_empty() ) return;
+    
+    G1ParScanThreadState* pss = _per_thread_states->state_for_worker(worker_id);
+    
+    TERA_REMOVE( ResourceMark rm; )//so you can print c_strings
+
+    H2ToH1Closure cl(_g1h, pss, worker_id);
+    _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );
+  }
+};
+#endif
+
 
 TERA_REMOVE(
   long int G1CollectedHeap::h1=0;
@@ -2340,6 +2370,22 @@ ParallelObjectIterator* G1CollectedHeap::parallel_object_iterator(uint thread_nu
   return new G1ParallelObjectIterator(thread_num);
 }
 
+#ifdef TERA_CARDS
+void G1CollectedHeap::tera_scan_cards() {
+  G1RedirtyCardsQueueSet rdcqs(G1BarrierSet::dirty_card_queue_set().allocator());
+  const uint num_workers = workers()->active_workers();
+  G1ParScanThreadStateSet per_thread_states(this,
+                                            &rdcqs,
+                                            num_workers,
+                                            collection_set()->young_region_length(),
+                                            collection_set()->optional_region_length());
+  ScanH2CardTable scan_h2(&per_thread_states, num_workers);
+  workers()->run_task(&scan_h2);
+
+  per_thread_states.flush();
+}
+#endif // TERA_CARDS
+
 void G1CollectedHeap::object_iterate_parallel(ObjectClosure* cl, uint worker_id, HeapRegionClaimer* claimer) {
   IterateObjectClosureRegionClosure blk(cl);
   heap_region_par_iterate_from_worker_offset(&blk, claimer, worker_id);
@@ -3624,36 +3670,6 @@ void G1CollectedHeap::pre_evacuate_collection_set(G1EvacuationInfo& evacuation_i
   // Should G1EvacuationFailureALot be in effect for this GC?
   NOT_PRODUCT(set_evacuation_failure_alot_for_current_gc();)
 }
-
-#ifdef TERA_CARDS
-class ScanH2CardTable : public AbstractGangTask{
-protected:
-  G1CollectedHeap* _g1h;
-  G1ParScanThreadStateSet* _per_thread_states;
-  uint _num_workers;
-
-public:
-  ScanH2CardTable(G1ParScanThreadStateSet* per_thread_states,
-                  uint num_workers) :
-    AbstractGangTask("Scan H2 Cards"),
-    _g1h(G1CollectedHeap::heap()),
-    _per_thread_states(per_thread_states),
-    _num_workers(num_workers)
-  { }
-
-  void work(uint worker_id) {
-    if ( ! EnableTeraHeap ) return;
-    if ( Universe::teraHeap()->h2_is_empty() ) return;
-    
-    G1ParScanThreadState* pss = _per_thread_states->state_for_worker(worker_id);
-    
-    TERA_REMOVE( ResourceMark rm; )//so you can print c_strings
-
-    H2ToH1Closure cl(_g1h, pss, worker_id);
-    _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );
-  }
-};
-#endif
 
 class G1EvacuateRegionsBaseTask : public AbstractGangTask {
 protected:

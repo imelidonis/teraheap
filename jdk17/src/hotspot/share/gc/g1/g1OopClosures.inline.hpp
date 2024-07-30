@@ -333,6 +333,14 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
 // h2->h2 (out cset) : update h2 card table flag && enable tera flag && mark the obj as live
 template <class T>
 inline void H2ToH1Closure::do_oop_work(T* p) {
+  // TODO: propably move this code to a separate closure
+  if (in_full_gc) {
+    // During full GC we scan all the H2 cards to find the backward references and put them
+    // in the stacks to process them later.
+    G1FullCollector::h2_should_trace(p);
+    return;
+  }
+
   T o = RawAccess<>::oop_load(p);
   if (CompressedOops::is_null(o)) {
     return;

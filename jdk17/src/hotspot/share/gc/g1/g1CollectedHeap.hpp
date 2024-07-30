@@ -1218,11 +1218,14 @@ public:
     return _card_table;
   }
 
-  #ifdef TERA_CARDS
+#ifdef TERA_CARDS
   PSCardTable* th_card_table() const {
     return _th_card_table;
   }
-  #endif
+
+  // Scan the CardTables of H2
+  void tera_scan_cards();
+#endif
 
   // Iteration functions.
 

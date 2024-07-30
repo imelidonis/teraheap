@@ -323,6 +323,7 @@ class H2ToH1Closure : public G1ScanClosureBase {
   G1ConcurrentMark* _cm;
   bool should_mark;
   uint _worker_id;
+  bool in_full_gc;
 
 
   inline void mark_object(oop obj);

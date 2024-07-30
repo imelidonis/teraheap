@@ -299,8 +299,22 @@ void G1FullCollector::phase1_mark_live_objects() {
 
   if (EnableTeraHeap && !Universe::teraHeap()->h2_is_empty()) {
     // Find Backward References.
-    G1FullGCTeraMarkTask tera_marking_task(this);
-    run_task(&tera_marking_task);
+    // G1FullGCTeraMarkTask tera_marking_task(this);
+    // run_task(&tera_marking_task);
+
+    #ifdef TERA_DEBUG
+    {
+      std::cout << "Scan H2 cards\n";
+    }
+    #endif // DEBUG
+
+    _heap->tera_scan_cards();
+
+    #ifdef TERA_DEBUG
+    {
+      std::cout << "Finished H2 cards\n";
+    }
+    #endif // DEBUG
   }
 
   {

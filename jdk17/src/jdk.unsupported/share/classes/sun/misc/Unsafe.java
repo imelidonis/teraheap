@@ -1322,6 +1322,7 @@ public final class Unsafe {
   {
     return theInternalUnsafe.is_marked_move_h2(o);
   }
+
   /**
    * Returns whether an object has h2 address.
    * NOTE: will be removed
@@ -1334,5 +1335,16 @@ public final class Unsafe {
     return theInternalUnsafe.dummy_has_h2_address(o);
   }
 
+  /**
+   * Returns whether an object is in h2.
+   * NOTE: will be removed
+   *
+   * @param o object/array to check
+   */
+  @ForceInline
+  public boolean is_in_h2(Object o)
+  {
+    return theInternalUnsafe.is_in_h2(o);
+  }
 
 }

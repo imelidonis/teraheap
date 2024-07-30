@@ -3990,4 +3990,11 @@ public final class Unsafe {
    * @param o object/array to check
    */
   public native boolean dummy_has_h2_address(Object o);
+
+  /**
+   * Returns whether an object is in H2.
+   *
+   * @param o object/array to check
+   */
+  public native boolean is_in_h2(Object o);
 }

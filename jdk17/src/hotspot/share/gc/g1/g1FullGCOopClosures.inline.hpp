@@ -70,10 +70,16 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
   }
 
   oop obj = CompressedOops::decode_not_null(heap_oop);
-  assert(Universe::heap()->is_in(obj), "should be in heap");
-  if (!_collector->is_compacting(obj)) {
+  assert(Universe::heap()->is_in(obj) || Universe::teraHeap()->is_in_h2(obj), "should be in heap");
+  if (Universe::teraHeap()->is_in_h2(obj)) {
+    // We never move objects in H2 so we shouldn't need to process them.
+    return;
+  }
+  if (!_collector->is_compacting(obj) && !obj->is_marked_move_h2()) {
     // We never forward objects in non-compacting regions so there is no need to
     // process them further.
+    // TODO: propably remove this assertion
+    assert(!Universe::teraHeap()->is_in_h2(obj->forwardee()), "Object in non-compacting region moves to H2 without being marked.");
     return;
   }
 

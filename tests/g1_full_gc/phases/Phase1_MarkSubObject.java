@@ -3,10 +3,7 @@ import java.util.ArrayList;
 
 public class Phase1_MarkSubObject {
   private static final sun.misc.Unsafe _UNSAFE;
-
-  static class A {
-    int x;
-  }
+  private static final int SIZE = 2048;
 
 	static {
 		try {
@@ -21,13 +18,13 @@ public class Phase1_MarkSubObject {
   public static void main(String[] args) {
     // Create an ArrayList of Arrays of class A
     ArrayList<A[]> arraysOfA = new ArrayList<A[]>();
-    // Create an array of 2048 objects of class A
-    A[] arrayOfA = new A[2048];
-    // Create an array of 2048 object of class A what will not be marked.
-    A[] arrayOfA_nomove = new A[2048];
+    // Create an array of objects of class A
+    A[] arrayOfA = new A[SIZE];
+    // Create an array of object of class A what will not be marked.
+    A[] arrayOfA_nomove = new A[SIZE];
 
-    // Instantiate 2048 objects of class A and assign them to the array
-    for (int i = 0; i < 2048; i++) {
+    // Instantiate objects of class A and assign them to the array
+    for (int i = 0; i < SIZE; i++) {
       arrayOfA[i] = new A();
       arrayOfA_nomove[i] = new A();
     }
@@ -38,24 +35,46 @@ public class Phase1_MarkSubObject {
     // Mark to move in H2
 	  _UNSAFE.h2TagAndMoveRoot(arraysOfA.get(0), 0, 0);
 
-    // Trigger a Full GC
-    System.gc();
-
     // Check that the first array is marked
-    if (!(_UNSAFE.is_marked_move_h2(arraysOfA.get(0))))
+    if (!(_UNSAFE.is_marked_move_h2(arraysOfA.get(0)) && _UNSAFE.is_marked_move_h2(arrayOfA)))
       throw new RuntimeException("Object 'arraysOfA[0]' should be marked!");
+
+    // Check that the second array is not marked
+    if (_UNSAFE.is_marked_move_h2(arraysOfA.get(1)) || _UNSAFE.is_marked_move_h2(arrayOfA_nomove))
+      throw new RuntimeException("Object 'arraysOfA[1]' shouldn't be marked!");
 
     // Also, the ArrayList (parent) shouldn't be marked.
     if (_UNSAFE.is_marked_move_h2(arraysOfA))
       throw new RuntimeException("Object 'arraysOfA' shouldn't be marked!");
 
-    // Check that all objects are marked of arrayOfA are marked,
+    // Check that first array is not moved to H2 yet.
+    if (_UNSAFE.is_in_h2(arraysOfA.get(0)))
+      throw new RuntimeException("GC is not yet triggered. Object 'arraysOfA[0]' shouldn't be in h2!");
+
+    // -------------------------------------------
+    // Trigger a Full GC
+    System.gc();
+    // -------------------------------------------
+
+    // Check that the first array is in H2
+    if (!(_UNSAFE.is_in_h2(arrayOfA) && _UNSAFE.is_in_h2(arraysOfA.get(0))))
+      throw new RuntimeException("After GC, object 'arraysOfA[0]' should be in h2!");
+
+    // Check that the second array is not moved to H2.
+    if (_UNSAFE.is_in_h2(arrayOfA_nomove) || _UNSAFE.is_in_h2(arraysOfA.get(1)))
+      throw new RuntimeException("After GC, object 'arraysOfA[1]' shouldn't be in h2!");
+
+    // Check that arraysOfA is not moved to H2.
+    if (_UNSAFE.is_in_h2(arraysOfA))
+      throw new RuntimeException("After GC, object 'arraysOfA' shouldn't be in h2!");
+
+    // Check that all objects of arrayOfA are moved to H2,
     // and objects of arrayOfA_nomove are not!
-    for (int i = 0; i < 2048; i++) {
-      if (!(_UNSAFE.is_marked_move_h2(arrayOfA[i])))
-        throw new RuntimeException("Object 'arrayOfA[" + i + "]' should be marked!");
-      if (_UNSAFE.is_marked_move_h2(arrayOfA_nomove[i]))
-        throw new RuntimeException("Object 'arrayOfA_nomove[" + i + "]' shouldn't be marked!");
+    for (int i = 0; i < SIZE; i++) {
+      if (!(_UNSAFE.is_in_h2(arrayOfA[i]) && _UNSAFE.is_in_h2(arraysOfA.get(0)[i])))
+        throw new RuntimeException("Object 'arrayOfA[" + i + "]' should be in H2!");
+      if (_UNSAFE.is_in_h2(arrayOfA_nomove[i]) || _UNSAFE.is_in_h2(arraysOfA.get(1)[i]))
+        throw new RuntimeException("Object 'arrayOfA_nomove[" + i + "]' shouldn't be in H2!");
     }
   }
 }

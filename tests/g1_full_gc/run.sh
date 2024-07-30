@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 
-PARALLEL_GC_THREADS=16
+PARALLEL_GC_THREADS=1
+# PARALLEL_GC_THREADS=16
 # REGION_SIZE / 2^(TERA_CARD_SIZE) -> found in sharedDefines.hpp
 STRIPE_SIZE=2048
 
 JAVA="../../jdk17/build/linux-x86_64-server-slowdebug/jdk/bin/java"
+# JAVA="../../jdk17/build/linux-x86_64-server-release/jdk/bin/java"
  
 FLAGS=" \
   -Xbootclasspath/a:../../tests/g1_full_gc/Whitebox/wb.jar -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI \
 	-XX:+UseG1GC -XX:G1HeapRegionSize=1m \
 	-XX:-UseCompressedClassPointers -XX:-UseCompressedOops \
+  -XX:-ClassUnloading \
 	-XX:InitialTenuringThreshold=5 -XX:MaxTenuringThreshold=7 \
 	-XX:G1MixedGCCountTarget=4 -XX:G1HeapWastePercent=0 -XX:G1MixedGCLiveThresholdPercent=100 -XX:MaxGCPauseMillis=30000 \
 	-XX:InitiatingHeapOccupancyPercent=100 -XX:-G1UseAdaptiveIHOP \
@@ -23,7 +26,9 @@ FLAGS=" \
 # 	"Rehashing" "Clone" "Groupping")
 
 EXEC_DIR_NAME="phases"
-EXEC=("Phase1_MarkOneObject" "Phase1_MarkSubObject" "Phase2_GiveAddressesFromH2")
+# EXEC=("SimpleOneBackward")
+EXEC=("Phase1_MarkOneObject" "Phase1_MarkSubObject" "Phase2_GiveAddressesFromH2" "Phase3_UpdateReferences" \
+  "SimpleOneObj" "SimpleOneBackward")
 
 # Export Enviroment Variables
 export_env_vars() {

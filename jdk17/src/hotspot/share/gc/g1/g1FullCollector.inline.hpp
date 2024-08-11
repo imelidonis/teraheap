@@ -28,6 +28,7 @@
 #include "gc/g1/g1FullCollector.hpp"
 
 #include "gc/g1/g1FullGCHeapRegionAttr.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
 #include "oops/oopsHierarchy.hpp"
 
 bool G1FullCollector::is_compacting(oop obj) const {
@@ -71,8 +72,11 @@ inline bool G1FullCollector::h2_should_trace(T* p) {
     return false;
   } else {
     // assert(Universe::teraHeap()->is_in_h2((void *)p), "Error");
+    G1CollectedHeap *g1h = G1CollectedHeap::heap();
+
     Universe::teraHeap()->h2_push_backward_reference((void *)p, obj);
-    // inline_write_ref_field_gc...
+    g1h->th_card_table()->inline_write_ref_field_gc((void *) p, obj, !g1h->is_in_young(cast_to_oop(heap_oop)));
+
     return false;
   }
 }

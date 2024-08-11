@@ -723,7 +723,7 @@ void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
   // reference)
 	BarrierSet* bs = BarrierSet::barrier_set();
 	CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-	CardTable* ct = ctbs->card_table();
+	CardTable* ct = ctbs->th_card_table();
 
 	size_t diff =  (HeapWord *)obj_field - obj_h1_addr;
 	assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(obj_h1_addr)->size()),

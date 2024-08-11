@@ -78,8 +78,10 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
   if (!_collector->is_compacting(obj) && !obj->is_marked_move_h2()) {
     // We never forward objects in non-compacting regions so there is no need to
     // process them further.
-    // TODO: propably remove this assertion
+    // TODO: probably remove this assertion
     assert(!Universe::teraHeap()->is_in_h2(obj->forwardee()), "Object in non-compacting region moves to H2 without being marked.");
+    // TODO: probably not required here
+    Universe::teraHeap()->group_region_enabled(cast_from_oop<HeapWord*>(obj->forwardee()), (void *) p);
     return;
   }
 

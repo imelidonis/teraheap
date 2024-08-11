@@ -46,7 +46,17 @@ public:
     _adjust_closure(cl) { }
 
   size_t apply(oop object) {
-    return object->oop_iterate_size(_adjust_closure);
+    size_t res = 0;
+
+    if (Universe::teraHeap()->is_in_h2(object->forwardee())) {
+      Universe::teraHeap()->enable_groups((HeapWord*) object, (HeapWord*) object->forwardee());
+      res = object->oop_iterate_size(_adjust_closure);
+      Universe::teraHeap()->disable_groups();
+    } else {
+      res = object->oop_iterate_size(_adjust_closure);
+    }
+
+    return res;
   }
 };
 

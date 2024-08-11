@@ -74,6 +74,7 @@ void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
     #ifdef TERA_DBG_PHASES
       {
         std::cout << "### Phase 1 mark backward obj: " << *obj << "\n";
+        std::cout << (*obj)->klass()->internal_name() << "\n";
       }
     #endif // DEBUG
       mark_and_push(obj);

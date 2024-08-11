@@ -973,7 +973,7 @@ UNSAFE_ENTRY(jboolean, Unsafe_is_in_h2(JNIEnv *env, jobject unsafe, jobject obj)
 
   oop o = JNIHandles::resolve_non_null(obj);
 
-  return o->is_in_h2();
+  return Universe::teraHeap()->is_in_h2(o);
 }
 UNSAFE_END
 

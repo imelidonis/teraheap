@@ -83,6 +83,11 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
 
     // Fencing scan in H2 and mark region as live.
     if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj)) {
+
+#ifdef TERA_DBG_PHASES
+      std::cout << "### Phase 1 fencing reference to obj " << obj << "\n";
+#endif // TERA_DBG_PHASES
+
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(obj));
       return;
     }
@@ -92,6 +97,10 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
       if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
         obj->mark_move_h2(_h2_group_id, _h2_part_id);
       }
+#ifdef TERA_DBG_PHASES
+      if (Universe::teraHeap()->is_metadata(obj))
+        std::cout << "### Phase 1 skipping metadata " << obj << " (" << obj->klass()->internal_name() << ")" << "\n";
+#endif // TERA_DBG_PHASES
     }
 
     if (mark_object(obj)) {

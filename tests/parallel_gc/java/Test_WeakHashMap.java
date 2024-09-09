@@ -39,7 +39,7 @@ public class Test_WeakHashMap {
           
         a=null;  
         b=null;  
-          
+
         System.gc();  
         Iterator i = map.entrySet().iterator();  
         while (i.hasNext()) {  

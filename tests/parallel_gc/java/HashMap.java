@@ -60,7 +60,7 @@ public class HashMap {
 		
 		for (int i = 0; i < num_elements/2; i++)
 			h_map.put("Ammochostos " + i, "20404808");
-		
+
 		gc();
 
 		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())

@@ -542,9 +542,6 @@ TERA_REMOVE(
 					}
 				}
 			}
-      
-
-
 
       // This is the next clean card, after a series of dirty cards
 			CardValue* following_clean_card = current_card;
@@ -634,8 +631,6 @@ TERA_REMOVE(
             m->oop_iterate_backwards(cl);
             // cl->th_trim_queue_partially();           
           }
-
-
 
           if (!Universe::teraHeap()->check_if_valid_object((HeapWord *)p + m->size()))
             break;

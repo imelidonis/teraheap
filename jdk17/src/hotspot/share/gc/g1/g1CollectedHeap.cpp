@@ -3277,6 +3277,13 @@ bool G1STWIsAliveClosure::do_object_b(oop p) {
 bool G1STWSubjectToDiscoveryClosure::do_object_b(oop obj) {
   assert(obj != NULL, "must not be NULL");
   assert(_g1h->is_in_reserved(obj), "Trying to discover obj " PTR_FORMAT " not in heap", p2i(obj));
+
+#ifdef TERA_MAINTENANCE
+  // TODO: check if requires modification
+  if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj))
+    return true;
+#endif
+
   // The areas the CM and STW ref processor manage must be disjoint. The is_in_cset() below
   // may falsely indicate that this is not the case here: however the collection set only
   // contains old regions when concurrent mark is not running.

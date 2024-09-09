@@ -1670,6 +1670,11 @@ public:
   G1ObjectCountIsAliveClosure(G1CollectedHeap* g1h) : _g1h(g1h) { }
 
   bool do_object_b(oop obj) {
+#ifdef TERA_MAINTENANCE
+    // TODO: check if requires modification
+    if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj))
+      return true;
+#endif
     return obj != NULL &&
            (!_g1h->is_in_reserved(obj) || !_g1h->is_obj_dead(obj));
   }

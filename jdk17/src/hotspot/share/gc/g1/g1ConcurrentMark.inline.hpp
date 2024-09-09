@@ -57,6 +57,11 @@ inline bool G1CMSubjectToDiscoveryClosure::do_object_b(oop obj) {
   if (obj == NULL) {
     return false;
   }
+#ifdef TERA_MAINTENANCE
+  // TODO: check if requires modification
+  if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj))
+    return true;
+#endif
   assert(_g1h->is_in_reserved(obj), "Trying to discover obj " PTR_FORMAT " not in heap", p2i(obj));
   return _g1h->heap_region_containing(obj)->is_old_or_humongous_or_archive();
 }

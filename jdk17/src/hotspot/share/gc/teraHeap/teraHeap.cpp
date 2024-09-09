@@ -61,6 +61,13 @@ TeraHeap::TeraHeap() {
   }
 
 //   cur_obj_group_id = 0;
+  h1_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
+  h2_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
+
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    h1_addr_arr[i] = NULL;
+    h2_addr_arr[i] = NULL;
+  }
 
   obj_h1_addr = NULL;
   obj_h2_addr = NULL;
@@ -76,6 +83,12 @@ TeraHeap::TeraHeap() {
 #ifdef TERA_TIMERS
   teraTimer = new TeraTimers();
 #endif
+}
+
+// Destructor of TeraHeap
+TeraHeap::~TeraHeap() {
+  FREE_C_HEAP_ARRAY(HeapWord*, h1_addr_arr);
+  FREE_C_HEAP_ARRAY(HeapWord*, h2_addr_arr);
 }
 
 // Return H2 start address
@@ -306,7 +319,7 @@ void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2){
 	if (is_in_the_same_group((char *) obj1, (char *) obj2)) 
 		return;
 	MutexLocker x(tera_heap_group_lock);
-    references((char*) obj1, (char*) obj2);
+  references((char*) obj1, (char*) obj2);
 }
 
 // Update backward reference stacks that we use in marking and pointer
@@ -554,20 +567,34 @@ HeapRegion* TeraHeap::h2_get_next_humongous_region() {
   return (!_tc_humongous_stack.is_empty() ? _tc_humongous_stack.pop() : NULL);
 }
 
-// Enables groupping with region of obj
+// Enables groupping with region of obj (single-threaded)
 void TeraHeap::enable_groups(HeapWord *old_addr, HeapWord* new_addr){
-    enable_region_groups((char*) new_addr);
+  enable_region_groups((char*) new_addr);
 
 	obj_h1_addr = old_addr;
 	obj_h2_addr = new_addr;
 }
 
-// Disables region groupping
+// Disables region groupping (single-threaded)
 void TeraHeap::disable_groups(void){
-    disable_region_groups();
+  disable_region_groups();
 
 	obj_h1_addr = NULL;
 	obj_h2_addr = NULL;
+}
+
+// Enable region groupping (multi-threaded)
+void TeraHeap::thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord* new_addr){
+  assert(h1_addr_arr[thread_id] == NULL && h2_addr_arr[thread_id] == NULL, "Thread %d corrupted group state.", thread_id);
+
+	h1_addr_arr[thread_id] = old_addr;
+	h2_addr_arr[thread_id] = new_addr;
+}
+
+// Disables region groupping (multi-threaded)
+void TeraHeap::thread_disable_groups(uint thread_id){
+	h1_addr_arr[thread_id] = NULL;
+	h2_addr_arr[thread_id] = NULL;
 }
 
 #if PR_BUFFER
@@ -648,6 +675,7 @@ void TeraHeap::mark_used_region(HeapWord *obj) {
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
 char* TeraHeap::h2_add_object(oop obj, size_t size) {
+  MutexLocker x(tera_heap_lock);
 	char *pos;			// Allocation position
 
 	// Update Statistics
@@ -702,7 +730,7 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 // }
 
 // If obj is in a different H2 region than the region enabled, they
-// are grouped 
+// are grouped (single-threaded)
 void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
 	// Object is not going to be moved to TeraHeap
 	if (obj_h2_addr == NULL) 
@@ -730,6 +758,38 @@ void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
 			"Diff out of range: %lu", diff);
 	HeapWord *h2_obj_field = obj_h2_addr + diff;
 	assert(is_field_in_h2((void *) h2_obj_field), "Shoud be in H2");
+
+	ct->th_write_ref_field(h2_obj_field);
+}
+
+// Groups the region of obj with the previously enabled region of a thread (multi-threaded)
+void TeraHeap::thread_group_region_enabled(uint thread_id, HeapWord *obj, void *obj_field) {
+	// Object is not going to be moved to TeraHeap
+	if (h2_addr_arr[thread_id] == NULL) 
+		return;
+
+	if (is_obj_in_h2(cast_to_oop(obj))) {
+    // Universe::teraHeap()->group_regions(h2_addr_arr[thread_id], obj); //this has a lock
+		return;
+	}
+
+  // If it is an already backward pointer popped from tc_adjust_stack
+  // then do not mark the card as dirty because it is already marked
+  // from minor gc.
+	if (h1_addr_arr[thread_id] == NULL) 
+		return;
+
+  // Mark the H2 card table as dirty if obj is in H1 (backward
+  // reference)
+	BarrierSet* bs = BarrierSet::barrier_set();
+	CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+	CardTable* ct = ctbs->th_card_table();
+
+	size_t diff =  (HeapWord *)obj_field - h1_addr_arr[thread_id];
+	assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(h1_addr_arr[thread_id])->size()),
+			"Diff out of range: %lu", diff);
+	HeapWord *h2_obj_field = h2_addr_arr[thread_id] + diff;
+	assert(is_field_in_h2((void *) h2_addr_arr[thread_id]), "Shoud be in H2");
 
 	ct->th_write_ref_field(h2_obj_field);
 }

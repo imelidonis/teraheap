@@ -80,8 +80,8 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
     // process them further.
     // TODO: probably remove this assertion
     assert(!Universe::teraHeap()->is_in_h2(obj->forwardee()), "Object in non-compacting region moves to H2 without being marked.");
-    // TODO: probably not required here
-    Universe::teraHeap()->group_region_enabled(cast_from_oop<HeapWord*>(obj->forwardee()), (void *) p);
+    // TODO: all tests pass even without this line
+    Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(obj), (void *) p);
     return;
   }
 
@@ -97,7 +97,7 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
   }
 
   if (EnableTeraHeap)
-    Universe::teraHeap()->group_region_enabled(cast_from_oop<HeapWord*>(forwardee), (void *) p);
+    Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(forwardee), (void *) p);
 
   // Forwarded, just update.
   assert(

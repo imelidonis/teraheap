@@ -74,6 +74,9 @@ private:
                                     // object to promote this id
                                     // to their reference objects
 
+  HeapWord **h1_addr_arr;
+  HeapWord **h2_addr_arr;
+
   HeapWord *obj_h1_addr;            // We need to check this
                                     // object that will be moved
                                     // to H2 if it has back ptrs
@@ -123,7 +126,10 @@ private:
 public:
   // Constructor
   TeraHeap();
-  
+
+  // Destructor
+  ~TeraHeap();
+
   // Get object start array for h2
   ObjectStartArray *h2_start_array() { return &_start_array; }
   
@@ -282,8 +288,11 @@ public:
   // Prints all active regions
   void print_h2_active_regions(void);
 
-  // Groups the region of obj with the previously enabled region
+  // Groups the region of obj with the previously enabled region (single-threaded)
   void group_region_enabled(HeapWord *obj, void *obj_field);
+
+  // Groups the region of obj with the previously enabled region of a thread (multi-threaded)
+  void thread_group_region_enabled(uint thread_id, HeapWord *obj, void *obj_field);
 
   // Frees all unused regions
   void free_unused_regions(void);
@@ -291,11 +300,17 @@ public:
   // Prints all the region groups
   void print_region_groups(void);
 
-  // Enables groupping with region of obj
+  // Enables groupping with region of obj (single-threaded)
   void enable_groups(HeapWord *old_addr, HeapWord *new_addr);
 
-  // Disables region groupping
+  // Disables region groupping (single-threaded)
   void disable_groups(void);
+
+  // Enables groupping with region of obj (multi-threaded)
+  void thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord *new_addr);
+
+  // Disables region groupping (multi-threaded)
+  void thread_disable_groups(uint thread_id);
 
   void print_object_name(HeapWord *obj, const char *name);
 

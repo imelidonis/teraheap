@@ -407,7 +407,8 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
 
 void H2ToH1Closure::mark_object(oop obj) {
   assert(!_g1h->heap_region_containing(obj)->in_collection_set(), "should not mark objects in the CSet");
-  assert(obj->is_marked_move_h2() , "The back ref should have already enable the tera flag of the H1 obj");
+  // TODO: enable this assertion when we mark backrefs to transfer in H2.
+  // assert(obj->is_marked_move_h2() , "The back ref should have already enable the tera flag of the H1 obj");
   // mark it as live
   _cm->mark_in_next_bitmap(_worker_id, obj);
 }

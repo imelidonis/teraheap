@@ -133,10 +133,12 @@ void G1FullGCCompactTask::work(uint worker_id) {
   }
 
   // Drain stack to move humongous
-  HeapRegion *hum_region = Universe::teraHeap()->h2_get_next_humongous_region();
-  while (hum_region) {
-    h2_move_humongous(hum_region);
-    hum_region = Universe::teraHeap()->h2_get_next_humongous_region();
+  if (EnableTeraHeap && worker_id == 0) {
+    HeapRegion *hum_region = Universe::teraHeap()->h2_get_next_humongous_region();
+    while (hum_region) {
+      h2_move_humongous(hum_region);
+      hum_region = Universe::teraHeap()->h2_get_next_humongous_region();
+    }
   }
 
   G1ResetSkipCompactingClosure hc(collector());

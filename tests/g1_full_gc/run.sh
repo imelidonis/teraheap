@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-PARALLEL_GC_THREADS=1
+PARALLEL_GC_THREADS=16
 # PARALLEL_GC_THREADS=16
 # REGION_SIZE / 2^(TERA_CARD_SIZE) -> found in sharedDefines.hpp
-STRIPE_SIZE=2048
+STRIPE_SIZE=32768
 
-JAVA="../../jdk17/build/linux-x86_64-server-slowdebug/jdk/bin/java"
-# JAVA="../../jdk17/build/linux-x86_64-server-release/jdk/bin/java"
+# JAVA="../../jdk17/build/linux-x86_64-server-slowdebug/jdk/bin/java"
+JAVA="../../jdk17/build/linux-x86_64-server-release/jdk/bin/java"
  
 FLAGS=" \
   -Xbootclasspath/a:../../tests/g1_full_gc/Whitebox/wb.jar -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI \
@@ -19,11 +19,6 @@ FLAGS=" \
   -XX:ParallelGCThreads=${PARALLEL_GC_THREADS} "
 # Add the following flag for gdb
 # "-XX:+ShowMessageBoxOnError"
-
-# EXEC=("MultiHashMap" "HashMap" "Test_WeakHashMap" "ClassInstance" \
-# 	"Array" "Array_List" "Array_List_Int" "List_Large" "MultiList" \
-# 	"Simple_Lambda" "Extend_Lambda" "Test_Reflection" "Test_Reference" \
-# 	"Rehashing" "Clone" "Groupping")
 
 EXEC_DIR_NAME="phases"
 # EXEC=("SimpleOneBackward")

@@ -167,9 +167,15 @@ public:
     return words / card_size_in_words + 1;
   }
 
+  // TODO: remove 
+  inline const MemRegion heap() {
+    return _whole_heap;
+  }
+
   inline const MemRegion th_heap() {
     return _th_whole_heap;
   }
+  // ---------------------
 
 #ifdef TERA_CARDS
   inline size_t th_cards_required(size_t covered_words) {
@@ -248,6 +254,7 @@ public:
 #ifdef TERA_CARDS
   virtual void th_write_ref_field(void *obj);
   virtual void th_clean_cards(HeapWord *start, HeapWord *end);
+  virtual void th_dirty_cards(HeapWord *start, HeapWord *end);
   virtual void th_num_dirty_cards(HeapWord *start, HeapWord *end, bool before);
 #endif //TERA_CARDS
   void clear(MemRegion mr);

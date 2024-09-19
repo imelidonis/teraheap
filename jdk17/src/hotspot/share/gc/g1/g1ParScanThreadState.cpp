@@ -660,8 +660,6 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   oop h2_obj;
 
   {
-    MutexLocker x(tera_heap_lock); //objs are moved in tera without parallelism. Allocator does not support it for now
-
     //Two diff refs may point to the same obj that is going to be evacuated in h2.
     //If both refs are popped and they are now executing do_copy_to_h2_space() for the same obj
     //then only one will manage to evacuate the obj to h2. The other one when unlocked, will hit this if statment and return

@@ -114,6 +114,36 @@
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
+#ifdef TERA_CARDS
+class ScanH2CardTable : public AbstractGangTask {
+protected:
+  G1CollectedHeap* _g1h;
+  G1ParScanThreadStateSet* _per_thread_states;
+  uint _num_workers;
+
+public:
+  ScanH2CardTable(G1ParScanThreadStateSet* per_thread_states,
+                  uint num_workers) :
+    AbstractGangTask("Scan H2 Cards"),
+    _g1h(G1CollectedHeap::heap()),
+    _per_thread_states(per_thread_states),
+    _num_workers(num_workers)
+  { }
+
+  void work(uint worker_id) {
+    if ( ! EnableTeraHeap ) return;
+    if ( Universe::teraHeap()->h2_is_empty() ) return;
+    
+    G1ParScanThreadState* pss = _per_thread_states->state_for_worker(worker_id);
+    
+    TERA_REMOVE( ResourceMark rm; )//so you can print c_strings
+
+    H2ToH1Closure cl(_g1h, pss, worker_id);
+    _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );
+  }
+};
+#endif
+
 
 #ifdef TERA_AVOID_FULL_GC
   bool G1CollectedHeap::mix_gc_happened=false;
@@ -1132,10 +1162,21 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
   G1FullCollector collector(this, explicit_gc, do_clear_all_soft_refs, do_maximum_compaction);
   GCTraceTime(Info, gc) tm("Pause Full", NULL, gc_cause(), true);
 
+#ifdef TERA_DEBUG
+  {
+    std::cout << "--- Begin FULL GC ---" << "\n";
+  }
+#endif // DEBUG
+
   collector.prepare_collection();
   collector.collect();
   collector.complete_collection();
 
+#ifdef TERA_DEBUG
+  {
+    std::cout << "--- End FULL GC ---" << "\n";
+  }
+#endif // DEBUG
 
   // Full collection was successfully completed.
   return true;
@@ -2337,6 +2378,22 @@ ParallelObjectIterator* G1CollectedHeap::parallel_object_iterator(uint thread_nu
   return new G1ParallelObjectIterator(thread_num);
 }
 
+#ifdef TERA_CARDS
+void G1CollectedHeap::tera_scan_cards() {
+  G1RedirtyCardsQueueSet rdcqs(G1BarrierSet::dirty_card_queue_set().allocator());
+  const uint num_workers = workers()->active_workers();
+  G1ParScanThreadStateSet per_thread_states(this,
+                                            &rdcqs,
+                                            num_workers,
+                                            collection_set()->young_region_length(),
+                                            collection_set()->optional_region_length());
+  ScanH2CardTable scan_h2(&per_thread_states, num_workers);
+  workers()->run_task(&scan_h2);
+
+  per_thread_states.flush();
+}
+#endif // TERA_CARDS
+
 void G1CollectedHeap::object_iterate_parallel(ObjectClosure* cl, uint worker_id, HeapRegionClaimer* claimer) {
   IterateObjectClosureRegionClosure blk(cl);
   heap_region_par_iterate_from_worker_offset(&blk, claimer, worker_id);
@@ -2967,36 +3024,6 @@ void G1CollectedHeap::gc_tracer_report_gc_end(bool concurrent_operation_is_full_
   _gc_timer_stw->time_partitions());
 }
 
-
-#ifdef TERA_CARDS
-class ScanH2CardTable : public AbstractGangTask{
-protected:
-  G1CollectedHeap* _g1h;
-  G1ParScanThreadStateSet* _per_thread_states;
-  uint _num_workers;
-
-public:
-  ScanH2CardTable(G1ParScanThreadStateSet* per_thread_states,
-                  uint num_workers) :
-    AbstractGangTask("Scan H2 Cards"),
-    _g1h(G1CollectedHeap::heap()),
-    _per_thread_states(per_thread_states),
-    _num_workers(num_workers)
-  { }
-
-  void work(uint worker_id) {
-    if ( ! EnableTeraHeap ) return;
-    if ( Universe::teraHeap()->h2_is_empty() ) return;
-    
-    G1ParScanThreadState* pss = _per_thread_states->state_for_worker(worker_id);
-    
-    H2ToH1Closure cl(_g1h, pss, worker_id);
-    _g1h->th_card_table()->h2_scavenge_contents_parallel( &cl, worker_id, _num_workers, _g1h->collector_state()->th_should_scan_old_cards() );
-  }
-};
-#endif
-
-
 void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_pause_time_ms) {
   GCIdMark gc_id_mark;
 
@@ -3120,8 +3147,6 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         
 
 #ifdef TERA_CARDS
-
-
         if( EnableTeraHeap ){          
             ScanH2CardTable scan_h2(&per_thread_states,
                                     workers()->active_workers());
@@ -3131,7 +3156,6 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
             if( TeraHeapStatistics )
               Universe::teraHeap()->get_tera_stats()->record_h2_scan_time( (task_time.seconds() * 1000.0) );
         }
- 
 #endif
  
         // Actually do the work...        
@@ -3279,6 +3303,13 @@ bool G1STWSubjectToDiscoveryClosure::do_object_b(oop obj) {
 
   assert(obj != NULL, "must not be NULL");
   assert(_g1h->is_in_reserved(obj), "Trying to discover obj " PTR_FORMAT " not in heap", p2i(obj));
+
+#ifdef TERA_MAINTENANCE
+  // TODO: check if requires modification
+  if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj))
+    return true;
+#endif
+
   // The areas the CM and STW ref processor manage must be disjoint. The is_in_cset() below
   // may falsely indicate that this is not the case here: however the collection set only
   // contains old regions when concurrent mark is not running.
@@ -3671,8 +3702,6 @@ void G1CollectedHeap::pre_evacuate_collection_set(G1EvacuationInfo& evacuation_i
   // Should G1EvacuationFailureALot be in effect for this GC?
   NOT_PRODUCT(set_evacuation_failure_alot_for_current_gc();)
 }
-
-
 
 class G1EvacuateRegionsBaseTask : public AbstractGangTask {
 protected:

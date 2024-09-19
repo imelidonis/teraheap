@@ -114,7 +114,7 @@ public:
   G1GCPauseType young_gc_pause_type(bool concurrent_operation_is_full_mark) const;
 
 #ifdef TERA_CARDS
-  bool th_should_scan_old_cards() const { return _in_concurrent_start_gc || in_mixed_phase(); }
+  bool th_should_scan_old_cards() const { return _in_concurrent_start_gc || in_mixed_phase() || in_full_gc(); }
 #endif
 };
 

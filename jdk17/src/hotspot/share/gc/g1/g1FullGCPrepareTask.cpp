@@ -58,13 +58,26 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
     prepare_for_compaction(hr);
   } else {
     // There is no need to iterate and forward objects in pinned regions ie.
-    // prepare them for compaction. The adjust pointers phase will skip
+    // prepare them for compaction except humongous objects that are marked
+    // to move to H2 (teraheap). The adjust pointers phase will skip
     // work for them.
     assert(hr->containing_set() == nullptr, "already cleared by PrepareRegionsClosure");
     if (hr->is_humongous()) {
-      oop obj = cast_to_oop(hr->humongous_start_region()->bottom());
+      HeapRegion *hhr_start = hr->humongous_start_region(); 
+      oop obj = cast_to_oop(hhr_start->bottom());
       if (!_bitmap->is_marked(obj)) {
         free_pinned_region<true>(hr);
+      } else if (obj->is_marked_move_h2() && obj->forwardee() == NULL) {
+        HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
+
+      #ifdef TERA_DBG_PHASES
+        {
+          std::cout << "### Phase 2 hum.obj " << obj << " will be moved to " << h2_address << "\n";
+        }
+      #endif // DEBUG
+
+        obj->forward_to(cast_to_oop(h2_address));
+        tera_prepare_for_compaction(hhr_start);
       }
     } else if (hr->is_open_archive()) {
       bool is_empty = _collector->live_words(hr->hrm_index()) == 0;
@@ -143,7 +156,9 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::should_compact(HeapRegion*
   size_t live_words = _collector->live_words(hr->hrm_index());
   size_t live_words_threshold = _collector->scope()->region_compaction_threshold();
   // High live ratio region will not be compacted.
-  return live_words <= live_words_threshold;
+  // return live_words <= live_words_threshold;
+  // FIXME: ignore threshold for now. Should patch it later.
+  return true;
 }
 
 void G1FullGCPrepareTask::G1CalculatePointersClosure::reset_region_metadata(HeapRegion* hr) {
@@ -161,7 +176,20 @@ G1FullGCPrepareTask::G1PrepareCompactLiveClosure::G1PrepareCompactLiveClosure(G1
 
 size_t G1FullGCPrepareTask::G1PrepareCompactLiveClosure::apply(oop object) {
   size_t size = object->size();
-  _cp->forward(object, size);
+  if (object->is_marked_move_h2()) {
+    // Give address from H2 and store it in object header.
+    HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size);
+
+  #ifdef TERA_DBG_PHASES
+    {
+      std::cout << "### Phase 2 obj " << object << " will be moved to " << h2_address << "\n";
+    }
+  #endif // DEBUG
+
+    object->forward_to(cast_to_oop(h2_address));
+  } else {
+    _cp->forward(object, size);
+  }
   return size;
 }
 
@@ -172,6 +200,8 @@ size_t G1FullGCPrepareTask::G1RePrepareClosure::apply(oop obj) {
   if (forwarded_to != NULL && !_current->is_in(forwarded_to)) {
     return obj->size();
   }
+
+  assert(!obj->is_marked_move_h2(), "Objects marked to move to H2 should already be forwarded.");
 
   // Get size and forward.
   size_t size = obj->size();
@@ -195,6 +225,10 @@ void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_for_compaction(Hea
   // Add region to the compaction queue and prepare it.
   _cp->add(hr);
   prepare_for_compaction_work(_cp, hr);
+}
+
+void G1FullGCPrepareTask::G1CalculatePointersClosure::tera_prepare_for_compaction(HeapRegion *hr) {
+  Universe::teraHeap()->h2_push_humongous_region((void *) hr);
 }
 
 void G1FullGCPrepareTask::prepare_serial_compaction() {

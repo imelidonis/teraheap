@@ -498,9 +498,6 @@ void PSCardTable::h2_scavenge_contents_parallel(
 					}
 				}
 			}
-      
-
-
 
       // This is the next clean card, after a series of dirty cards
 			CardValue* following_clean_card = current_card;
@@ -567,8 +564,6 @@ void PSCardTable::h2_scavenge_contents_parallel(
             m->oop_iterate_backwards(cl);
             // cl->th_trim_queue_partially();           
           }
-
-
 
           if (!Universe::teraHeap()->check_if_valid_object((HeapWord *)p + m->size()))
             break;

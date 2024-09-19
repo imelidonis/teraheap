@@ -577,6 +577,21 @@ void CardTable::th_clean_cards(HeapWord *start, HeapWord* end) {
   memset(cur, clean_card, (last-cur)-1);
 }
 
+// TODO: remove
+void CardTable::th_dirty_cards(HeapWord *start, HeapWord* end) {
+  assert((HeapWord*)align_down((uintptr_t)start, HeapWordSize) == start, "Unaligned start");
+  assert((HeapWord*)align_up  ((uintptr_t)end,   HeapWordSize) == end,   "Unaligned end"  );
+  CardValue* cur  = byte_for(start);
+  CardValue* last = byte_for(end);
+      
+  // H2 card table is reserved but memory is protected for reads and
+  // writes. We need to remove protection for the specific address
+  // range
+  os::protect_memory((char *) cur, (last-cur)-1, os::MEM_PROT_RW);
+
+  memset(cur, dirty_card, (last-cur)-1);
+}
+
 void CardTable::th_num_dirty_cards(HeapWord *start, HeapWord* end, bool before) {
 	assert((HeapWord*)align_down((uintptr_t)start, HeapWordSize) == start, "Unaligned start");
 	assert((HeapWord*)align_up  ((uintptr_t)end,   HeapWordSize) == end,   "Unaligned end"  );

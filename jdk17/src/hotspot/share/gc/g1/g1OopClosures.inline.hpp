@@ -28,6 +28,7 @@
 #include "gc/g1/g1OopClosures.hpp"
 
 #include "gc/g1/g1CollectedHeap.hpp"
+#include "gc/g1/g1FullCollector.inline.hpp"
 #include "gc/g1/g1ConcurrentMark.inline.hpp"
 #include "gc/g1/g1ParScanThreadState.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
@@ -357,6 +358,14 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
 // h2-> (h1 out cset) : update h2 card table flag && enable tera flag && mark the obj as live
 template <class T>
 inline void H2ToH1Closure::do_oop_work(T* p) {
+  // TODO: propably move this code to a separate closure
+  if (in_full_gc) {
+    // During full GC we scan all the H2 cards to find the backward references and put them
+    // in the stacks to process them later.
+    G1FullCollector::h2_should_trace(p);
+    return;
+  }
+
   T o = RawAccess<>::oop_load(p);
   if (CompressedOops::is_null(o)) {
     return;
@@ -394,7 +403,8 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
 
 void H2ToH1Closure::mark_object(oop obj) {
   assert(!_g1h->heap_region_containing(obj)->in_collection_set(), "should not mark objects in the CSet");
-  assert(obj->is_marked_move_h2() , "The back ref should have already enable the tera flag of the H1 obj");
+  // TODO: enable this assertion when we mark backrefs to transfer in H2.
+  // assert(obj->is_marked_move_h2() , "The back ref should have already enable the tera flag of the H1 obj");
   // mark it as live
   _cm->mark_in_next_bitmap(_worker_id, obj);
 }
@@ -405,6 +415,10 @@ void H2ToH1Closure::enable_tera_flag(void *p, oop obj){
     obj->mark_move_h2(Universe::teraHeap()->h2_get_region_groupId(p),
                       Universe::teraHeap()->h2_get_region_partId(p));
   }
+}
+template <class T>
+inline void H2ToH1G1PushContentsClosure::do_oop_work(T* p) {
+  G1FullCollector::h2_should_trace(p);
 }
 #endif
 

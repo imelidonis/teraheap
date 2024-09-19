@@ -15,6 +15,7 @@ char *TeraHeap::_stop_addr = NULL;
 
 Stack<oop *, mtGC> TeraHeap::_tc_stack;
 Stack<oop *, mtGC> TeraHeap::_tc_adjust_stack;
+Stack<HeapRegion *, mtGC> TeraHeap::_tc_humongous_stack;
 
 uint64_t TeraHeap::total_objects;
 uint64_t TeraHeap::total_objects_size;
@@ -58,6 +59,13 @@ TeraHeap::TeraHeap() {
 // }
 
 //   cur_obj_group_id = 0;
+  h1_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
+  h2_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
+
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    h1_addr_arr[i] = NULL;
+    h2_addr_arr[i] = NULL;
+  }
 
   obj_h1_addr = NULL;
   obj_h2_addr = NULL;
@@ -77,6 +85,12 @@ TeraHeap::TeraHeap() {
   if(TeraHeapStatistics)
     tera_stats = new TeraStatistics();
 
+}
+
+// Destructor of TeraHeap
+TeraHeap::~TeraHeap() {
+  FREE_C_HEAP_ARRAY(HeapWord*, h1_addr_arr);
+  FREE_C_HEAP_ARRAY(HeapWord*, h2_addr_arr);
 }
 
 // Return H2 start address
@@ -137,6 +151,10 @@ void TeraHeap::h2_clear_back_ref_stacks() {
 		
 	_tc_adjust_stack.clear(true);
 	_tc_stack.clear(true);
+}
+
+void TeraHeap::h2_clear_humongous_stack() {
+  _tc_humongous_stack.clear(true);
 }
 
 // Keep for each thread the time that need to traverse the TeraHeap
@@ -303,13 +321,18 @@ void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2){
 	if (is_in_the_same_group((char *) obj1, (char *) obj2)) 
 		return;
 	MutexLocker x(tera_heap_group_lock);
-    references((char*) obj1, (char*) obj2);
+  references((char*) obj1, (char*) obj2);
 }
 
 // Update backward reference stacks that we use in marking and pointer
 // adjustment phases of major GC.
 void TeraHeap::h2_push_backward_reference(void *p, oop o) {
 	MutexLocker x(tera_heap_lock);
+
+#ifdef TERA_DBG_PHASES
+  std::cout << "BACKREF: pushing reference " << p << "\n";
+#endif // TERA_DBG_PHASES
+
 	_tc_stack.push((oop *)p);
 	_tc_adjust_stack.push((oop *)p);
 	
@@ -317,6 +340,14 @@ void TeraHeap::h2_push_backward_reference(void *p, oop o) {
 
 	assert(!_tc_stack.is_empty(), "Sanity Check");
 	assert(!_tc_adjust_stack.is_empty(), "Sanity Check");
+}
+
+// Add humongous region that are marked to move to H2 in a
+// seperate stack to move them during the compaction phase.
+void TeraHeap::h2_push_humongous_region(void *p) {
+  MutexLocker x(tera_heap_lock);
+  _tc_humongous_stack.push((HeapRegion *) p);
+  assert(!_tc_humongous_stack.is_empty(), "Sanity Check");
 }
 
 // Init the statistics counters of TeraHeap to zero when a Full GC
@@ -533,24 +564,42 @@ oop* TeraHeap::h2_adjust_next_back_reference() {
   return (!_tc_adjust_stack.is_empty() ? _tc_adjust_stack.pop() : NULL);
 }
 
-// Enables groupping with region of obj
+// Get the next humongous region from the stack to move it to H2
+HeapRegion* TeraHeap::h2_get_next_humongous_region() {
+  return (!_tc_humongous_stack.is_empty() ? _tc_humongous_stack.pop() : NULL);
+}
+
+// Enables groupping with region of obj (single-threaded)
 void TeraHeap::enable_groups(HeapWord *old_addr, HeapWord* new_addr){
-    enable_region_groups((char*) new_addr);
+  enable_region_groups((char*) new_addr);
 
 	obj_h1_addr = old_addr;
 	obj_h2_addr = new_addr;
 }
 
-// Disables region groupping
+// Disables region groupping (single-threaded)
 void TeraHeap::disable_groups(void){
-    disable_region_groups();
+  disable_region_groups();
 
 	obj_h1_addr = NULL;
 	obj_h2_addr = NULL;
 }
 
-#ifdef PR_BUFFER
+// Enable region groupping (multi-threaded)
+void TeraHeap::thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord* new_addr){
+  assert(h1_addr_arr[thread_id] == NULL && h2_addr_arr[thread_id] == NULL, "Thread %d corrupted group state.", thread_id);
 
+	h1_addr_arr[thread_id] = old_addr;
+	h2_addr_arr[thread_id] = new_addr;
+}
+
+// Disables region groupping (multi-threaded)
+void TeraHeap::thread_disable_groups(uint thread_id){
+	h1_addr_arr[thread_id] = NULL;
+	h2_addr_arr[thread_id] = NULL;
+}
+
+#ifdef PR_BUFFER
 // Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is
 // used to know where the object will move to H2. We use promotion buffer to
 // reduce the number of system calls for small sized objects.
@@ -627,6 +676,7 @@ void TeraHeap::mark_used_region(HeapWord *obj) {
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
 char* TeraHeap::h2_add_object(oop obj, size_t size) {
+  MutexLocker x(tera_heap_lock);
 	char *pos;			// Allocation position
 
 	// Update Statistics
@@ -634,19 +684,19 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 	++total_objects;
 	++trans_per_fgc;
 
-	// if (TeraHeapStatistics) {
-	// 	size_t obj_size = (size * HeapWordSize) / 1024UL;
-	// 	int count = 0;
+	if (TeraHeapStatistics) {
+		size_t obj_size = (size * HeapWordSize) / 1024UL;
+		int count = 0;
 
-	// 	while (obj_size > 0) {
-	// 		count++;
-	// 		obj_size/=1024UL;
-	// 	}
+		while (obj_size > 0) {
+			count++;
+			obj_size/=1024UL;
+		}
 
-	// 	assert(count <=2, "Array out of range");
+		assert(count <=2, "Array out of range");
 
-	// 	++obj_distr_size[count];
-	// }
+		++obj_distr_size[count];
+	}
 
 
 	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id());
@@ -681,7 +731,7 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 // }
 
 // If obj is in a different H2 region than the region enabled, they
-// are grouped 
+// are grouped (single-threaded)
 void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
 	// Object is not going to be moved to TeraHeap
 	if (obj_h2_addr == NULL) 
@@ -702,6 +752,7 @@ void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
   // reference)
 	BarrierSet* bs = BarrierSet::barrier_set();
 	CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+  // TODO: if we use this with G1, we need to pass th_card_table
 	CardTable* ct = ctbs->card_table();
 
 	size_t diff =  (HeapWord *)obj_field - obj_h1_addr;
@@ -713,6 +764,37 @@ void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
 	ct->th_write_ref_field(h2_obj_field);
 }
 
+// Groups the region of obj with the previously enabled region of a thread (multi-threaded)
+void TeraHeap::thread_group_region_enabled(uint thread_id, HeapWord *obj, void *obj_field) {
+	// Object is not going to be moved to TeraHeap
+	if (h2_addr_arr[thread_id] == NULL) 
+		return;
+
+	if (is_obj_in_h2(cast_to_oop(obj))) {
+    // Universe::teraHeap()->group_regions(h2_addr_arr[thread_id], obj); //this has a lock
+		return;
+	}
+
+  // If it is an already backward pointer popped from tc_adjust_stack
+  // then do not mark the card as dirty because it is already marked
+  // from minor gc.
+	if (h1_addr_arr[thread_id] == NULL) 
+		return;
+
+  // Mark the H2 card table as dirty if obj is in H1 (backward
+  // reference)
+	BarrierSet* bs = BarrierSet::barrier_set();
+	CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+	CardTable* ct = ctbs->th_card_table();
+
+	size_t diff =  (HeapWord *)obj_field - h1_addr_arr[thread_id];
+	assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(h1_addr_arr[thread_id])->size()),
+			"Diff out of range: %lu", diff);
+	HeapWord *h2_obj_field = h2_addr_arr[thread_id] + diff;
+	assert(is_field_in_h2((void *) h2_addr_arr[thread_id]), "Shoud be in H2");
+
+	ct->th_write_ref_field(h2_obj_field);
+}
 
 // Set non promote label value
 void TeraHeap::set_non_promote_tag(long val) {
@@ -862,6 +944,12 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size) {
 //   cast_to_oop(dst)->init_mark(); 
 
 #endif // SYNC
+
+#ifdef TERA_DBG_PHASES
+  {
+    std::cout << "### Phase 4 Moved to H2 from " << src << " to " << dst << "\n";
+  }
+#endif // DEBUG
 }
 
 // Complete the transfer of the objects in H2

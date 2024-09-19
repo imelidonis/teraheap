@@ -41,12 +41,26 @@
 
 class G1AdjustLiveClosure : public StackObj {
   G1AdjustClosure* _adjust_closure;
+  uint worker_id;
 public:
   G1AdjustLiveClosure(G1AdjustClosure* cl) :
-    _adjust_closure(cl) { }
+    _adjust_closure(cl), worker_id(-1) { }
+
+  G1AdjustLiveClosure(G1AdjustClosure* cl, uint id) :
+    _adjust_closure(cl), worker_id(id) { }
 
   size_t apply(oop object) {
-    return object->oop_iterate_size(_adjust_closure);
+    size_t res = 0;
+
+    if (Universe::teraHeap()->is_in_h2(object->forwardee())) {
+      Universe::teraHeap()->thread_enable_groups(worker_id, cast_from_oop<HeapWord*>(object), cast_from_oop<HeapWord*>(object->forwardee()));
+      res = object->oop_iterate_size(_adjust_closure);
+      Universe::teraHeap()->thread_disable_groups(worker_id);
+    } else {
+      res = object->oop_iterate_size(_adjust_closure);
+    }
+
+    return res;
   }
 };
 
@@ -61,17 +75,20 @@ class G1AdjustRegionClosure : public HeapRegionClosure {
     _worker_id(worker_id) { }
 
   bool do_heap_region(HeapRegion* r) {
-    G1AdjustClosure cl(_collector);
+    G1AdjustClosure cl(_collector, _worker_id);
     if (r->is_humongous()) {
       // Special handling for humongous regions to get somewhat better
       // work distribution.
       oop obj = cast_to_oop(r->humongous_start_region()->bottom());
+
+      Universe::teraHeap()->thread_enable_groups(_worker_id, cast_from_oop<HeapWord*>(obj), cast_from_oop<HeapWord*>(obj->forwardee()));
       obj->oop_iterate(&cl, MemRegion(r->bottom(), r->top()));
+      Universe::teraHeap()->thread_disable_groups(_worker_id);
     } else if (!r->is_closed_archive() && !r->is_free()) {
       // Closed archive regions never change references and only contain
       // references into other closed regions and are always live. Free
       // regions do not contain objects to iterate. So skip both.
-      G1AdjustLiveClosure adjust(&cl);
+      G1AdjustLiveClosure adjust(&cl, _worker_id);
       r->apply_to_marked_objects(_bitmap, &adjust);
     }
     return false;
@@ -84,7 +101,7 @@ G1FullGCAdjustTask::G1FullGCAdjustTask(G1FullCollector* collector) :
     _references_done(false),
     _weak_proc_task(collector->workers()),
     _hrclaimer(collector->workers()),
-    _adjust(collector) {
+    _adjust(collector, -1) {
   // Need cleared claim bits for the roots processing
   ClassLoaderDataGraph::clear_claimed_marks();
 }
@@ -93,21 +110,41 @@ void G1FullGCAdjustTask::work(uint worker_id) {
   Ticks start = Ticks::now();
   ResourceMark rm;
 
+  G1AdjustClosure _adjust_cl(collector(), worker_id);
+
+  if (EnableTeraHeap && worker_id == 0) {
+    oop *obj = Universe::teraHeap()->h2_adjust_next_back_reference();
+
+    while (obj != NULL) {
+    #ifdef TERA_DBG_PHASES
+      {
+        std::cout << "### Phase 3 Adjusting backrefs obj " << *obj << "\n";
+      }
+    #endif // DEBUG
+
+      Universe::teraHeap()->thread_enable_groups(worker_id, NULL, (HeapWord*) obj);
+      _adjust_cl.do_oop(obj);
+      Universe::teraHeap()->thread_disable_groups(worker_id);
+
+      obj = Universe::teraHeap()->h2_adjust_next_back_reference();
+    }
+  }
+
   // Adjust preserved marks first since they are not balanced.
   G1FullGCMarker* marker = collector()->marker(worker_id);
   marker->preserved_stack()->adjust_during_full_gc();
 
   // Adjust the weak roots.
   if (!Atomic::cmpxchg(&_references_done, false, true)) {
-    G1CollectedHeap::heap()->ref_processor_stw()->weak_oops_do(&_adjust);
+    G1CollectedHeap::heap()->ref_processor_stw()->weak_oops_do(&_adjust_cl);
   }
 
   AlwaysTrueClosure always_alive;
-  _weak_proc_task.work(worker_id, &always_alive, &_adjust);
+  _weak_proc_task.work(worker_id, &always_alive, &_adjust_cl);
 
-  CLDToOopClosure adjust_cld(&_adjust, ClassLoaderData::_claim_strong);
-  CodeBlobToOopClosure adjust_code(&_adjust, CodeBlobToOopClosure::FixRelocations);
-  _root_processor.process_all_roots(&_adjust, &adjust_cld, &adjust_code);
+  CLDToOopClosure adjust_cld(&_adjust_cl, ClassLoaderData::_claim_strong);
+  CodeBlobToOopClosure adjust_code(&_adjust_cl, CodeBlobToOopClosure::FixRelocations);
+  _root_processor.process_all_roots(&_adjust_cl, &adjust_cld, &adjust_code);
 
   // Now adjust pointers region by region
   G1AdjustRegionClosure blk(collector(), worker_id);

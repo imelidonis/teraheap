@@ -112,6 +112,8 @@ public:
   inline void set_invalid(uint region_idx);
   inline void update_from_compacting_to_skip_compacting(uint region_idx);
 
+  template<class T> static inline bool h2_should_trace(T* p);
+
 private:
   void phase1_mark_live_objects();
   void phase2_prepare_compaction();

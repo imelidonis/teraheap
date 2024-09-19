@@ -34,10 +34,14 @@
 H2ToH1Closure::H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, uint worker_id) : G1ScanClosureBase(g1h,pss) , 
   _cm(_g1h->concurrent_mark()) ,
   should_mark( _g1h->collector_state()->in_concurrent_start_gc() ) ,
-  _worker_id( worker_id ) 
+  _worker_id( worker_id ) ,
+  in_full_gc(_g1h->collector_state()->in_full_gc())
 { 
+  // TODO: check if necessary
   set_ref_discoverer_internal(g1h->ref_processor_stw());
 }
+
+H2ToH1G1PushContentsClosure::H2ToH1G1PushContentsClosure() { }
 #endif
 
 G1ParCopyHelper::G1ParCopyHelper(G1CollectedHeap* g1h,  G1ParScanThreadState* par_scan_state) :

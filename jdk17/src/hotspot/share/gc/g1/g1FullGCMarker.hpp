@@ -70,6 +70,11 @@ class G1FullGCMarker : public CHeapObj<mtGC> {
 
   G1RegionMarkStatsCache _mark_stats_cache;
 
+  // Teraheap
+  bool                  _is_h2_candidate = false;
+  uint64_t              _h2_group_id = 0;
+  uint64_t              _h2_part_id = 0;
+
   inline bool is_empty();
   inline bool pop_object(oop& obj);
   inline bool pop_objarray(ObjArrayTask& array);
@@ -80,6 +85,10 @@ class G1FullGCMarker : public CHeapObj<mtGC> {
   inline void follow_object(oop obj);
   inline void follow_array(objArrayOop array);
   inline void follow_array_chunk(objArrayOop array, int index);
+
+  // Teraheap
+  void set_h2_candidate_flags(oop obj);
+
 public:
   G1FullGCMarker(G1FullCollector* collector,
                  uint worker_id,

@@ -37,6 +37,7 @@
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -79,6 +80,29 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
+
+    // Fencing scan in H2 and mark region as live.
+    if (EnableTeraHeap && Universe::teraHeap()->is_obj_in_h2(obj)) {
+
+#ifdef TERA_DBG_PHASES
+      std::cout << "### Phase 1 fencing reference to obj " << obj << "\n";
+#endif // TERA_DBG_PHASES
+
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(obj));
+      return;
+    }
+
+    if (_is_h2_candidate) {
+      // Object is an H2 candidate
+      if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
+        obj->mark_move_h2(_h2_group_id, _h2_part_id);
+      }
+#ifdef TERA_DBG_PHASES
+      if (Universe::teraHeap()->is_metadata(obj))
+        std::cout << "### Phase 1 skipping metadata " << obj << " (" << obj->klass()->internal_name() << ")" << "\n";
+#endif // TERA_DBG_PHASES
+    }
+
     if (mark_object(obj)) {
       _oop_stack.push(obj);
       assert(_bitmap->is_marked(obj), "Must be marked now - map self");
@@ -166,11 +190,15 @@ void G1FullGCMarker::drain_stack() {
     oop obj;
     while (pop_object(obj)) {
       assert(_bitmap->is_marked(obj), "must be marked");
+      // If object is h2 candidate, set the fields for its children.
+      set_h2_candidate_flags(obj);
       follow_object(obj);
     }
     // Process ObjArrays one at a time to avoid marking stack bloat.
     ObjArrayTask task;
     if (pop_objarray(task)) {
+      // If array is h2 candidate, set the fields for its children.
+      set_h2_candidate_flags(task.obj());
       follow_array_chunk(objArrayOop(task.obj()), task.index());
     }
   } while (!is_empty());

@@ -42,6 +42,9 @@ private:
   // during adjust phase of the Full GC.
   static Stack<oop *, mtGC> _tc_adjust_stack;
 
+  // Stack to keep the humongous objects that are marked to move to H2.
+  // We drain this stack in the compaction phase of a Full GC.
+  static Stack<HeapRegion *, mtGC> _tc_humongous_stack;
 
 #ifdef TERA_TIMERS
   TeraTimers *teraTimer;
@@ -76,6 +79,9 @@ private:
                                     // partition id for tera-marked
                                     // object to promote this id
                                     // to their reference objects
+
+  HeapWord **h1_addr_arr;
+  HeapWord **h2_addr_arr;
 
   HeapWord *obj_h1_addr;            // We need to check this
                                     // object that will be moved
@@ -126,7 +132,10 @@ private:
 public:
   // Constructor
   TeraHeap();
-  
+
+  // Destructor
+  ~TeraHeap();
+
   // Get object start array for h2
   ObjectStartArray *h2_start_array() { return &_start_array; }
   
@@ -167,6 +176,9 @@ public:
   // Deallocate the backward references stacks
   void h2_clear_back_ref_stacks();
   
+  // Deallocate the humongous region stack
+  void h2_clear_humongous_stack();
+
   // Keep for each thread with 'tid' the 'total time' that needed to
   // traverse the TeraHeap card table.
   // Each thread writes the time in a table based on each ID and then we
@@ -222,8 +234,15 @@ public:
   // pointer adjustment phases of major GC.
   void h2_push_backward_reference(void *p, oop o);
 
+  // Add humongous region that are marked to move to H2 in a
+  // seperate stack to move them during the compaction phase.
+  void h2_push_humongous_region(void *p);
+
   // Get the next backward reference from the stack to adjust
   oop* h2_adjust_next_back_reference();
+
+  // Get the next humongous region from the stack to move it to H2
+  HeapRegion* h2_get_next_humongous_region();
 
   // Init the statistics counters of TeraHeap to zero when a Full GC
   // starts
@@ -275,8 +294,11 @@ public:
   // Prints all active regions
   void print_h2_active_regions(void);
 
-  // Groups the region of obj with the previously enabled region
+  // Groups the region of obj with the previously enabled region (single-threaded)
   void group_region_enabled(HeapWord *obj, void *obj_field);
+
+  // Groups the region of obj with the previously enabled region of a thread (multi-threaded)
+  void thread_group_region_enabled(uint thread_id, HeapWord *obj, void *obj_field);
 
   // Frees all unused regions
   void free_unused_regions(void);
@@ -284,11 +306,17 @@ public:
   // Prints all the region groups
   void print_region_groups(void);
 
-  // Enables groupping with region of obj
+  // Enables groupping with region of obj (single-threaded)
   void enable_groups(HeapWord *old_addr, HeapWord *new_addr);
 
-  // Disables region groupping
+  // Disables region groupping (single-threaded)
   void disable_groups(void);
+
+  // Enables groupping with region of obj (multi-threaded)
+  void thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord *new_addr);
+
+  // Disables region groupping (multi-threaded)
+  void thread_disable_groups(uint thread_id);
 
   void print_object_name(HeapWord *obj, const char *name);
 

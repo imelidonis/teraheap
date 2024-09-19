@@ -70,10 +70,18 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
   }
 
   oop obj = CompressedOops::decode_not_null(heap_oop);
-  assert(Universe::heap()->is_in(obj), "should be in heap");
-  if (!_collector->is_compacting(obj)) {
+  assert(Universe::heap()->is_in(obj) || Universe::teraHeap()->is_in_h2(obj), "should be in heap");
+  if (Universe::teraHeap()->is_in_h2(obj)) {
+    // We never move objects in H2 so we shouldn't need to process them.
+    return;
+  }
+  if (!_collector->is_compacting(obj) && !obj->is_marked_move_h2()) {
     // We never forward objects in non-compacting regions so there is no need to
     // process them further.
+    // TODO: probably remove this assertion
+    assert(!Universe::teraHeap()->is_in_h2(obj->forwardee()), "Object in non-compacting region moves to H2 without being marked.");
+    // TODO: all tests pass even without this line
+    Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(obj), (void *) p);
     return;
   }
 
@@ -88,8 +96,21 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
     return;
   }
 
+  if (EnableTeraHeap)
+    Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(forwardee), (void *) p);
+
   // Forwarded, just update.
-  assert(G1CollectedHeap::heap()->is_in_reserved(forwardee), "should be in object space");
+  assert(
+    G1CollectedHeap::heap()->is_in_reserved(forwardee) ||
+    (EnableTeraHeap && Universe::teraHeap()->is_in_h2(forwardee)),
+    "should be in object space or H2");
+
+#ifdef TERA_DBG_PHASES
+  if (EnableTeraHeap && (Universe::teraHeap()->is_in_h2(obj->forwardee()) || Universe::teraHeap()->is_in_h2(obj) )) {
+    std::cout << "### Phase 3 Adjusting obj (adj-ptr) to point from " << obj << " to " << obj->forwardee() << "\n";
+  }
+#endif // DEBUG
+
   RawAccess<IS_NOT_NULL>::oop_store(p, forwardee);
 }
 
@@ -97,6 +118,11 @@ inline void G1AdjustClosure::do_oop(oop* p)       { do_oop_work(p); }
 inline void G1AdjustClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 
 inline bool G1IsAliveClosure::do_object_b(oop p) {
+  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(p)) {
+    // TODO: check if requires modification
+    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(p));
+    return true;
+  }
   return _bitmap->is_marked(p) || _collector->is_skip_marking(p);
 }
 

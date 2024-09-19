@@ -46,6 +46,13 @@ void PreservedMarks::adjust_during_full_gc() {
 
     oop obj = elem->get_oop();
     if (obj->is_forwarded()) {
+
+    #ifdef TERA_DBG_PHASES
+      if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj->forwardee())) {
+        std::cout << "### Phase 3 Adjusting obj (p-marks) to point from " << obj << " to " << obj->forwardee() << "\n";
+      }
+    #endif // DEBUG
+
       elem->set_oop(obj->forwardee());
     }
   }

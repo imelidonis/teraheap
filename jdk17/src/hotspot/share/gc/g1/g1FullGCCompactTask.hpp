@@ -40,6 +40,7 @@ protected:
 
 private:
   void compact_region(HeapRegion* hr);
+  void h2_move_humongous(HeapRegion* hr);
 
 public:
   G1FullGCCompactTask(G1FullCollector* collector) :

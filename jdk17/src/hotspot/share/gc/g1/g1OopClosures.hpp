@@ -354,6 +354,7 @@ class H2ToH1Closure : public G1ScanClosureBase {
   G1ConcurrentMark* _cm;
   bool should_mark;
   uint _worker_id;
+  bool in_full_gc;
 
 
   inline void mark_object(oop obj);
@@ -371,5 +372,15 @@ class H2ToH1Closure : public G1ScanClosureBase {
 };
 #endif
 
+#ifdef TERA_CARDS
+class H2ToH1G1PushContentsClosure : public BasicOopIterateClosure {
+public:
+  H2ToH1G1PushContentsClosure();
+  
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }  
+};
+#endif // TERA_CARDS
 
 #endif // SHARE_GC_G1_G1OOPCLOSURES_HPP

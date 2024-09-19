@@ -17,8 +17,30 @@
   * Source code that we need to remove after testing
   ************************************/
 
-#define TERA_AVOID_FULL_GC       // if full gc is not aware of H2, this should be enabled
+//one of the two should only be enabled, or none
+// #define FORCE_OPT // force optional cset
+// #define NO_OPT // no optional cset (not working correctly)
 
+#define TERA_DEBUG
+#ifdef TERA_DEBUG
+  
+  #include <iostream>
+  #define stdprint std::cerr
+
+	#define TERA_REMOVEx(code) 
+	#define TERA_REMOVE(code)
+
+  // Debug TeraHeap (REMOVE)----
+  // #define TERA_DBG_PHASES
+  // ---------------------------
+
+
+#else
+	#define TERA_REMOVEx(code)
+	#define TERA_REMOVE(code)
+#endif  // TERA_DEBUG
+
+#define TERA_AVOID_FULL_GC       // if full gc is not aware of H2, this should be enabled
 #define TERA_LOG				         // Define logging for TeraHeap
 
 #define TERA_FLAG				         // Define teraFlag word
@@ -96,6 +118,8 @@
   * States of TeraFlag
   **********************************/
 #define MOVE_TO_TERA			255	    //< Move this object to tera cache
+#define DUMMY_H2_ADDRESS  256     //< Mark that object took address.
+//                                // NOTE: will be removed.
 
 #define TERA_TO_OLD		    328	    //< Pointer from TeraCache to Old Gen. Move
   // this object to TeraCache

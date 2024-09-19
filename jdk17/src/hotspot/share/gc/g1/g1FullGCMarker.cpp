@@ -54,9 +54,34 @@ G1FullGCMarker::~G1FullGCMarker() {
   assert(is_empty(), "Must be empty at this point");
 }
 
+void G1FullGCMarker::set_h2_candidate_flags(oop obj) {
+  _is_h2_candidate = (EnableTeraHeap
+                      && !Universe::teraHeap()->is_metadata(obj)
+                      && obj->is_marked_move_h2()) ? true : false;
+  _h2_group_id = (_is_h2_candidate) ? obj->get_obj_group_id() : 0;
+  _h2_part_id  = (_is_h2_candidate) ? obj->get_obj_part_id() : 0;
+}
+
 void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
                                       ObjArrayTaskQueueSet* array_stacks,
                                       TaskTerminator* terminator) {
+
+  // Drain backward references
+  if (EnableTeraHeap && _worker_id == 0 && !Universe::teraHeap()->h2_is_empty()) {
+    oop *obj = Universe::teraHeap()->h2_get_next_back_reference();
+
+    while (obj) {
+    #ifdef TERA_DBG_PHASES
+      {
+        std::cout << "### Phase 1 mark backward obj: " << *obj << "\n";
+        std::cout << (*obj)->klass()->internal_name() << "\n";
+      }
+    #endif // DEBUG
+      mark_and_push(obj);
+      obj = Universe::teraHeap()->h2_get_next_back_reference();
+    }
+  }
+
   do {
     drain_stack();
     ObjArrayTask steal_array;

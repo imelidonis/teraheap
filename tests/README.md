@@ -1,9 +1,11 @@
 # TeraHeap Test Files
 
-evacuations folder : tests for the g1 evacuations (forces minor and major evacuations)
-system_gc folder   : these tests are triggered by System.gc() and they can test
-                    (1) parallel scavenge major/full gc 
-                    (2) g1 full gc
+g1_evacuations dir:
+    tests for the g1 evacuations (forces minor and major evacuations)
+g1_full_gc dir:
+    tests for the g1 full gc cycle
+parallel_gc dir:
+    tests for parallel scavenge major/full gc
                     
 ## Description
 TeraHeap test files are used to test TeraHeap functionalities during
@@ -15,12 +17,12 @@ To build and run all test files for TeraHeap:
 ```sh
 Choose what benchmarks you want 
 
-cd system_gc
+cd g1_evacuations
 ./compile.sh
 
     OR
 
-cd evacuations
+cd g1_full_gc
 ./compile.sh
 
 

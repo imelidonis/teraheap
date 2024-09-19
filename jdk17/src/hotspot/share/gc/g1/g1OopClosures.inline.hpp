@@ -225,7 +225,7 @@ inline void G1RootRegionScanClosure::do_oop_work(T* p) {
 #ifdef TERA_CONC_MARKING  
   // if parent object has tera flag enabled
   // enable tera flag at child too
-  if( EnableTeraHeap && _is_tera_enabled ) 
+  if( EnableTeraHeap && _is_tera_enabled && !Universe::teraHeap()->is_metadata(obj)) 
     obj->mark_move_h2( _rdd_id, _part_id);
 #endif
 

@@ -96,14 +96,12 @@ inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, HeapRegi
   if (success) {  
 
 #ifdef TERA_CONC_MARKING
-    if( EnableTeraHeap ){
-
+    if( EnableTeraHeap && !Universe::teraHeap()->is_metadata(obj)){
       if( task(worker_id)->is_tera_traversal() || obj->is_marked_move_h2() ){
         assert( !Universe::teraHeap()->is_metadata(obj) , "Metadata should have been filtered out");
         add_to_h2_liveness(worker_id, obj, obj->size());
         // return success; 
       }
-
     }
 #endif
 
@@ -371,7 +369,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 
 
   if( EnableTeraHeap && is_tera_traversal() ){
-    if ( !obj->is_marked_move_h2() ) {
+    if ( !obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
       assert( !Universe::teraHeap()->is_metadata(obj) , "Metadata should have been already filtered out");
       
       obj->mark_move_h2( _cm_oop_closure->get_cur_obj_group_id(),

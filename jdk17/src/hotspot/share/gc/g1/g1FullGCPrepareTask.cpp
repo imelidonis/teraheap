@@ -68,16 +68,7 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
       if (!_bitmap->is_marked(obj)) {
         free_pinned_region<true>(hr);
       } else if (obj->is_marked_move_h2() && obj->forwardee() == NULL) {
-        HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
-
-      #ifdef TERA_DBG_PHASES
-        {
-          std::cout << "### Phase 2 hum.obj " << obj << " will be moved to " << h2_address << "\n";
-        }
-      #endif // DEBUG
-
-        obj->forward_to(cast_to_oop(h2_address));
-        tera_prepare_for_compaction(hhr_start);
+        prepare_humongous_for_h2(hhr_start, obj);
       }
     } else if (hr->is_open_archive()) {
       bool is_empty = _collector->live_words(hr->hrm_index()) == 0;
@@ -227,7 +218,24 @@ void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_for_compaction(Hea
   prepare_for_compaction_work(_cp, hr);
 }
 
-void G1FullGCPrepareTask::G1CalculatePointersClosure::tera_prepare_for_compaction(HeapRegion *hr) {
+void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_humongous_for_h2(HeapRegion *hr, oop obj) {
+  MutexLocker x(tera_heap_humongous_lock);
+  
+  if (obj->forwardee() != NULL) {
+    return;
+  }
+
+  HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
+
+  stdprint << "humongous: " << obj << "\n";
+
+#ifdef TERA_DBG_PHASES
+  {
+    std::cout << "### Phase 2 hum.obj " << obj << " will be moved to " << h2_address << "\n";
+  }
+#endif // DEBUG
+
+  obj->forward_to(cast_to_oop(h2_address));
   Universe::teraHeap()->h2_push_humongous_region((void *) hr);
 }
 

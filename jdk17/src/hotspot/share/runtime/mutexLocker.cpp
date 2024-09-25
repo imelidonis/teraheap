@@ -164,6 +164,7 @@ Monitor* JVMCI_lock                   = NULL;
 
 #ifdef TERA_MAINTENANCE
 Mutex*   tera_heap_lock              = NULL;
+Mutex*   tera_heap_humongous_lock    = NULL;
 Mutex*   tera_heap_group_lock        = NULL;
 #endif 
 
@@ -237,6 +238,7 @@ void mutex_init() {
 #ifdef TERA_MAINTENANCE
   if (EnableTeraHeap) {
     def(tera_heap_lock              , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for Teraheap backward reference stacks
+    def(tera_heap_humongous_lock    , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for Teraheap humongous objects
     def(tera_heap_group_lock        , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for TeraHeap region groupping
   }
 #endif 

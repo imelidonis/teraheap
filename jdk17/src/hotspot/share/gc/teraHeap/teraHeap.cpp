@@ -238,6 +238,41 @@ bool TeraHeap::check_if_valid_object(HeapWord *obj) {
     return is_before_last_object((char *)obj);
 }
 
+// Traverses all objects in H2 to check if they are valid.
+bool TeraHeap::check_if_valid_h2() {
+  if (h2_is_empty()) {
+    return true;
+  }
+
+	HeapWord *next_region;
+	HeapWord *obj_addr;
+	oop obj;
+
+	start_iterate_regions();
+
+	next_region = (HeapWord *) get_next_region();
+
+	while(next_region != NULL) {
+		obj_addr = next_region;
+
+		while (1) {
+			obj = cast_to_oop(obj_addr);
+
+      // crash if not valid
+      oopDesc::verify(obj);
+
+			if (!check_if_valid_object(obj_addr + obj->size()))
+				break;
+
+			obj_addr += obj->size();
+		}
+
+		next_region = (HeapWord *) get_next_region();
+	}
+
+  return true;
+}
+
 // Returns the ending address of the last object in the region obj
 // belongs to
 HeapWord* TeraHeap::get_last_object_end(HeapWord *obj) {

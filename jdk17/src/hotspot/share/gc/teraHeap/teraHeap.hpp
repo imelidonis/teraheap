@@ -209,6 +209,9 @@ public:
   // that depicts that the region is empty
   bool check_if_valid_object(HeapWord *obj);
 
+  // Traverses all objects in H2 to check if they are valid.
+  bool check_if_valid_h2();
+
   // Get the ending address of the last object of the region obj
   // belongs to.
   HeapWord *get_last_object_end(HeapWord *obj);

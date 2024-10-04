@@ -1394,7 +1394,7 @@ void G1ConcurrentMark::cleanup() {
 #ifdef TERA_MAINTENANCE
   if (EnableTeraHeap) {
     // Free all the regions that are unused after marking
-    Universe::teraHeap()->free_unused_regions();
+    // Universe::teraHeap()->free_unused_regions();
   }
 #endif  
 

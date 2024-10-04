@@ -3128,7 +3128,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
           if( collector_state()->in_concurrent_start_gc() ){
             // Reset the used field of all regions
-            Universe::teraHeap()->h2_reset_used_field();
+            // Universe::teraHeap()->h2_reset_used_field();
           }
         }
 #endif       

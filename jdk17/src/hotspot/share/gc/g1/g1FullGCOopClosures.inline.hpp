@@ -93,6 +93,7 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
            (UseBiasedLocking && obj->has_bias_pattern()), // Will be restored by BiasedLocking
            "Must have correct prototype or be preserved, obj: " PTR_FORMAT ", mark: " PTR_FORMAT ", prototype: " PTR_FORMAT,
            p2i(obj), obj->mark().value(), markWord::prototype_for_klass(obj->klass()).value());
+    Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(obj), (void *) p);
     return;
   }
 

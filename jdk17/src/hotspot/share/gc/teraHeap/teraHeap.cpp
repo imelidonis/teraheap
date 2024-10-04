@@ -806,7 +806,7 @@ void TeraHeap::thread_group_region_enabled(uint thread_id, HeapWord *obj, void *
 		return;
 
 	if (is_obj_in_h2(cast_to_oop(obj))) {
-    // Universe::teraHeap()->group_regions(h2_addr_arr[thread_id], obj); //this has a lock
+    Universe::teraHeap()->group_regions(h2_addr_arr[thread_id], obj); //this has a lock
 		return;
 	}
 

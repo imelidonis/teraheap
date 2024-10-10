@@ -444,6 +444,15 @@ public:
   // and backward references.
   TeraStatistics* get_tera_stats();
 
+  // ------------------
+  // Utility functions
+  // ------------------
+
+  uint get_total_objs() { return total_objects; }
+  uint get_total_objs_size() { return total_objects_size; }
+
+  // Make every card of H2 dirty (used for debugging)
+  void dirty_all_cards(CardTable *th_card_table);
 };
 
 #endif

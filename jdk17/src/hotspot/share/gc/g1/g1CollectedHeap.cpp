@@ -1167,11 +1167,31 @@ bool G1CollectedHeap::do_full_collection(bool explicit_gc,
     std::cout << "--- Begin FULL GC ---" << "\n";
   }
 #endif // DEBUG
+#ifdef TERA_DBG_VERIFY_H2
+  {
+    stdprint << "Verify H2..." << "\n";
+    if (Universe::teraHeap()->check_if_valid_h2()) {
+      stdprint << "H2 verified!" << "\n";
+    } else {
+      stdprint <<"H2 corrupted!" << "\n";
+    }
+  }
+#endif // TERA_DBG_VERIFY_H2
 
   collector.prepare_collection();
   collector.collect();
   collector.complete_collection();
 
+#ifdef TERA_DBG_VERIFY_H2
+  {
+    stdprint << "Verify H2..." << "\n";
+    if (Universe::teraHeap()->check_if_valid_h2()) {
+      stdprint << "H2 verified!" << "\n";
+    } else {
+      stdprint <<"H2 corrupted!" << "\n";
+    }
+  }
+#endif // TERA_DBG_VERIFY_H2
 #ifdef TERA_DEBUG
   {
     std::cout << "--- End FULL GC ---" << "\n";

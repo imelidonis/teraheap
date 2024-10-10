@@ -32,6 +32,7 @@
 
   // Debug TeraHeap (REMOVE)----
   // #define TERA_DBG_PHASES
+  // #define TERA_DBG_VERIFY_H2
   // ---------------------------
 
 

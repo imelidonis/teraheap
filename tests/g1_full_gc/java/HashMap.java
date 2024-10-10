@@ -9,179 +9,146 @@ import java.util.ArrayList;
 import java.lang.reflect.Field;
 
 public class HashMap {
-	private static final sun.misc.Unsafe _UNSAFE;
-		
-	static {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			_UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (Exception e) {
-			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-		}
-	}
+  private static final sun.misc.Unsafe _UNSAFE;
 
-	public static void mem_info(String str)
-	{
-		System.out.println("=========================================");
-		System.out.println(str + "\n");
-		System.out.println("=========================================");
-		for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
-			System.out.println(memoryPoolMXBean.getName());
-			System.out.println(memoryPoolMXBean.getUsage().getUsed());
-		}
-	}
+  static {
+    try {
+      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+      unsafeField.setAccessible(true);
+      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+    } catch (Exception e) {
+      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
+    }
+  }
 
+  public static void mem_info(String str)
+  {
+    System.out.println("=========================================");
+    System.out.println(str + "\n");
+    System.out.println("=========================================");
+    for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
+      System.out.println(memoryPoolMXBean.getName());
+      System.out.println(memoryPoolMXBean.getUsage().getUsed());
+    }
+  }
 
-	public static void main(String[] args) {
-
-		int num_elements = 1000000;
-		// int num_elements = 2000000;
-		// int num_elements = Integer.parseInt(args[0]);
-		
-		long check = 0;
-
-		System.out.println(Runtime.getRuntime().maxMemory());
-
-		ConcurrentHashMap<String, String> h_map = new ConcurrentHashMap<String, String>();
-		_UNSAFE.h2TagAndMoveRoot(h_map, 0, 0);
-
-		for (int i = 0; i < num_elements/2; i++){
-			h_map.put("Bangalore" + i, "22");
-		}
-
-		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet()){
-			check += Long.parseLong(e.getValue());
-		}
-
-		
-		GC.move_to_old();
-		GC.gc();
-		
-		for (int i = 0; i < num_elements/2; i++){
-			h_map.put("Ammochostos " + i, "20404808");
-		}
-
-		
-		GC.move_to_old();
-		GC.gc();
-
-		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet()){
-			check += Long.parseLong(e.getValue());
-		}
+  public static void gc()
+  {
+    System.out.println("=========================================");
+    System.out.println("Call GC");
+    System.gc();
+    System.out.println("=========================================");
+  }
 
 
-		GC.gc();
+  public static void main(String[] args) {
 
-		for (int i = num_elements/2; i < num_elements; i++){
-			h_map.put("Apostolos Andreas" + i, "22");
-		}
-			
+    int num_elements = 2000000;
 
+    long check = 0;
 
-		GC.move_to_old();
-		GC.gc(); 
+    System.out.println(Runtime.getRuntime().maxMemory());
 
-		for (int i = num_elements/2; i < num_elements; i++){
-			h_map.put("Moires" + i, "22"); 
-		}
+    ConcurrentHashMap<String, String> h_map = new ConcurrentHashMap<String, String>();
+    _UNSAFE.h2TagAndMoveRoot(h_map, 0, 0);
 
-		
+    for (int i = 0; i < num_elements/2; i++){
+      h_map.put("Bangalore" + i, "22");
+    }
 
-		GC.gc();
+    for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet()){
+      check += Long.parseLong(e.getValue());
+    }
 
-		
-		check = 0;
-		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
-			check += Long.parseLong(e.getValue());
+    gc();
 
+    for (int i = 0; i < num_elements/2; i++){
+      h_map.put("Ammochostos " + i, "20404808");
+    }
 
+    gc();
 
-		for (int i = num_elements/2; i < num_elements; i++)
-			h_map.put("Paphos" + i, "22");
-		
-		GC.move_to_old();
-		GC.gc();
+    for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet()){
+      check += Long.parseLong(e.getValue());
+    }
 
+    gc();
 
-		check = 0;
-		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
-			check += Long.parseLong(e.getValue());
+    for (int i = num_elements/2; i < num_elements; i++){
+      h_map.put("Apostolos Andreas" + i, "22");
+    }
 
-		GC.gc();
+    gc();
 
-		for (int i = num_elements/2; i < num_elements; i++){
-			h_map.put("Karpasia" + i, "22");
-		}
+    for (int i = num_elements/2; i < num_elements; i++){
+      h_map.put("Moires" + i, "22"); 
+    }
 
-		h_map.put("Mia milia", "22");
-		GC.move_to_old();	
+    gc();
 
+    check = 0;
+    for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
+      check += Long.parseLong(e.getValue());
 
-		GC.gc(); 
+    for (int i = num_elements/2; i < num_elements; i++)
+      h_map.put("Paphos" + i, "22");
 
-		for (int i = num_elements/2; i < num_elements; i++)
-			h_map.put("Kerineia" + i, "22");
-		
-		
-		check = 0;
-		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
-			check += Long.parseLong(e.getValue());
+    gc();
 
+    check = 0;
+    for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
+      check += Long.parseLong(e.getValue());
 
-		
-		
-		for (int i = num_elements/2; i < num_elements; i++)
-			h_map.put("Heraklion" + i, "22");
+    gc();
 
+    for (int i = num_elements/2; i < num_elements; i++){
+      h_map.put("Karpasia" + i, "22");
+    }
 
-		GC.gc(); 	
+    h_map.put("Mia milia", "22");
 
+    gc();
 
-		for (int i = num_elements/2; i < num_elements; i++)
-		  h_map.put("Troodos" + i, "22");
+    for (int i = num_elements/2; i < num_elements; i++)
+      h_map.put("Kerineia" + i, "22");
 
-		check = 0;
-		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
-			check += Long.parseLong(e.getValue());
-		
-		
+    check = 0;
+    for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
+      check += Long.parseLong(e.getValue());
 
-		GC.move_to_old();
-		GC.gc(); 
+    for (int i = num_elements/2; i < num_elements; i++)
+      h_map.put("Heraklion" + i, "22");
 
-		
-		
-		for (int i = num_elements/2; i < num_elements; i++)
-			h_map.put("Achna" + i, "22");
+    gc();
 
-		
-		
-		check = 0;
-		for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
-			check += Long.parseLong(e.getValue());
+    for (int i = num_elements/2; i < num_elements; i++)
+      h_map.put("Troodos" + i, "22");
 
+    check = 0;
+    for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
+      check += Long.parseLong(e.getValue());
 
-		
-		
-		for (int i = num_elements/2; i < num_elements; i++)
-			h_map.put("Maria" + i, "22");
+    gc();
 
-		h_map.clear();
+    for (int i = num_elements/2; i < num_elements; i++)
+      h_map.put("Achna" + i, "22");
 
+    check = 0;
+    for (ConcurrentHashMap.Entry<String, String> e : h_map.entrySet())
+      check += Long.parseLong(e.getValue());
 
+    for (int i = num_elements/2; i < num_elements; i++)
+      h_map.put("Maria" + i, "22");
 
-		GC.move_to_old();
-		GC.gc();
-		
-		
+    h_map.clear();
 
-		for (int i = num_elements/2; i < num_elements; i++)
-			h_map.put("Maria" + i, "22");
-		
-		h_map = null;
-		
-		GC.gc();
+    gc();
 
-	}
+    for (int i = num_elements/2; i < num_elements; i++)
+      h_map.put("Maria" + i, "22");
+
+    h_map = null;
+
+    gc();
+  }
 }

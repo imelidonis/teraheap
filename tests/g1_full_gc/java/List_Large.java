@@ -9,83 +9,89 @@ import java.util.LinkedList;
 import java.lang.reflect.Field;
 
 public class List_Large {
-	private static final sun.misc.Unsafe _UNSAFE;
+  private static final sun.misc.Unsafe _UNSAFE;
 
-	static {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			_UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (Exception e) {
-			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-		}
-	}
-	
-	public static void mem_info(String str)
-	{
-		System.out.println("=========================================");
-		System.out.println(str + "\n");
-		System.out.println("=========================================");
-		for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
-			System.out.println(memoryPoolMXBean.getName());
-			System.out.println(memoryPoolMXBean.getUsage().getUsed());
-		}
-	}
-	
-	public static void calcHashCode(LinkedList<Integer> list, int num_elements) {
-		long sum = 0;
+  static {
+    try {
+      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+      unsafeField.setAccessible(true);
+      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+    } catch (Exception e) {
+      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
+    }
+  }
 
-		for (int i = 0; i < num_elements; i++)
-			sum += list.get(i).hashCode();
+  public static void mem_info(String str)
+  {
+    System.out.println("=========================================");
+    System.out.println(str + "\n");
+    System.out.println("=========================================");
+    for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
+      System.out.println(memoryPoolMXBean.getName());
+      System.out.println(memoryPoolMXBean.getUsage().getUsed());
+    }
+  }
 
-		System.out.println("Total Hashcode = " + sum);
-	}
+  public static void gc()
+  {
+    System.out.println("=========================================");
+    System.out.println("Call GC");
+    System.gc();
+    System.out.println("=========================================");
+  }
 
-	public static void main(String[] args) {
-		int num_elements = 100000;
+  public static void calcHashCode(LinkedList<Integer> list, int num_elements) {
+    long sum = 0;
 
-		// int num_elements = Integer.parseInt(args[0]);		
+    for (int i = 0; i < num_elements; i++)
+      sum += list.get(i).hashCode();
 
-		mem_info("Memory Before");
+    System.out.println("Total Hashcode = " + sum);
+  }
 
-		LinkedList<Integer> list1 = new LinkedList<Integer>(); 
-		_UNSAFE.h2TagAndMoveRoot(list1, 0, 0);
-		
-		LinkedList<Integer> list2 = new LinkedList<Integer>(); 
-		_UNSAFE.h2TagAndMoveRoot(list2, 1, 0);
+  public static void main(String[] args) {
+    int num_elements = 100000;
 
-		for (int i = 0; i < num_elements; i++)
-			list1.add(i);
+    mem_info("Memory Before");
 
-		GC.move_to_old();
-		mem_info("Memory After");
-		GC.gc();
+    LinkedList<Integer> list1 = new LinkedList<Integer>(); 
+    _UNSAFE.h2TagAndMoveRoot(list1, 0, 0);
 
-		calcHashCode(list1, num_elements);
+    LinkedList<Integer> list2 = new LinkedList<Integer>(); 
+    _UNSAFE.h2TagAndMoveRoot(list2, 1, 0);
 
-		System.out.println("First Element = " + list1.getFirst());
-		System.out.println("Last Element = " + list1.getLast());
-		
-		GC.gc();
+    for (int i = 0; i < num_elements; i++)
+      list1.add(i);
 
-		list1 = null;
+    mem_info("Memory After");
+    gc();
 
-		mem_info("Memory After");
-		GC.gc();
-		
-		for (int i = 0; i < num_elements; i++)
-			list2.add(i);
+    calcHashCode(list1, num_elements);
 
-		GC.move_to_old();
+    System.out.println("First Element = " + list1.getFirst());
+    System.out.println("Last Element = " + list1.getLast());
 
-		calcHashCode(list2, num_elements);
-		GC.gc();
-		
-		calcHashCode(list2, num_elements);
-		GC.gc();
+    gc();
 
-		calcHashCode(list2, num_elements);
+    list1 = null;
 
-		mem_info("Memory After");
-	}
+    mem_info("Memory After");
+
+    gc();
+
+    for (int i = 0; i < num_elements; i++)
+      list2.add(i);
+
+    calcHashCode(list2, num_elements);
+
+    gc();
+
+    calcHashCode(list2, num_elements);
+
+    gc();
+
+    calcHashCode(list2, num_elements);
+
+    mem_info("Memory After");
+  }
 }

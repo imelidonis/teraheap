@@ -13,102 +13,93 @@ import java.util.ArrayList;
 import java.lang.reflect.Field;
 
 public class Array_List_String { 
-	private static final sun.misc.Unsafe _UNSAFE;
+  private static final sun.misc.Unsafe _UNSAFE;
 
-	static {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			_UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (Exception e) {
-			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-		}
-	}
+  static {
+    try {
+      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+      unsafeField.setAccessible(true);
+      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+    } catch (Exception e) {
+      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
+    }
+  }
 
-	
+  public static void mem_info(String str) {
+    System.out.println("=========================================");
+    System.out.println(str + "\n");
+    System.out.println("=========================================");
+    for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
+      System.out.println(memoryPoolMXBean.getName());
+      System.out.println(memoryPoolMXBean.getUsage().getUsed());
+    }
+  }
 
-	public static void mem_info(String str) {
-		System.out.println("=========================================");
-		System.out.println(str + "\n");
-		System.out.println("=========================================");
-		for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
-			System.out.println(memoryPoolMXBean.getName());
-			System.out.println(memoryPoolMXBean.getUsage().getUsed());
-		}
-	}
+  public static void gc()
+  {
+    System.out.println("=========================================");
+    System.out.println("Call GC");
+    System.gc();
+    System.out.println("=========================================");
+  }
 
-	public static void calcHashCode(ArrayList<Integer> arl, int num_elements) {
-		long sum = 0;
+  public static void calcHashCode(ArrayList<Integer> arl, int num_elements) {
+    long sum = 0;
 
-		for (int i = 0; i < num_elements; i++)
-			sum += arl.get(i).hashCode();
+    for (int i = 0; i < num_elements; i++)
+      sum += arl.get(i).hashCode();
 
-		System.out.println("Hashcode Element = " + sum);
-	}
+    System.out.println("Hashcode Element = " + sum);
+  }
 
-	public static void main (String[] args) 
-	{		 
-		// int num_elements =10000000;
-		// int num_elements =1 000 000;
-		int num_elements = Integer.parseInt(args[0]);		
+  public static void main (String[] args) 
+  {		 
+    int num_elements =10000000;
+    long sum = 0;
 
+    mem_info("Memory Before");
 
-		long sum = 0;
-
-		mem_info("Memory Before");
-
-		ArrayList<String> arl = new ArrayList<String>();
-		_UNSAFE.h2TagAndMoveRoot(arl, 0, 0);
-
-		
-		for (int i = 0; i < num_elements/2; i++){
-			arl.add("Bangalore" + i);
-		}		
-		GC.move_to_old();
-		GC.gc();
+    ArrayList<String> arl = new ArrayList<String>();
+    _UNSAFE.h2TagAndMoveRoot(arl, 0, 0);
 
 
-		
-		for (int i = 0; i < num_elements/2; i++){
-			arl.add("Ammochostos " + i);
-		}		
-		GC.move_to_old();
-		GC.gc();
-		GC.gc();
+    for (int i = 0; i < num_elements/2; i++){
+      arl.add("Bangalore" + i);
+    }		
+
+    gc();
 
 
+    for (int i = 0; i < num_elements/2; i++){
+      arl.add("Ammochostos " + i);
+    }		
 
-		for (int i = num_elements/2; i < num_elements; i++){
-			arl.add("Apostolos Andreas" + i);
-		}
-		GC.move_to_old();
-		GC.gc(); 
+    gc();
 
+    for (int i = num_elements/2; i < num_elements; i++){
+      arl.add("Apostolos Andreas" + i);
+    }
 
+    gc();
 
-		for (int i = num_elements/2; i < num_elements; i++){
-			arl.add("Moires" + i); 
-		}
-		GC.gc();
+    for (int i = num_elements/2; i < num_elements; i++){
+      arl.add("Moires" + i); 
+    }
 
+    gc();
 
+    for (int i = num_elements/2; i < num_elements; i++)
+      arl.add("Paphos" + i);		
 
+    gc();
 
-		for (int i = num_elements/2; i < num_elements; i++)
-			arl.add("Paphos" + i);		
-		GC.move_to_old();
-		GC.gc();
-		GC.gc();
+    for (int i = num_elements/2; i < num_elements; i++){
+      arl.add("Karpasia" + i);
+    }
+    arl.add("Mia milia");
 
+    gc();
 
-		for (int i = num_elements/2; i < num_elements; i++){
-			arl.add("Karpasia" + i);
-		}
-		arl.add("Mia milia");
-
-		// GC.move_to_old();
-		GC.gc(); // something fucked ? yes here
-
-		System.out.println(arl);
-	} 
+    System.out.println(arl);
+  } 
 }

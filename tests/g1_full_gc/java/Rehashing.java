@@ -8,78 +8,82 @@ import java.util.HashMap;
 import java.lang.reflect.Field;
 
 public class Rehashing {
-	private static final sun.misc.Unsafe _UNSAFE;
+  private static final sun.misc.Unsafe _UNSAFE;
 
-	static {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			_UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (Exception e) {
-			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-		}
-	}
+  static {
+    try {
+      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+      unsafeField.setAccessible(true);
+      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+    } catch (Exception e) {
+      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
+    }
+  }
 
-	public static void mem_info(String str) {
-		System.out.println("=========================================");
-		System.out.println(str + "\n");
-		System.out.println("=========================================");
-		for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
-			System.out.println(memoryPoolMXBean.getName());
-			System.out.println(memoryPoolMXBean.getUsage().getUsed());
-		}
-	}
+  public static void mem_info(String str) {
+    System.out.println("=========================================");
+    System.out.println(str + "\n");
+    System.out.println("=========================================");
+    for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
+      System.out.println(memoryPoolMXBean.getName());
+      System.out.println(memoryPoolMXBean.getUsage().getUsed());
+    }
+  }
+
+  public static void gc()
+  {
+    System.out.println("=========================================");
+    System.out.println("Call GC");
+    System.gc();
+    System.out.println("=========================================");
+  }
 
 
-	public static void main(String[] args) {
-		int num_elements = 1000000;
-		long sum;
+  public static void main(String[] args) {
+    int num_elements = 1000000;
+    long sum;
 
-		HashMap<String, Integer> people = new HashMap<String, Integer>(2, 0.75f);
-		_UNSAFE.h2TagAndMoveRoot(people, 0, 0);
+    HashMap<String, Integer> people = new HashMap<String, Integer>(2, 0.75f);
+    _UNSAFE.h2TagAndMoveRoot(people, 0, 0);
 
-		for (int i = 0; i < num_elements/2; i++)
-			people.put("Jack " + i, 100);
+    for (int i = 0; i < num_elements/2; i++)
+      people.put("Jack " + i, 100);
 
-		people.put("John", 32);
-		people.put("Steve", 30);
-		people.put("Angie", 33);
+    people.put("John", 32);
+    people.put("Steve", 30);
+    people.put("Angie", 33);
 
-		GC.move_to_old();
-		GC.gc();
+    gc();
 
-		sum = 0;
-		for (String i : people.keySet())
-			sum += people.get(i);
+    sum = 0;
+    for (String i : people.keySet())
+      sum += people.get(i);
 
-		GC.gc();
+    gc();
 
-		for (int i = 0; i < num_elements/2; i++)
-			people.put("Rafail " + i, 100);
+    for (int i = 0; i < num_elements/2; i++)
+      people.put("Rafail " + i, 100);
 
-		GC.move_to_old();
-		GC.gc();
+    gc();
 
-		for (int i = 0; i < num_elements/2; i++) {
-			people.put("Pavlos " + i, 100);
-		}
+    for (int i = 0; i < num_elements/2; i++) {
+      people.put("Pavlos " + i, 100);
+    }
 
-		GC.move_to_old();
-		GC.gc();
+    gc();
 
-		for (String i : people.keySet())
-			sum += people.get(i);
+    for (String i : people.keySet())
+      sum += people.get(i);
 
-		GC.move_to_old();
-		GC.gc();
+    gc();
 
-		for (int i = 0; i < num_elements/2; i++)
-			people.put("Iacovos " + i , 100);
+    for (int i = 0; i < num_elements/2; i++)
+      people.put("Iacovos " + i , 100);
 
-		GC.gc();
+    gc();
 
-		sum = 0;
-		for (String i : people.keySet())
-			sum += people.get(i);
-	}
+    sum = 0;
+    for (String i : people.keySet())
+      sum += people.get(i);
+  }
 }

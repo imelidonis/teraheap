@@ -21,13 +21,11 @@ jar cf ./wb.jar .
 find . -type f -name '*.class' -delete
 cd ..
 
-# Secondly : compile GC.java
-make -C java GC.class
-
 # Thirdly : compile any benchmark you want
 # make -C phases Phase1.java
 
 # Or compile all of them:
+make -C java
 make -C phases
 
 

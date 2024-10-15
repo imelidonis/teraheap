@@ -13,81 +13,78 @@ import java.util.ArrayList;
 import java.lang.reflect.Field;
 
 public class Array_List_Int { 
-	private static final sun.misc.Unsafe _UNSAFE;
+  private static final sun.misc.Unsafe _UNSAFE;
 
-	static {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			_UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (Exception e) {
-			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-		}
-	}
+  static {
+    try {
+      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+      unsafeField.setAccessible(true);
+      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+    } catch (Exception e) {
+      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
+    }
+  }
 
-	
+  public static void mem_info(String str) {
+    System.out.println("=========================================");
+    System.out.println(str + "\n");
+    System.out.println("=========================================");
+    for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
+      System.out.println(memoryPoolMXBean.getName());
+      System.out.println(memoryPoolMXBean.getUsage().getUsed());
+    }
+  }
 
-	public static void mem_info(String str) {
-		System.out.println("=========================================");
-		System.out.println(str + "\n");
-		System.out.println("=========================================");
-		for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
-			System.out.println(memoryPoolMXBean.getName());
-			System.out.println(memoryPoolMXBean.getUsage().getUsed());
-		}
-	}
+  public static void calcHashCode(ArrayList<Integer> arl, int num_elements) {
+    long sum = 0;
 
-	public static void calcHashCode(ArrayList<Integer> arl, int num_elements) {
-		long sum = 0;
+    for (int i = 0; i < num_elements; i++)
+      sum += arl.get(i).hashCode();
 
-		for (int i = 0; i < num_elements; i++)
-			sum += arl.get(i).hashCode();
+    System.out.println("Hashcode Element = " + sum);
+  }
 
-		System.out.println("Hashcode Element = " + sum);
-	}
+  public static void main (String[] args) 
+  {		 
+    int num_elements =10000000;
+    // int num_elements =1 000 000;
 
-	public static void main (String[] args) 
-	{		 
-		int num_elements =10000000;
-		// int num_elements =1 000 000;
+    long sum = 0;
 
-		long sum = 0;
+    mem_info("Memory Before");
 
-		mem_info("Memory Before");
+    ArrayList<Integer> arl = new ArrayList<Integer>();
+    _UNSAFE.h2TagAndMoveRoot(arl, 0, 0);
 
-		ArrayList<Integer> arl = new ArrayList<Integer>();
-		_UNSAFE.h2TagAndMoveRoot(arl, 0, 0);
+    for (int i = 0; i < num_elements; i++)
+      arl.add(new Integer(i));
 
-		for (int i = 0; i < num_elements; i++)
-			arl.add(new Integer(i));
+    GC.move_to_old();
 
-		
-		GC.move_to_old();
+    GC.gc();
+    calcHashCode(arl, num_elements);
 
-		GC.gc();
-		calcHashCode(arl, num_elements);
+    GC.gc();
+    calcHashCode(arl, num_elements);
 
-        GC.gc();
-		calcHashCode(arl, num_elements);
+    GC.gc();
+    calcHashCode(arl, num_elements);
 
-		GC.gc();
-		calcHashCode(arl, num_elements);
+    arl = null;
+    GC.gc();
 
-		arl = null;
-		GC.gc();
+    ArrayList<Integer> arl2 = new ArrayList<Integer>();
+    _UNSAFE.h2TagAndMoveRoot(arl2, 1, 0); 
 
-		ArrayList<Integer> arl2 = new ArrayList<Integer>();
-		_UNSAFE.h2TagAndMoveRoot(arl2, 1, 0); 
+    for (int i = 0; i < num_elements; i++)
+      arl2.add(new Integer(i));
 
-		for (int i = 0; i < num_elements; i++)
-			arl2.add(new Integer(i));
+    GC.move_to_old();
 
-		GC.move_to_old();
-		
-		GC.gc();
+    GC.gc();
 
-		calcHashCode(arl2, num_elements);
+    calcHashCode(arl2, num_elements);
 
-		mem_info("Memory After");
-	} 
+    mem_info("Memory After");
+  } 
 }

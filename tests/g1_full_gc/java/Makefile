@@ -21,7 +21,7 @@ JAVAC=$(JAVA_COMP) -d ./bin
 
 GDB=gdb
 
-TARGET=Array_List_Int.class Array.class Array_List.class Array_List_Int.class Array_List_String.class List_Large.class \
+TARGET=Array.class Array_List.class Array_List_Int.class Array_List_String.class List_Large.class \
 	   MultiList.class Simple_Lambda.class Extend_Lambda.class \
 	   Test_Reflection.class Test_Reference.class HashMap.class Rehashing.class \
 	   Clone.class Groupping.class MultiHashMap.class Test_WeakHashMap.class \

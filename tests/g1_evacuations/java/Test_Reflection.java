@@ -9,129 +9,129 @@ import java.lang.reflect.Field;
 // class whose object is to be created 
 class Test 
 { 
-	// creating a private field 
-	private String s; 
+  // creating a private field 
+  private String s; 
 
-	// creating a public constructor 
-	public Test() { s = "GeeksforGeeks"; } 
+  // creating a public constructor 
+  public Test() { s = "GeeksforGeeks"; } 
 
-	// Creating a public method with no arguments 
-	public void method1() { 
-		System.out.println("The string is " + s); 
-	} 
+  // Creating a public method with no arguments 
+  public void method1() { 
+    System.out.println("The string is " + s); 
+  } 
 
-	// Creating a public method with int as argument 
-	public void method2(int n) { 
-		System.out.println("The number is " + n); 
-	} 
+  // Creating a public method with int as argument 
+  public void method2(int n) { 
+    System.out.println("The number is " + n); 
+  } 
 
-	// creating a private method 
-	private void method3() { 
-		System.out.println("Private method invoked"); 
-	} 
+  // creating a private method 
+  private void method3() { 
+    System.out.println("Private method invoked"); 
+  } 
 } 
 
 class Test_Reflection
 { 
-	private static final sun.misc.Unsafe _UNSAFE;
+  private static final sun.misc.Unsafe _UNSAFE;
 
-	static {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			_UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (Exception e) {
-			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-		}
-	}
+  static {
+    try {
+      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+      unsafeField.setAccessible(true);
+      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+    } catch (Exception e) {
+      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
+    }
+  }
 
-	public static void mem_info(String str)
-	{
-		System.out.println("=========================================");
-		System.out.println(str + "\n");
-		System.out.println("=========================================");
-		for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
-			System.out.println(memoryPoolMXBean.getName());
-			System.out.println(memoryPoolMXBean.getUsage().getUsed());
-		}
-	}
+  public static void mem_info(String str)
+  {
+    System.out.println("=========================================");
+    System.out.println(str + "\n");
+    System.out.println("=========================================");
+    for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
+      System.out.println(memoryPoolMXBean.getName());
+      System.out.println(memoryPoolMXBean.getUsage().getUsed());
+    }
+  }
 
 
 
-	public static void main(String args[]) throws Exception 
-	{ 
-		// Creating object whose property is to be checked 
-		Test obj = new Test(); 
-		_UNSAFE.h2TagAndMoveRoot(obj, 0, 0);
+  public static void main(String args[]) throws Exception 
+  { 
+    // Creating object whose property is to be checked 
+    Test obj = new Test(); 
+    _UNSAFE.h2TagAndMoveRoot(obj, 0, 0);
 
-		// Creating class object from the object using 
-		// getclass method 
-		Class cls = obj.getClass(); 
-		System.out.println("The name of class is " + cls.getName()); 
+    // Creating class object from the object using 
+    // getclass method 
+    Class cls = obj.getClass(); 
+    System.out.println("The name of class is " + cls.getName()); 
 
-		// Getting the constructor of the class through the 
-		// object of the class 
-		Constructor constructor = cls.getConstructor(); 
-		System.out.println("The name of constructor is " + constructor.getName()); 
+    // Getting the constructor of the class through the 
+    // object of the class 
+    Constructor constructor = cls.getConstructor(); 
+    System.out.println("The name of constructor is " + constructor.getName()); 
 
-		System.out.println("The public methods of class are : "); 
+    System.out.println("The public methods of class are : "); 
 
-		// Getting methods of the class through the object 
-		// of the class by using getMethods 
-		Method[] methods = cls.getMethods(); 
-		
-		// Printing method names 
-		for (Method method:methods) 
-			System.out.println(method.getName()); 
+    // Getting methods of the class through the object 
+    // of the class by using getMethods 
+    Method[] methods = cls.getMethods(); 
 
-		// creates object of desired method by providing the 
-		// method name and parameter class as arguments to 
-		// the getDeclaredMethod 
-		Method methodcall1 = cls.getDeclaredMethod("method2", int.class); 
+    // Printing method names 
+    for (Method method:methods) 
+      System.out.println(method.getName()); 
 
-		// invokes the method at runtime 
-		methodcall1.invoke(obj, 19); 
-		
-		GC.move_to_old();
-		GC.gc();
+    // creates object of desired method by providing the 
+    // method name and parameter class as arguments to 
+    // the getDeclaredMethod 
+    Method methodcall1 = cls.getDeclaredMethod("method2", int.class); 
 
-		// creates object of the desired field by providing 
-		// the name of field as argument to the 
-		// getDeclaredField method 
-		Field field = cls.getDeclaredField("s"); 
+    // invokes the method at runtime 
+    methodcall1.invoke(obj, 19); 
 
-		// allows the object to access the field irrespective 
-		// of the access specifier used with the field 
-		field.setAccessible(true); 
-		
-		GC.gc();
+    GC.move_to_old();
+    GC.gc();
 
-		// takes object and the new value to be assigned 
-		// to the field as arguments 
+    // creates object of the desired field by providing 
+    // the name of field as argument to the 
+    // getDeclaredField method 
+    Field field = cls.getDeclaredField("s"); 
 
-		field.set(obj, "JAVA"); 
-		
-		GC.move_to_old();
-		GC.gc();
+    // allows the object to access the field irrespective 
+    // of the access specifier used with the field 
+    field.setAccessible(true); 
 
-		// Creates object of desired method by providing the 
-		// method name as argument to the getDeclaredMethod 
-		Method methodcall2 = cls.getDeclaredMethod("method1"); 
+    GC.gc();
 
-		// invokes the method at runtime 
-		methodcall2.invoke(obj); 
-		
-		field.set(obj, "Jack Kolokasis 1991"); 
+    // takes object and the new value to be assigned 
+    // to the field as arguments 
 
-		GC.move_to_old();
-		GC.gc();
-		GC.gc();
+    field.set(obj, "JAVA"); 
 
-		// invokes the method at runtime 
-		methodcall2.invoke(obj); 
+    GC.move_to_old();
+    GC.gc();
 
-		GC.gc();
-		
-		mem_info("Memory End");
-	} 
+    // Creates object of desired method by providing the 
+    // method name as argument to the getDeclaredMethod 
+    Method methodcall2 = cls.getDeclaredMethod("method1"); 
+
+    // invokes the method at runtime 
+    methodcall2.invoke(obj); 
+
+    field.set(obj, "Jack Kolokasis 1991"); 
+
+    GC.move_to_old();
+    GC.gc();
+    GC.gc();
+
+    // invokes the method at runtime 
+    methodcall2.invoke(obj); 
+
+    GC.gc();
+
+    mem_info("Memory End");
+  } 
 } 

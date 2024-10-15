@@ -13,76 +13,24 @@
 
 JAVA_REPO := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))../../../jdk17
 # JAVA_COMP=$(JAVA_REPO)/build/base-linux/jdk/bin/javac -Xlint:deprecation -sourcepath ../Whitebox/wb.jar -classpath ./bin/
-JAVA_COMP=$(JAVA_REPO)/build/linux-x86_64-server-slowdebug/jdk/bin/javac -Xlint:deprecation -sourcepath ../Whitebox/wb.jar -classpath ./bin/
+JAVA_COMP=$(JAVA_REPO)/build/linux-x86_64-server-release/jdk/bin/javac -Xlint:deprecation -sourcepath ../Whitebox/wb.jar -classpath ./bin/
+# JAVA_COMP=$(JAVA_REPO)/build/linux-x86_64-server-slowdebug/jdk/bin/javac -Xlint:deprecation -sourcepath ../Whitebox/wb.jar -classpath ./bin/
 
 
 JAVAC=$(JAVA_COMP) -d ./bin
 
 GDB=gdb
 
-TARGET= GC.class Array_List_Int.class Array.class Array_List.class Array_List_Int.class Array_List_String.class List_Large.class \
-	   MultiList.class Simple_Lambda.class Extend_Lambda.class \
-	   Test_Reflection.class Test_Reference.class HashMap.class Rehashing.class \
-	   Clone.class Groupping.class MultiHashMap.class Test_WeakHashMap.class \
-	   ClassInstance.class
+TARGET=GC.class Array.class Array_List.class Array_List_Int.class \
+			 Array_List_String.class Array_mine.class List_Large.class \
+			 MultiList.class Simple_Lambda.class Extend_Lambda.class \
+			 Test_Reflection.class Test_Reference.class HashMap.class Rehashing.class \
+			 Clone.class Groupping.class MultiHashMap.class Test_WeakHashMap.class \
+			 ClassInstance.class
 	   
 all: $(TARGET)
 
-GC.class: GC.java
-	$(JAVAC) $<
-
-Array.class: Array.java
-	$(JAVAC) $<
-
-Array_mine.class: Array_mine.java
-	$(JAVAC) $<
-
-Array_List.class: Array_List.java 
-	$(JAVAC) $<
-
-Array_List_Int.class: Array_List_Int.java 
-	$(JAVAC) $<
-
-Array_List_String.class: Array_List_String.java 
-	$(JAVAC) $<
-
-List_Large.class: List_Large.java 
-	$(JAVAC) $<
-
-MultiList.class: MultiList.java 
-	$(JAVAC) $<
-
-Simple_Lambda.class: Simple_Lambda.java 
-	$(JAVAC) $<
-
-Extend_Lambda.class: Extend_Lambda.java 
-	$(JAVAC) $<
-
-Test_Reflection.class: Test_Reflection.java
-	$(JAVAC) $<
-
-Test_Reference.class: Test_Reference.java 
-	$(JAVAC) $<
-
-HashMap.class: HashMap.java 
-	$(JAVAC) -g $<
-
-Rehashing.class: Rehashing.java
-	$(JAVAC) $<
-
-Clone.class: Clone.java
-	$(JAVAC) $<
-
-Groupping.class: Groupping.java
-	$(JAVAC) $<
-
-MultiHashMap.class: MultiHashMap.java
-	$(JAVAC) $<
-
-Test_WeakHashMap.class: Test_WeakHashMap.java
-	$(JAVAC) $<
-
-ClassInstance.class: ClassInstance.java
+%.class: %.java
 	$(JAVAC) $<
 
 clean:

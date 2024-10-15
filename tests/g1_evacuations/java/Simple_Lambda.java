@@ -13,67 +13,67 @@ import java.lang.reflect.Field;
 
 interface FuncInterface 
 { 
-	// An abstract function 
-	void abstractFun(int x); 
+  // An abstract function 
+  void abstractFun(int x); 
 
-	// A non-abstract (or default) function 
-	default void normalFun() 
-	{ 
-	System.out.println("Hello"); 
-	} 
+  // A non-abstract (or default) function 
+  default void normalFun() 
+  { 
+    System.out.println("Hello"); 
+  } 
 } 
 
 class Simple_Lambda 
 { 
-	private static final sun.misc.Unsafe _UNSAFE;
+  private static final sun.misc.Unsafe _UNSAFE;
 
-	static {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			_UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (Exception e) {
-			throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-		}
-	}
+  static {
+    try {
+      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+      unsafeField.setAccessible(true);
+      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+    } catch (Exception e) {
+      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
+    }
+  }
 
-	public static void mem_info(String str)
-	{
-		System.out.println("=========================================");
-		System.out.println(str + "\n");
-		System.out.println("=========================================");
-		for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
-			System.out.println(memoryPoolMXBean.getName());
-			System.out.println(memoryPoolMXBean.getUsage().getUsed());
-		}
-	}
+  public static void mem_info(String str)
+  {
+    System.out.println("=========================================");
+    System.out.println(str + "\n");
+    System.out.println("=========================================");
+    for(MemoryPoolMXBean memoryPoolMXBean: ManagementFactory.getMemoryPoolMXBeans()){
+      System.out.println(memoryPoolMXBean.getName());
+      System.out.println(memoryPoolMXBean.getUsage().getUsed());
+    }
+  }
 
-	public static void main(String args[]) 
-	{ 
-		// lambda expression to implement above 
-		// functional interface. This interface 
-		// by default implements abstractFun() 
-		FuncInterface fobj = (int x)->System.out.println(2*x); 
-		_UNSAFE.h2TagAndMoveRoot(fobj, 0, 0);
-		
-		mem_info("Memory Before");
+  public static void main(String args[]) 
+  { 
+    // lambda expression to implement above 
+    // functional interface. This interface 
+    // by default implements abstractFun() 
+    FuncInterface fobj = (int x)->System.out.println(2*x); 
+    _UNSAFE.h2TagAndMoveRoot(fobj, 0, 0);
 
-		GC.move_to_old();
-		GC.gc();
+    mem_info("Memory Before");
 
-		// This calls above lambda expression and prints 10. 
-		fobj.abstractFun(5); 
-		fobj.abstractFun(1000); 
-		
-		mem_info("Memory After");
-		
-		GC.move_to_old();
-		GC.gc();
-		
-		fobj.abstractFun(20000); 
+    GC.move_to_old();
+    GC.gc();
 
-		GC.gc();
+    // This calls above lambda expression and prints 10. 
+    fobj.abstractFun(5); 
+    fobj.abstractFun(1000); 
 
-		mem_info("Memory After");
-	} 
+    mem_info("Memory After");
+
+    GC.move_to_old();
+    GC.gc();
+
+    fobj.abstractFun(20000); 
+
+    GC.gc();
+
+    mem_info("Memory After");
+  } 
 } 

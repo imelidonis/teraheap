@@ -14,14 +14,7 @@ export PATH=${PROJECT_DIR}/tera_malloc/include/:$PATH
 export C_INCLUDE_PATH=${PROJECT_DIR}/tera_malloc/include/:$C_INCLUDE_PATH
 export CPLUS_INCLUDE_PATH=${PROJECT_DIR}/tera_malloc/include/:$CPLUS_INCLUDE_PATH
 
-# Firstly : make the wb.jar
-cd Whitebox
-javac -sourcepath . -d . jdk/test/**/**.java
-jar cf ./wb.jar .
-find . -type f -name '*.class' -delete
-cd ..
-
-# Thirdly : compile any benchmark you want
+# Compile any benchmark you want
 # make -C phases Phase1.java
 
 # Or compile all of them:

@@ -416,10 +416,6 @@ void H2ToH1Closure::enable_tera_flag(void *p, oop obj){
                       Universe::teraHeap()->h2_get_region_partId(p));
   }
 }
-template <class T>
-inline void H2ToH1G1PushContentsClosure::do_oop_work(T* p) {
-  G1FullCollector::h2_should_trace(p);
-}
 #endif
 
 

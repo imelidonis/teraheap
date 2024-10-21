@@ -40,8 +40,6 @@ H2ToH1Closure::H2ToH1Closure(G1CollectedHeap* g1h, G1ParScanThreadState* pss, ui
   // TODO: check if necessary
   set_ref_discoverer_internal(g1h->ref_processor_stw());
 }
-
-H2ToH1G1PushContentsClosure::H2ToH1G1PushContentsClosure() { }
 #endif
 
 G1ParCopyHelper::G1ParCopyHelper(G1CollectedHeap* g1h,  G1ParScanThreadState* par_scan_state) :

@@ -227,8 +227,6 @@ void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_humongous_for_h2(H
 
   HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size());
 
-  stdprint << "humongous: " << obj << "\n";
-
 #ifdef TERA_DBG_PHASES
   {
     std::cout << "### Phase 2 hum.obj " << obj << " will be moved to " << h2_address << "\n";

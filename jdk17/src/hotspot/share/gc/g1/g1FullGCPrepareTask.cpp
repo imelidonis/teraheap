@@ -67,7 +67,7 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
       oop obj = cast_to_oop(hhr_start->bottom());
       if (!_bitmap->is_marked(obj)) {
         free_pinned_region<true>(hr);
-      } else if (obj->is_marked_move_h2() && obj->forwardee() == NULL) {
+      } else if (EnableTeraHeap && obj->is_marked_move_h2() && obj->forwardee() == NULL) {
         prepare_humongous_for_h2(hhr_start, obj);
       }
     } else if (hr->is_open_archive()) {
@@ -167,7 +167,7 @@ G1FullGCPrepareTask::G1PrepareCompactLiveClosure::G1PrepareCompactLiveClosure(G1
 
 size_t G1FullGCPrepareTask::G1PrepareCompactLiveClosure::apply(oop object) {
   size_t size = object->size();
-  if (object->is_marked_move_h2()) {
+  if (EnableTeraHeap && object->is_marked_move_h2()) {
     // Give address from H2 and store it in object header.
     HeapWord *h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size);
 

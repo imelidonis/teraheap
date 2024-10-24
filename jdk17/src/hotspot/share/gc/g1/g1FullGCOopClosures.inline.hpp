@@ -71,7 +71,7 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
 
   oop obj = CompressedOops::decode_not_null(heap_oop);
   assert(Universe::heap()->is_in(obj) || Universe::teraHeap()->is_in_h2(obj), "should be in heap");
-  if (Universe::teraHeap()->is_in_h2(obj)) {
+  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
     // We never move objects in H2 so we shouldn't need to process them.
     return;
   }
@@ -81,7 +81,8 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
     // TODO: probably remove this assertion
     assert(!Universe::teraHeap()->is_in_h2(obj->forwardee()), "Object in non-compacting region moves to H2 without being marked.");
     // TODO: all tests pass even without this line
-    Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(obj), (void *) p);
+    if (EnableTeraHeap)
+      Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(obj), (void *) p);
     return;
   }
 
@@ -93,7 +94,10 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
            (UseBiasedLocking && obj->has_bias_pattern()), // Will be restored by BiasedLocking
            "Must have correct prototype or be preserved, obj: " PTR_FORMAT ", mark: " PTR_FORMAT ", prototype: " PTR_FORMAT,
            p2i(obj), obj->mark().value(), markWord::prototype_for_klass(obj->klass()).value());
-    Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(obj), (void *) p);
+
+    if (EnableTeraHeap)
+      Universe::teraHeap()->thread_group_region_enabled(_worker_id, cast_from_oop<HeapWord*>(obj), (void *) p);
+    
     return;
   }
 

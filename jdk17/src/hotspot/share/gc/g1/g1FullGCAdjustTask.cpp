@@ -52,7 +52,7 @@ public:
   size_t apply(oop object) {
     size_t res = 0;
 
-    if (Universe::teraHeap()->is_in_h2(object->forwardee())) {
+    if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(object->forwardee())) {
       Universe::teraHeap()->thread_enable_groups(worker_id, cast_from_oop<HeapWord*>(object), cast_from_oop<HeapWord*>(object->forwardee()));
       res = object->oop_iterate_size(_adjust_closure);
       Universe::teraHeap()->thread_disable_groups(worker_id);

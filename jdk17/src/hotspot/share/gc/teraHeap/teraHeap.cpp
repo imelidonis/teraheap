@@ -622,6 +622,8 @@ void TeraHeap::disable_groups(void){
 
 // Enable region groupping (multi-threaded)
 void TeraHeap::thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord* new_addr){
+  if (!EnableTeraHeap)
+    return;
   assert(h1_addr_arr[thread_id] == NULL && h2_addr_arr[thread_id] == NULL, "Thread %d corrupted group state.", thread_id);
 
 	h1_addr_arr[thread_id] = old_addr;
@@ -630,6 +632,8 @@ void TeraHeap::thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord
 
 // Disables region groupping (multi-threaded)
 void TeraHeap::thread_disable_groups(uint thread_id){
+  if (!EnableTeraHeap)
+    return;
 	h1_addr_arr[thread_id] = NULL;
 	h2_addr_arr[thread_id] = NULL;
 }

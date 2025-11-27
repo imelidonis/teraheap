@@ -225,6 +225,12 @@ void G1FullCollector::prepare_collection() {
 }
 
 void G1FullCollector::collect() {
+
+  // Starting timer for FullGC collection
+  if (DynamicHeapResizing) {
+    Universe::teraHeap()->get_resizing_policy()->start_full_gc_timer();
+  }
+
 #ifdef TERA_DEBUG
   {
     stdprint << "Begin Collection" << "\n";

@@ -312,7 +312,25 @@
   product(bool, G1UsePreventiveGC, true, DIAGNOSTIC,                        \
           "Allows collections to be triggered proactively based on the      \
            number of free regions and the expected survival rates in each   \
-           section of the heap.")
+           section of the heap.")					    \
+									    \
+  product(uint, G1ShrinkByPercentOfAvailable, 50, DIAGNOSTIC,               \
+          "When shrinking, maximum % of free space to free for a single "   \
+          "shrink attempt.")                                                \
+          range(0, 100)                                                     \
+									    \
+  product(uint, G1CPUUsageExpandThreshold, 4, DIAGNOSTIC,                   \
+          "If the GC CPU usage deviation counter exceeds this threshold, "  \
+          "a heap expansion may be triggered. The counter is incremented "  \
+          "when short-term GC CPU usage exceeds the upper bound of the "    \
+          "acceptable deviation range.")                                    \
+    									    \
+  product(uint, G1CPUUsageDeviationPercent, 25, DIAGNOSTIC,                 \
+          "The acceptable deviation (in percent) from the target GC CPU "   \
+          "usage (based on GCTimeRatio). Creates a tolerance range "        \
+          "around the target to deal with short-term fluctuations without " \
+          "triggering GC resizing mechanism prematurely.")                  \
+          range(0, 100)       						    
 
 // end of GC_G1_FLAGS
 

@@ -110,6 +110,10 @@ public:
     return NumPrevPausesForHeuristics;
   }
 
+  static constexpr uint max_num_of_recorded_pause_times() {
+    return NumPrevPausesForHeuristics;
+  }
+
   void append_prev_collection_pause_end_ms(double ms) {
     _prev_collection_pause_end_ms += ms;
   }

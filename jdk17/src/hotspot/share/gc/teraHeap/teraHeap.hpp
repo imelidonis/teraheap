@@ -9,7 +9,7 @@
 #include "memory/sharedDefines.h"
 #include "oops/oop.hpp"
 #include "gc/teraHeap/teraStatistics.hpp"
-
+#include "gc/teraHeap/teraDynamicResizingPolicy.hpp"
 
 #include <regions.h>
 
@@ -97,6 +97,13 @@ private:
                                     // object that will be moved
                                     // to H2 if it has back ptrs
                                     // to H1
+
+  bool shrink_h1 = false;	    //< This flag indicates that H1
+  				    // should be shrinked
+  bool grow_h1 = false;	            //< This flag indicates that H1
+  				    // should be grown
+
+  TeraDynamicResizingPolicy* dynamic_resizing_policy;
 
 #if defined(HINT_HIGH_LOW_WATERMARK) || defined(NOHINT_HIGH_LOW_WATERMARK)
   size_t total_marked_obj_for_h2;   // Total marked objects to be moved in H2
@@ -508,6 +515,33 @@ public:
 
   // Make every card of H2 dirty (used for debugging)
   void dirty_all_cards(CardTable *th_card_table);
+
+  // The state machine uses this function to set if the GC should
+  // shrink H1 as a result to the free physical pages. Then the OS
+  // will reclaim the physical pages and will use them as part of the
+  // buffer cache
+  void set_shrink_h1() { shrink_h1 = true; }
+
+  // Reinitialize the shrink_h1 flag
+  void unset_shrink_h1() { shrink_h1 = false; }
+
+  // Check if state machine identifies that we need to shrink H1
+  bool need_to_shrink_h1() { return shrink_h1; }
+
+  // The state machine uses this function to set if the GC should
+  // grow H1
+  void set_grow_h1() { grow_h1 = true; }
+
+  // Reinitialize the grow_h1 flag to the default value
+  void unset_grow_h1() { grow_h1 = false; }
+
+  // Check if state machine identifies that we need to grow H1
+  bool need_to_grow_h1() { return grow_h1; }
+
+  // Getter for TeraDynamicResizingPolicy
+  TeraDynamicResizingPolicy *get_resizing_policy() {
+    return dynamic_resizing_policy;
+  }
 };
 
 #endif

@@ -792,6 +792,11 @@ public:
 
     double start_vtime = os::elapsedVTime();
 
+    // Starting timer for concurrent gc thread
+    if (DynamicHeapResizing) {
+      Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(worker_id, true);
+    }
+
     {
       SuspendibleThreadSetJoiner sts_join;
 
@@ -813,6 +818,12 @@ public:
     }
 
     double end_vtime = os::elapsedVTime();
+
+    // Ending timer for concurrent gc thread
+    if (DynamicHeapResizing) {
+      Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(worker_id, false);
+    
+    }
     _cm->update_accum_task_vtime(worker_id, end_vtime - start_vtime);
   }
 
@@ -886,11 +897,21 @@ public:
     assert(Thread::current()->is_ConcurrentGC_thread(),
            "this should only be done by a conc GC thread");
 
+    // Starting timer for concurrent gc thread
+    if (DynamicHeapResizing) {
+      Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(worker_id, true);
+    }
+
     G1CMRootMemRegions* root_regions = _cm->root_regions();
     const MemRegion* region = root_regions->claim_next();
     while (region != NULL) {
       _cm->scan_root_region(region, worker_id);
       region = root_regions->claim_next();
+    }
+
+    // Ending timer for concurrent gc thread
+    if (DynamicHeapResizing) {
+      Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(worker_id, false);
     }
   }
 };
@@ -927,6 +948,12 @@ void G1ConcurrentMark::concurrent_cycle_start() {
   _gc_tracer_cm->report_gc_start(GCCause::_no_gc /* first parameter is not used */, _gc_timer_cm->gc_start());
 
   _g1h->trace_heap_before_gc(_gc_tracer_cm);
+
+
+  // Starting timer for concurrent gc thread
+  if (DynamicHeapResizing) {
+    Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(ConcGCThreads, true);
+  }
 }
 
 void G1ConcurrentMark::concurrent_cycle_end() {
@@ -942,6 +969,11 @@ void G1ConcurrentMark::concurrent_cycle_end() {
   _gc_timer_cm->register_gc_end();
 
   _gc_tracer_cm->report_gc_end(_gc_timer_cm->gc_end(), _gc_timer_cm->time_partitions());
+
+  // Ending timer for concurrent gc thread
+  if (DynamicHeapResizing) {
+    Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(ConcGCThreads, false);
+  }
 }
 
 void G1ConcurrentMark::mark_from_roots() {
@@ -1194,6 +1226,12 @@ void G1ConcurrentMark::remark() {
 
   bool const mark_finished = !has_overflown();
   if (mark_finished) {
+
+    // Ending interval timer and disabling ebpf tracking
+    if (DynamicHeapResizing) {
+      Universe::teraHeap()->get_resizing_policy()->g1_end_interval_stats(1);
+    }
+
     weak_refs_work(false /* clear_all_soft_refs */);
 
     SATBMarkQueueSet& satb_mq_set = G1BarrierSet::satb_mark_queue_set();
@@ -1248,8 +1286,18 @@ void G1ConcurrentMark::remark() {
       ClassLoaderDataGraph::purge(/*at_safepoint*/true);
     }
 
-    _g1h->resize_heap_if_necessary();
-    _g1h->uncommit_regions_if_necessary();
+    if (DynamicHeapResizing) {	
+      double remark_duration = (os::elapsedTime() - start);
+
+      // Registering STW pause
+      Universe::teraHeap()->get_resizing_policy()->register_stw_pause(remark_duration, false);
+      // Invoking dram_repartition for heap state evaluation and possible resizing actions
+      Universe::teraHeap()->get_resizing_policy()->dram_repartition(true);
+
+    } else { // if FlexHeap isn't operating, fall back to vanilla g1 resizing implementation
+      _g1h->resize_heap_if_necessary();
+      _g1h->uncommit_regions_if_necessary();
+    }
 
     compute_new_sizes();
 

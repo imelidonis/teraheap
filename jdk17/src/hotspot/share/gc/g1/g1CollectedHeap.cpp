@@ -111,6 +111,7 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
+#include "gc/teraHeap/teraDynamicResizingPolicy.hpp"
 
 #ifdef RUSAGE_MUTATOR
   #include <sys/resource.h>
@@ -1076,8 +1077,18 @@ void G1CollectedHeap::prepare_heap_for_mutators() {
   assert(num_free_regions() == 0, "we should not have added any free regions");
   rebuild_region_sets(false /* free_list_only */);
   abort_refinement();
-  resize_heap_if_necessary();
-  uncommit_regions_if_necessary();
+
+  if (DynamicHeapResizing) {
+    // Ending timer for FullGC collection
+    Universe::teraHeap()->get_resizing_policy()->end_full_gc_timer();
+
+    // Calling dram_repartition 
+    Universe::teraHeap()->get_resizing_policy()->dram_repartition();
+  } else { 
+    // fall back to vanilla g1 implementation 
+    resize_heap_if_necessary();
+    uncommit_regions_if_necessary();
+  }
 
   // Rebuild the strong code root lists for each region
   rebuild_strong_code_roots();
@@ -1230,11 +1241,28 @@ bool G1CollectedHeap::upgrade_to_full_collection() {
   return success;
 }
 
-void G1CollectedHeap::resize_heap_if_necessary() {
+void G1CollectedHeap::resize_heap_if_necessary() { 
   assert_at_safepoint_on_vm_thread();
-
   bool should_expand;
-  size_t resize_amount = _heap_sizing_policy->full_collection_resize_amount(should_expand);
+  size_t resize_amount = 0;
+
+  if (DynamicHeapResizing && Universe::teraHeap()->get_resizing_policy()->should_grow_heap()) {
+    resize_amount = _heap_sizing_policy->dynamic_heap_resizing_amount(true, 0);
+    expand(resize_amount, _workers);
+    return;
+  }
+
+  if (DynamicHeapResizing && Universe::teraHeap()->get_resizing_policy()->should_shrink_heap()) {
+    resize_amount = _heap_sizing_policy->dynamic_heap_resizing_amount(false, 0);
+    shrink(resize_amount);
+    return;
+  }
+
+  if (DynamicHeapResizing) {
+    return; 
+  }
+
+  resize_amount = _heap_sizing_policy->full_collection_resize_amount(should_expand);
 
   if (resize_amount == 0) {
     return;
@@ -1243,7 +1271,7 @@ void G1CollectedHeap::resize_heap_if_necessary() {
   } else {
     shrink(resize_amount);
   }
-}
+} 
 
 HeapWord* G1CollectedHeap::satisfy_failed_allocation_helper(size_t word_size,
                                                             bool do_gc,
@@ -3081,10 +3109,35 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
   }
 #endif // RUSAGE_MUTATOR
 
+  if (DynamicHeapResizing) {
+  #ifdef DYNAMICHEAP_DEBUG
+  G1CollectedHeap* _g1h = G1CollectedHeap::heap();
+    const double BYTES_TO_GB = 1024.0 * 1024.0 * 1024.0;
+    double current_capacity_gb = (double)_g1h->capacity() / BYTES_TO_GB;
+    const size_t unused = _g1h->unused_committed_regions_in_bytes();
+    double used_gb = (double)(_g1h->capacity() - unused) / BYTES_TO_GB;
+
+    fprintf(stderr, "Current capacity: %.2f GB, Used: %.2f GB\n",
+            current_capacity_gb,
+            used_gb);
+  #endif
+  }
+
   GCIdMark gc_id_mark;
 
   SvcGCMarker sgcm(SvcGCMarker::MINOR);
   ResourceMark rm;
+
+  // timer for time spent in a safepoint function
+  double stw_timer = os::elapsedTime();;
+
+  if (DynamicHeapResizing) {
+    Universe::teraHeap()->get_resizing_policy()->g1_end_interval_stats(0);
+
+    if (gc_cause() == GCCause::_g1_periodic_collection) {
+      policy()->collector_state()->set_initiate_conc_mark_if_possible(false);
+    }
+  }
 
   policy()->note_gc_start();
 
@@ -3246,7 +3299,13 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
         _allocator->init_mutator_alloc_regions();
 
-        expand_heap_after_young_collection();
+	if (DynamicHeapResizing) {
+          double end_time = os::elapsedTime() - stw_timer;
+  	  Universe::teraHeap()->get_resizing_policy()->register_stw_pause(end_time, false);
+	  Universe::teraHeap()->get_resizing_policy()->dram_repartition();
+	} else {
+          expand_heap_after_young_collection();
+	}
 
         // Refine the type of a concurrent mark operation now that we did the
         // evacuation, eventually aborting it.

@@ -42,6 +42,7 @@ JVM_LDFLAGS += \
     $(SHARED_LIBRARY_FLAGS) \
     $(JVM_LDFLAGS_FEATURES) \
     $(EXTRA_LDFLAGS) \
+    -L$(FLEX_EBPF_HOME)/lib -Wl,-rpath=$(FLEX_EBPF_HOME)/lib \
     #
 
 JVM_ASFLAGS += $(EXTRA_ASFLAGS)
@@ -49,6 +50,7 @@ JVM_ASFLAGS += $(EXTRA_ASFLAGS)
 JVM_LIBS += \
     $(JVM_LIBS_FEATURES) \
     -lregions \
+    -lebpf_profiler \
     #
 
 # These files and directories are always excluded

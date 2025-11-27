@@ -1203,6 +1203,12 @@ JavaThread::JavaThread(ThreadFunction entry_point, size_t stack_sz) : JavaThread
   // by creator! Furthermore, the thread must also explicitly be added to the Threads list
   // by calling Threads:add. The reason why this is not done here, is because the thread
   // object must be fully initialized (take a look at JVM_Start)
+  if (DynamicHeapResizing && thr_type == os::java_thread) {
+    OSThread *osthread = this->osthread();
+    if (osthread != nullptr) {
+      Universe::teraHeap()->get_resizing_policy()->g1_record_mutator_thread_id(osthread->thread_id());
+    }
+  }
 }
 
 JavaThread::~JavaThread() {

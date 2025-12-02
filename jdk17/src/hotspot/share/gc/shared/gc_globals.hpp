@@ -711,10 +711,6 @@
         "Number of intervals to collect history for before performing "     \
         range(1, max_uint))                                                 \
                                                                             \
-  product(bool, GCIncreaseOnNegligibleIO, false,                            \
-     "Enables the policy to increase GC priority when I/O time "            \
-     "is negligibly small")						    \
-     									    \
   product(double, NegligibleIOFactor, 0.0,				    \
         "Multiplier for IO negligible condition; "			    \
         "0 disables the rule entirely")

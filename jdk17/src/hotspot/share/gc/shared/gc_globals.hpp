@@ -689,7 +689,31 @@
   product(uintx, GCDrainStackTargetSize, 64,                                \
           "Number of entries we will try to leave on the stack "            \
           "during parallel gc")                                             \
-          range(0, max_juint)
+          range(0, max_juint)  					    	    \
+									    \
+  product(intx, TeraCPUStatsPolicy, 0,                                      \
+          "0: Policy with /proc/stat; "                                     \
+          "1: Policy with getrusage; ")                                     \
+                                                                            \
+  product(intx, TeraResizingPolicy, 0,                                      \
+          "0: Simple resizing policy; "                                     \
+          "1: Simple wait resizing policy; "                                \
+          "2: Simple aggressive grow after wait resizing policy; "          \
+          "3: Simple aggressive shrink after wait resizing policy;")        \
+                                                                            \
+  product(uintx, TeraDRAMLimit, 0,                                          \
+          "Total size of DRAM budget (in bytes)")                           \
+                                                                            \
+  product(bool, DynamicHeapResizing, false,                                 \
+          "Enable dynamic heap resizing for TeraHeap")                      \
+                                                                            \
+  product(uint, IntervalHistoryAmount, 10,                                  \
+        "Number of intervals to collect history for before performing "     \
+        range(1, max_uint))                                                 \
+                                                                            \
+  product(double, NegligibleIOFactor, 0.0,				    \
+        "Multiplier for IO negligible condition; "			    \
+        "0 disables the rule entirely")
 
 // end of GC_FLAGS
 

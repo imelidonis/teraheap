@@ -162,4 +162,6 @@
 
 // #define RUSAGE_MUTATOR  //< Enables rusage measuremetns excluding STW GCs
 
+#define DYNAMICHEAP_DEBUG //< Enables debug prints for DynamicHeapResizing policy
+
 #endif  // _SHARE_DEFINES_H_

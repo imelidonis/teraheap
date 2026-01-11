@@ -36,8 +36,8 @@ function release()
   make dist-clean
   bash ./configure \
     --with-jobs="$(nproc)" \
-    --with-extra-cflags="-O3 -I/home1/public/imel/work/teraheap/allocator/include -I/home1/public/imel/work/teraheap/allocator/include" \
-    --with-extra-cxxflags="-O3 -I/home1/public/imel/work/teraheap/allocator/include -I/home1/public/imel/work/teraheap/allocator/include" \
+    --with-extra-cflags="-O3 -I/home1/public/dimbas/final_version/teraheap/allocator/include -I/home1/public/dimbas/final_version/teraheap/allocator/include" \
+    --with-extra-cxxflags="-O3 -I/home1/public/dimbas/work/final_version/allocator/include -I/home1/public/dimbas/final_version/teraheap/allocator/include" \
     --with-target-bits=64
   
   intercept-build make
@@ -96,6 +96,15 @@ export_env_vars()
 	export PATH=${PROJECT_DIR}/tera_malloc/include:$PATH
 	export C_INCLUDE_PATH=${PROJECT_DIR}/tera_malloc/include:$C_INCLUDE_PATH                                                                                         
 	export CPLUS_INCLUDE_PATH=${PROJECT_DIR}/tera_malloc/include:$CPLUS_INCLUDE_PATH
+
+        ### TeraHeap ebpf
+        export FLEX_EBPF_HOME=${PROJECT_DIR}/ebpf
+
+        export LIBRARY_PATH=${FLEX_EBPF_HOME}/lib:$LIBRARY_PATH
+        export LD_LIBRARY_PATH=${FLEX_EBPF_HOME}/lib:$LD_LIBRARY_PATH
+        export PATH=${FLEX_EBPF_HOME}/include:$PATH
+        export C_INCLUDE_PATH=${FLEX_EBPF_HOME}/include:$C_INCLUDE_PATH
+        export CPLUS_INCLUDE_PATH=${FLEX_EBPF_HOME}/include:$CPLUS_INCLUDE_PATH
 }
 
 while getopts ":drcmh" opt

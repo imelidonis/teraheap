@@ -1989,10 +1989,20 @@ public:
   void work(uint worker_id) {
     SuspendibleThreadSetJoiner sts_join;
 
+    // Starting timer for concurrent gc thread
+    if (DynamicHeapResizing) {
+      Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(worker_id, true);
+    }
+
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
     G1RebuildRemSetHeapRegionClosure cl(g1h, _cm, _worker_id_offset + worker_id);
     g1h->heap_region_par_iterate_from_worker_offset(&cl, &_hr_claimer, worker_id);
+
+    // Ending timer for concurrent gc thread
+    if (DynamicHeapResizing) {
+      Universe::teraHeap()->get_resizing_policy()->register_concurrent_gc_threads_timers(worker_id, false);
+    }
   }
 };
 

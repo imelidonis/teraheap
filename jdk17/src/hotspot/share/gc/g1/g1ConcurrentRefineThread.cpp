@@ -97,6 +97,11 @@ bool G1ConcurrentRefineThread::maybe_deactivate(bool more_work) {
 void G1ConcurrentRefineThread::run_service() {
   _vtime_start = os::elapsedVTime();
 
+  // Start timer for refinement thread
+  if (DynamicHeapResizing) {
+    Universe::teraHeap()->get_resizing_policy()->register_refinement_threads_timers(_worker_id, true);
+  }
+
   while (!should_terminate()) {
     // Wait for work
     wait_for_completed_buffers();
@@ -119,9 +124,20 @@ void G1ConcurrentRefineThread::run_service() {
         if (sts_join.should_yield()) {
           // Accumulate changed stats before possible GC that resets stats.
           total_stats += *_refinement_stats - start_stats;
+
+	  // Ending timer for refinement thread
+	  if (DynamicHeapResizing) {
+	    Universe::teraHeap()->get_resizing_policy()->register_refinement_threads_timers(_worker_id, false);
+	  }
+
           sts_join.yield();
           // Reinitialize baseline stats after safepoint.
           start_stats = *_refinement_stats;
+
+	  // Starting timer for refinement thread
+	  if (DynamicHeapResizing) {
+	    Universe::teraHeap()->get_resizing_policy()->register_refinement_threads_timers(_worker_id, true);
+	  }
           continue;             // Re-check for termination after yield delay.
         }
 

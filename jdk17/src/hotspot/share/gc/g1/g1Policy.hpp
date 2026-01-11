@@ -140,6 +140,7 @@ public:
 
   double predict_base_elapsed_time_ms(size_t num_pending_cards) const;
 
+  G1IHOPControl* get_ihop_control() {return _ihop_control; }
 private:
   double predict_base_elapsed_time_ms(size_t num_pending_cards, size_t rs_length) const;
 

@@ -30,6 +30,7 @@
 #include "gc/g1/g1SharedDirtyCardQueue.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
+#include "memory/universe.hpp"
 
 class G1CardTable;
 

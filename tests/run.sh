@@ -59,7 +59,7 @@ clear_env() {
   local proj=$(pwd)
   
   echo "Clear H2 file..."
-  cd /mnt/fmap
+  cd /gds
   rm -f h2-100.heap
   fallocate -l 100G h2-100.heap
 

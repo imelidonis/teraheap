@@ -126,6 +126,11 @@ TeraHeap::TeraHeap() {
     thr_time_copy_h2 = NEW_C_HEAP_ARRAY(double, ParallelGCThreads, mtGC);
 
     h2_init_stats_counters();
+
+    // Contructor for TeraDynamicResizingPolicy object
+    if (DynamicHeapResizing) {
+      dynamic_resizing_policy = new TeraDynamicResizingPolicy();
+    }
   }
 }
 
@@ -136,6 +141,11 @@ TeraHeap::~TeraHeap() {
   if (TeraHeapStatistics) {
     FREE_C_HEAP_ARRAY(double, thr_time_alloc_h2);
     FREE_C_HEAP_ARRAY(double, thr_time_copy_h2);
+  }
+
+  // Destructor for TeraDynamicResizingPolicy object
+  if (DynamicHeapResizing) {	
+    delete dynamic_resizing_policy;
   }
 }
 

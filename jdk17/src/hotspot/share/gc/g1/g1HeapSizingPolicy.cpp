@@ -38,16 +38,318 @@ G1HeapSizingPolicy* G1HeapSizingPolicy::create(const G1CollectedHeap* g1h, const
 G1HeapSizingPolicy::G1HeapSizingPolicy(const G1CollectedHeap* g1h, const G1Analytics* analytics) :
   _g1h(g1h),
   _analytics(analytics),
-  _num_prev_pauses_for_heuristics(analytics->number_of_recorded_pause_times()) {
+  _num_prev_pauses_for_heuristics(analytics->number_of_recorded_pause_times()),
+  _gc_cpu_usage_deviation_counter((G1CPUUsageExpandThreshold / 2) + 1),
+  _recent_cpu_usage_deltas(long_term_count_limit()),
+  _long_term_count(0) {
 
   assert(MinOverThresholdForGrowth < _num_prev_pauses_for_heuristics, "Threshold must be less than %u", _num_prev_pauses_for_heuristics);
   clear_ratio_check_data();
+}
+
+static double sigmoid_function(double value) {
+  // Sigmoid Parameters:
+  double inflection_point = 1.0; // Inflection point (midpoint of the sigmoid).
+  double steepness = 6.0;
+  return 1.0 / (1.0 + exp(-steepness * (value - inflection_point)));
+}
+
+double G1HeapSizingPolicy::scale_cpu_usage_delta(double cpu_usage_delta,
+                                                 double min_scale_factor,
+                                                 double max_scale_factor) const {
+  double sigmoid = sigmoid_function(cpu_usage_delta);
+
+  double scale_factor = min_scale_factor + (max_scale_factor - min_scale_factor) * sigmoid;
+  return scale_factor;
+}
+
+void G1HeapSizingPolicy::reset_cpu_usage_tracking_data() {
+  _long_term_count = 0;
+  _gc_cpu_usage_deviation_counter = 0;
+  // Keep the recent GC CPU usage data.
+}
+
+void G1HeapSizingPolicy::decay_cpu_usage_tracking_data() {
+  _long_term_count = 0;
+  _gc_cpu_usage_deviation_counter /= 2;
+  // Keep the recent GC CPU usage data.
 }
 
 void G1HeapSizingPolicy::clear_ratio_check_data() {
   _ratio_over_threshold_count = 0;
   _ratio_over_threshold_sum = 0.0;
   _pauses_since_start = 0;
+}
+
+static double rel_diff(double a, double b) {
+  return (a - b) / b;
+}
+
+
+size_t G1HeapSizingPolicy::dynamic_heap_resizing_amount(bool expand_heap, size_t allocation_word_size) {
+  assert(GCTimeRatio > 0, "must be");
+
+  const double long_term_gc_cpu_usage = _analytics->long_term_pause_time_ratio();
+  const double short_term_gc_cpu_usage = _analytics->short_term_pause_time_ratio();
+
+  #ifdef DYNAMICHEAP_DEBUG
+    fprintf(stderr, "DYNAMIC_RESIZING: long_term_gc_cpu_usage = %.4f, short_term_gc_cpu_usage = %.4f\n",
+          long_term_gc_cpu_usage, short_term_gc_cpu_usage);
+  #endif
+
+  double gc_cpu_usage_target = 1.0 / (1.0 + GCTimeRatio);
+  gc_cpu_usage_target = scale_with_heap(gc_cpu_usage_target);
+
+  // Calculate gc_cpu_usage acceptable deviation thresholds:
+  // - upper_threshold, do not want to exceed this.
+  // - lower_threshold, we do not want to go below.
+  const double gc_cpu_usage_margin = G1CPUUsageDeviationPercent / 100.0; // need to add this flag
+  const double upper_threshold = gc_cpu_usage_target * (1 + gc_cpu_usage_margin);
+  const double lower_threshold = gc_cpu_usage_target * (1 - gc_cpu_usage_margin);
+
+  // Decide to expand/shrink based on how far the current GC CPU usage deviates
+  // from the target. This allows the policy to respond more quickly to GC pressure
+  // when the heap is small relative to the maximum heap.
+  const double long_term_delta = rel_diff(long_term_gc_cpu_usage, gc_cpu_usage_target);
+  const double short_term_delta = rel_diff(short_term_gc_cpu_usage, gc_cpu_usage_target);
+
+  // If the short term GC CPU usage exceeds the upper threshold, increment the deviation
+  // counter. If it falls below the lower_threshold, decrement the deviation counter.
+  if (short_term_gc_cpu_usage > upper_threshold) {
+    _gc_cpu_usage_deviation_counter++;
+  } else if (short_term_gc_cpu_usage < lower_threshold) {
+    _gc_cpu_usage_deviation_counter--;
+  } 
+
+  // Ignore very first sample as it is garbage.
+  if (_long_term_count != 0 || _recent_cpu_usage_deltas.num() != 0) { // need to add to constructor 
+    _recent_cpu_usage_deltas.add(short_term_delta);
+  }
+  _long_term_count++;
+
+  size_t resize_bytes = 0;
+
+  const bool use_long_term_delta = (_long_term_count == long_term_count_limit()); // long_term_count_limit() needs to be added, also max_num_of_recorded_pause_times needs to be added to g1Analytics.cpp
+  const double avg_short_term_delta = _recent_cpu_usage_deltas.avg();
+
+  double delta;
+  if (use_long_term_delta) {
+    // For expansion, deltas are positive, and we want to expand aggressively.
+    // For shrinking, deltas are negative, so the MAX2 below selects the least
+    // aggressive one as we are using the absolute value for scaling.
+    delta = MAX2(avg_short_term_delta, long_term_delta);
+  } else {
+    delta = avg_short_term_delta;
+  }
+  // Delta is negative when shrinking, but the calculation of the resize amount
+  // always expects an absolute value. Do that here unconditionally.
+  delta = fabsd(delta);
+
+  #ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "DYNAMIC_RESIZING: Final absolute delta = %.4f\n", delta);
+  #endif
+
+  if (expand_heap) {
+    if (_g1h->capacity() == _g1h->max_capacity()) {
+      reset_cpu_usage_tracking_data();
+    } else {
+      resize_bytes = young_collection_expand_amount(delta);
+      reset_cpu_usage_tracking_data();
+      #ifdef DYNAMICHEAP_DEBUG
+      const double BYTES_TO_GB = 1024.0 * 1024.0 * 1024.0;
+      double current_capacity_gb = (double)_g1h->capacity() / BYTES_TO_GB;
+      double new_target_capacity_gb = (double)(_g1h->capacity() + resize_bytes) / BYTES_TO_GB;
+      double growth_amount_gb = (double)resize_bytes / BYTES_TO_GB;
+      const size_t unused = _g1h->unused_committed_regions_in_bytes();
+      const size_t used = _g1h->capacity() - unused;
+      double used_gb = (double)used / BYTES_TO_GB;
+
+      fprintf(stderr, "DYNAMIC_RESIZING: Calculated expand amount = %lu bytes. Resetting tracking data.\n", resize_bytes);
+      fprintf(stderr, "called grow_heap at %f, and growing heap by %.2f GB (was %.2f GB) new size is %.2f GB and capacity_after_gc is %.2f GB Used: %.2f\n",
+	      os::elapsedTime(),
+              growth_amount_gb,
+              current_capacity_gb,
+              new_target_capacity_gb,
+              current_capacity_gb,
+              used_gb);
+      #endif
+    }
+  } else { // !expand_heap
+    resize_bytes = young_collection_shrink_amount(delta, allocation_word_size);
+    reset_cpu_usage_tracking_data();
+    #ifdef DYNAMICHEAP_DEBUG
+    const double BYTES_TO_GB = 1024.0 * 1024.0 * 1024.0;
+
+    // These values reflect the state *before* the shrink and the *target* after the shrink.
+    double current_capacity_gb = (double)_g1h->capacity() / BYTES_TO_GB;
+    const size_t unused = _g1h->unused_committed_regions_in_bytes();
+    double used_gb = (double)(_g1h->capacity() - unused) / BYTES_TO_GB;
+    double new_target_capacity_gb = (double)(_g1h->capacity() - resize_bytes) / BYTES_TO_GB;
+    double shrinked_amount_gb = (double)resize_bytes / BYTES_TO_GB;
+
+    fprintf(stderr, "DYNAMIC_RESIZING: Calculated shrink amount = %lu bytes. Resetting tracking data.\n", resize_bytes);
+    fprintf(stderr, "called shrink_heap at %f, and shrinking heap by %.2f GB. Current capacity: %.2f GB, Used: %.2f GB, New target capacity: %.2f GB\n",
+	    os::elapsedTime(),
+            shrinked_amount_gb,
+            current_capacity_gb,
+            used_gb,
+            new_target_capacity_gb);
+    #endif
+  }
+  #ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "DYNAMIC_RESIZING: Final resize_bytes returned = %lu\n", resize_bytes);
+  #endif
+  return resize_bytes;
+}
+
+
+static inline double since_test_start_s() {
+  // Latches the first time it's called, then returns elapsed seconds since then
+  static double t0 = os::elapsedTime();
+  return os::elapsedTime() - t0;
+}
+
+void G1HeapSizingPolicy::print_heap_state(double resize_amount, int c) {
+
+	switch (c) {
+	  case 0: {
+	    const double BYTES_TO_GB = 1024.0 * 1024.0 * 1024.0;
+
+	    // These values reflect the state *before* the shrink and the *target* after the shrink.
+	    double current_capacity_gb = (double)_g1h->capacity() / BYTES_TO_GB;
+	    const size_t unused = _g1h->unused_committed_regions_in_bytes();
+	    double used_gb = (double)(_g1h->capacity() - unused) / BYTES_TO_GB;
+	    double new_target_capacity_gb = (double)(_g1h->capacity() - resize_amount) / BYTES_TO_GB;
+	    double shrinked_amount_gb = (double)resize_amount / BYTES_TO_GB;
+
+	    fprintf(stderr, "VANILLA G1: NO RESIZING\n");
+	    fprintf(stderr, "no action at %f. Current capacity: %.2f GB, Used: %.2f GB\n",
+		      since_test_start_s(),
+		    current_capacity_gb,
+		    used_gb);
+		  }
+		break;
+	  case 1: {
+
+	      const double BYTES_TO_GB = 1024.0 * 1024.0 * 1024.0;
+	      double current_capacity_gb = (double)_g1h->capacity() / BYTES_TO_GB;
+	      double new_target_capacity_gb = (double)(_g1h->capacity() + resize_amount) / BYTES_TO_GB;
+	      double growth_amount_gb = (double)resize_amount / BYTES_TO_GB;
+	      const size_t unused = _g1h->unused_committed_regions_in_bytes();
+	      const size_t used = _g1h->capacity() - unused;
+	      double used_gb = (double)used / BYTES_TO_GB;
+
+	      fprintf(stderr, "VANILLA G1: Calculated expand amount = %f bytes. Resetting tracking data.\n", resize_amount);
+	      fprintf(stderr, "called grow_heap at %f, and growing heap by %.2f GB (was %.2f GB) new size is %.2f GB and capacity_after_gc is %.2f GB Used: %.2f\n",
+		      since_test_start_s(),
+		      growth_amount_gb,
+		      current_capacity_gb,
+		      new_target_capacity_gb,
+		      current_capacity_gb,
+		      used_gb);
+		  }
+		break;
+   	  case 2: {
+
+	    const double BYTES_TO_GB = 1024.0 * 1024.0 * 1024.0;
+
+	    // These values reflect the state *before* the shrink and the *target* after the shrink.
+	    double current_capacity_gb = (double)_g1h->capacity() / BYTES_TO_GB;
+	    const size_t unused = _g1h->unused_committed_regions_in_bytes();
+	    double used_gb = (double)(_g1h->capacity() - unused) / BYTES_TO_GB;
+	    double new_target_capacity_gb = (double)(_g1h->capacity() - resize_amount) / BYTES_TO_GB;
+	    double shrinked_amount_gb = (double)resize_amount / BYTES_TO_GB;
+
+	    fprintf(stderr, "VANILLA G1: Calculated shrink amount = %f bytes. Resetting tracking data.\n", resize_amount);
+	    fprintf(stderr, "called shrink_heap at %f, and shrinking heap by %.2f GB. Current capacity: %.2f GB, Used: %.2f GB, New target capacity: %.2f GB\n",
+		      since_test_start_s(),
+		    shrinked_amount_gb,
+		    current_capacity_gb,
+		    used_gb,
+		    new_target_capacity_gb);
+		  }
+
+		break;
+	}
+
+}
+
+size_t G1HeapSizingPolicy::young_collection_expand_amount(double cpu_usage_delta) const {
+  assert(cpu_usage_delta >= 0.0, "must be");
+
+  size_t reserved_bytes = _g1h->max_capacity();
+  size_t committed_bytes = _g1h->capacity();
+  size_t uncommitted_bytes = reserved_bytes - committed_bytes;
+  size_t expand_bytes_via_pct = uncommitted_bytes * G1ExpandByPercentOfAvailable / 100;
+  size_t min_expand_bytes = MIN2(HeapRegion::GrainBytes, uncommitted_bytes);
+
+  const double min_scale_factor = 1.3; 
+  const double max_scale_factor = 4.2;
+
+  double scale_factor = scale_cpu_usage_delta(cpu_usage_delta,
+                                              min_scale_factor,
+                                              max_scale_factor);
+ #ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "EXPAND_AMOUNT: cpu_usage_delta = %.4f, min_scale_factor = %.2f, max_scale_factor = %.2f\n",
+          cpu_usage_delta, min_scale_factor, max_scale_factor);
+  fprintf(stderr, "EXPAND_AMOUNT: calculated scale_factor = %.4f\n", scale_factor);
+  #endif
+  size_t resize_bytes = MIN2(expand_bytes_via_pct, committed_bytes);
+#ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "EXPAND_AMOUNT: base resize_bytes (MIN2(expand_bytes_via_pct, committed_bytes)) = %lu\n", resize_bytes);
+  #endif
+
+  resize_bytes = static_cast<size_t>(resize_bytes * scale_factor);
+  #ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "EXPAND_AMOUNT: scaled resize_bytes = %lu\n", resize_bytes);
+  #endif
+
+  size_t final_resize_bytes = clamp(resize_bytes, min_expand_bytes, uncommitted_bytes);
+
+  return final_resize_bytes;
+  // Ensure the expansion size is at least the minimum growth amount
+  // and at most the remaining uncommitted byte size.
+  // return clamp(resize_bytes, min_expand_bytes, uncommitted_bytes);
+}
+
+size_t G1HeapSizingPolicy::young_collection_shrink_amount(double cpu_usage_delta, size_t allocation_word_size) const {
+  assert(cpu_usage_delta >= 0.0, "must be");
+
+  // G1ShrinkByPercentOfAvailable is 50, so max_scale_factor is 0.5 (50%).
+  const double max_scale_factor = G1ShrinkByPercentOfAvailable / 100.0;
+
+  #ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "SHRINK_AMOUNT: max_scale_factor = %.4f\n", max_scale_factor);
+  #endif
+
+double scale_factor = max_scale_factor; 
+  assert(scale_factor <= max_scale_factor, "must be");
+
+  #ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "SHRINK_AMOUNT: cpu_usage_delta = %.4f, FORCED scale_factor = %.4f\n",
+          cpu_usage_delta, scale_factor);
+  #endif
+
+  uint target_regions_to_shrink = _g1h->num_free_regions();
+
+  // Calculate resize_bytes based on ALL free regions multiplied by the max scale factor.
+  size_t resize_bytes = (double)HeapRegion::GrainBytes * target_regions_to_shrink * scale_factor;
+
+  #ifdef DYNAMICHEAP_DEBUG
+  fprintf(stderr, "SHRINK_AMOUNT: calculated resize_bytes = %lu\n", resize_bytes);
+  #endif
+
+  log_debug(gc, ergo, heap)("Shrink log (AGGRESSIVE): scale factor %1.2f%% "
+                            "total free regions %u "
+                            "base targeted for shrinking %u "
+                            "resize_bytes %zd ( %zu regions)",
+                            scale_factor * 100.0,
+                            _g1h->num_free_regions(),
+                            target_regions_to_shrink, // Now equal to num_free_regions()
+                            resize_bytes,
+                            (resize_bytes / HeapRegion::GrainBytes));
+
+  return resize_bytes;
 }
 
 double G1HeapSizingPolicy::scale_with_heap(double pause_time_threshold) {

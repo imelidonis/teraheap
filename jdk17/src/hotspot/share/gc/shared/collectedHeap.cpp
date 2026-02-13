@@ -561,6 +561,12 @@ void CollectedHeap::post_full_gc_dump(GCTimer* timer) {
   full_gc_dump(timer, false);
 }
 
+#if defined (__aarch64__)
+jint CollectedHeap::initialize() {
+   return JNI_OK;
+}
+#endif
+
 void CollectedHeap::initialize_reserved_region(const ReservedHeapSpace& rs) {
   // It is important to do this in a way such that concurrent readers can't
   // temporarily think something is in the heap.  (Seen this happen in asserts.)

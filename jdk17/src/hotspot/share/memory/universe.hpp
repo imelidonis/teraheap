@@ -319,6 +319,10 @@ class Universe: AllStatic {
   // Reserve Java heap and determine CompressedOops mode
   static ReservedHeapSpace reserve_heap(size_t heap_size, size_t alignment);
 
+#if defined (__aarch64__)
+  static void initialize_teraHeap();
+#endif
+
   // Global OopStorages
   static OopStorage* vm_weak();
   static OopStorage* vm_global();

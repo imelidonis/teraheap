@@ -301,7 +301,7 @@ void TeraHeap::free_unused_regions(void) {
     ct->th_clean_cards(region_start, last_alloc_end_excl - 1, true /* free regions */);
 
 #ifdef DBG_PROTECT_FREE_REGIONS
-    make_region_inaccessible(region_start, GCId::current());
+    make_region_inaccessible(region->region_start, GCId::current());
 #endif // DBG_PROTECT_FREE_REGIONS
     free(region);
     region = next;
@@ -331,22 +331,6 @@ oop* TeraHeap::h2_adjust_next_back_reference() {
 // Get the next humongous starting region from the stack to move the whole object to H2
 HeapRegion *TeraHeap::h2_get_next_humongous_start() {
   return (!_th_humongous_stack.is_empty() ? _th_humongous_stack.pop() : NULL);
-}
-
-// Enables groupping with region of obj (single-threaded)
-void TeraHeap::enable_groups(HeapWord *old_addr, HeapWord* new_addr) { 
-  enable_region_groups((char*) new_addr);
-
-	obj_h1_addr = old_addr;
-	obj_h2_addr = new_addr;
-}
-
-// Disables region groupping (single-threaded)
-void TeraHeap::disable_groups(void) {
-  disable_region_groups();
-
-	obj_h1_addr = NULL;
-	obj_h2_addr = NULL;
 }
 
 // Enable region groupping (multi-threaded)
@@ -457,40 +441,6 @@ char* TeraHeap::h2_add_object(oop obj, size_t size) {
 	_start_array.th_allocate_block((HeapWord *)pos);
 
 	return pos;
-}
-
-// If obj is in a different H2 region than the region enabled, they
-// are grouped (single-threaded)
-void TeraHeap::group_region_enabled(HeapWord* obj, void *obj_field) {
-	// Object is not going to be moved to TeraHeap
-	if (obj_h2_addr == NULL) 
-		return;
-
-	if (is_in_h2(obj)) {
-		check_for_group((char*) obj);
-		return;
-	}
-
-  // If it is an already backward pointer popped from th_adjust_stack
-  // then do not mark the card as dirty because it is already marked
-  // from minor gc.
-	if (obj_h1_addr == NULL) 
-		return;
-	
-  // Mark the H2 card table as dirty if obj is in H1 (backward
-  // reference)
-	BarrierSet* bs = BarrierSet::barrier_set();
-	CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-  // TODO: if we use this with G1, we need to pass th_card_table
-	CardTable* ct = ctbs->card_table();
-
-	size_t diff =  (HeapWord *)obj_field - obj_h1_addr;
-	assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(obj_h1_addr)->size()),
-			"Diff out of range: %lu", diff);
-	HeapWord *h2_obj_field = obj_h2_addr + diff;
-	assert(is_in_h2(h2_obj_field), "Shoud be in H2");
-
-	ct->th_write_ref_field(h2_obj_field);
 }
 
 // Check and record metadata for references involving a cross-heap edge (H1 <->

@@ -185,9 +185,6 @@ public:
   // Prints all active regions
   void print_h2_active_regions(void);
 
-  // Groups the region of obj with the previously enabled region (single-threaded)
-  void group_region_enabled(HeapWord *obj, void *obj_field);
-
   // If the current thread is relocating an object to H2, record cross-heap / cross-H2-region
   // reference metadata (region dependency or H2 card marking) for the reference slot `obj_field`.
   // No-op if relocation context is not active.
@@ -198,12 +195,6 @@ public:
 
   // Prints all the region groups
   void print_region_groups(void);
-
-  // Enables groupping with region of obj (single-threaded)
-  void enable_groups(HeapWord *old_addr, HeapWord *new_addr);
-
-  // Disables region groupping (single-threaded)
-  void disable_groups(void);
 
   // Enables groupping with region of obj (multi-threaded)
   void thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord *new_addr);

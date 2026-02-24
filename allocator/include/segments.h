@@ -126,23 +126,6 @@ char* get_last_object(char *obj);
  */
 bool is_region_start(char *obj);
 
-/*
- * Enables groupping with the region in which obj belongs to
- */
-void enable_region_groups(char *obj);
-
-/*
- * Disables groupping with the region previously enabled
- */
-void disable_region_groups(void);
-
-/*
- * function that connects two regions in a tera_group
- * arguments:
- * - obj: the object that must be checked to be groupped with the region_enabled
- */
-void check_for_group(char *obj);
-
 void print_objects_temporary_function(char *obj,const char *string);
 
 /*

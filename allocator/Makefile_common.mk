@@ -21,8 +21,8 @@ LIBDIR = $(PREFIX)/lib
 INCLUDEDIR = $(PREFIX)/include
 
 ## Depended files
-LIBHEADERS =  $(INCLUDEDIR)/regions.h $(INCLUDEDIR)/asyncIO.h $(INCLUDEDIR)/segments.h
-LIBREGIONSOBJS = $(SRCDIR)/regions.o $(SRCDIR)/asyncIO.o $(SRCDIR)/segments.o
+LIBHEADERS =  $(INCLUDEDIR)/regions.h $(INCLUDEDIR)/asyncIO.h $(INCLUDEDIR)/segments.h $(INCLUDEDIR)/sllist.h
+LIBREGIONSOBJS = $(SRCDIR)/regions.o $(SRCDIR)/asyncIO.o $(SRCDIR)/segments.o $(SRCDIR)/sllist.o
 REGIONSLIBRARY = $(LIBDIR)/libregions.so
 
 TH_ALLOCATE_OBJ = $(TESTDIR)/th_allocate.o

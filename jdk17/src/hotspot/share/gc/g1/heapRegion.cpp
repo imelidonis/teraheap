@@ -352,7 +352,15 @@ class VerifyStrongCodeRootOopClosure: public OopClosure {
       oop obj = CompressedOops::decode_not_null(heap_oop);
 
 #ifdef TERA_MAINTENANCE
-    if (Universe::teraHeap()->is_in_h2(obj)) return;
+    if (Universe::teraHeap()->is_in_h2(obj)) {
+  #ifdef DBG_LOST_REGION
+        const char *name = "VerifyStrongCodeRootOopClosure::do_oop_work";
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
+  #else
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
+  #endif // DBG_LOST_REGION
+        return;
+    }
 #endif
 
       // Note: not all the oops embedded in the nmethod are in the

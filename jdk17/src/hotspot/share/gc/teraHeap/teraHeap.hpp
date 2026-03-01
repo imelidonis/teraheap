@@ -262,6 +262,12 @@ public:
   // Make every card of H2 dirty (used for debugging)
   void dirty_all_cards();
   // ------------------
+
+#ifdef DBG_LOST_REGION
+  void print_sigsegv_info(void *siginfo);
+
+  bool is_in_reclaimed_region(char *addr);
+#endif
 };
 
 #endif

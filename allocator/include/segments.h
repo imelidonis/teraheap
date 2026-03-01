@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-// #define DBG_LOST_REGION
-// #define DBG_PROTECT_FREE_REGIONS
+#define DBG_LOST_REGION
+#define DBG_PROTECT_FREE_REGIONS
 
 #define ANONYMOUS 0
 #define PR_BUFFER 1

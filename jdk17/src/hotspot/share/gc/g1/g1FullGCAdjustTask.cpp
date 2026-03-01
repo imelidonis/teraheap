@@ -188,6 +188,13 @@ void G1FullGCAdjustTask::work(uint worker_id) {
         stdprint << "### Phase 3 Adjusting backrefs obj " << *obj << "\n";
       }
     #endif // DEBUG
+      
+      // The H2 field with a backward reference to H1 is in a reclaimed
+      // region with dead objects so skip it.  
+      if (Universe::teraHeap()->is_in_reclaimed_region((char *) obj)) {
+        obj = Universe::teraHeap()->h2_adjust_next_back_reference();
+        continue;
+      }
 
       Universe::teraHeap()->thread_enable_groups(worker_id, NULL, (HeapWord*) obj);
       _adjust_cl.do_oop(obj);

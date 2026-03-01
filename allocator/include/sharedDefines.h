@@ -25,7 +25,7 @@
 
 #define MALLOC_ON	1				            //< Allocate buffers dynamically
 
-#define REGION_SIZE	(256*1024LU*1024) //< Region size (in bytes) for allignment
+#define REGION_SIZE	(32*1024LU*1024) //< Region size (in bytes) for allignment
 									                    // version
 
 #if ANONYMOUS
@@ -54,10 +54,10 @@
 // H2 regions. An access to a freed region would cause a
 // segmentation fault.
 // Enable define both in allocator and in jvm
-// #define DBG_PROTECT_FREE_REGIONS
+#define DBG_PROTECT_FREE_REGIONS
 
 // Enables debugging code for the lost region bug.
 // Enable define both in allocator and in jvm
-// #define DBG_LOST_REGION
+#define DBG_LOST_REGION
 
 #endif

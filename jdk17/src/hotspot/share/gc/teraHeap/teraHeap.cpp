@@ -601,3 +601,26 @@ CardTable* TeraHeap::th_card_table() {
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   return ctbs->th_card_table();
 }
+  
+#ifdef DBG_LOST_REGION
+void TeraHeap::print_sigsegv_info(void *siginfo) {
+  void *addr = ((siginfo_t *)siginfo)->si_addr;
+  fprintf(stderr, "SIGSEGV at address %p (si_code=%d)\n", addr, ((siginfo_t *)siginfo)->si_code);
+
+  if (is_in_h2(addr)) {
+    uint64_t region_idx = region_containing_addr((char *)addr);
+    struct region *region = get_region(region_idx);
+    fprintf(stderr, "L The address is in H2 in region %lu which is used=%d\n", region_idx, is_used(region_idx));
+    fprintf(stderr, "L Region: {\n");
+    fprintf(stderr, "     - start:          %p\n", region->start_address);
+    fprintf(stderr, "     - last alloc end: %p\n", region->last_allocated_end);
+    fprintf(stderr, "  }\n");
+  }
+}
+
+bool TeraHeap::is_in_reclaimed_region(char *addr) {
+  uint64_t region_idx = region_containing_addr(addr);
+  return (!is_used(region_idx)); 
+}
+
+#endif

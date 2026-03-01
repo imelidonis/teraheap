@@ -253,6 +253,14 @@ void DiscoveredListIterator::load_ptrs(DEBUG_ONLY(bool allow_null_referent)) {
          "Expected an oop or NULL for discovered field at " PTR_FORMAT, p2i(discovered));
   _next_discovered = discovered;
   _referent = java_lang_ref_Reference::unknown_referent_no_keepalive(_current_discovered);
+  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(_referent)) {
+  #ifdef DBG_LOST_REGION
+      const char *name = "DiscoveredListIterator::load_ptrs";
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(_referent), (char *) name);
+  #else
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(_referent));
+  #endif // DBG_LOST_REGION
+  }
 #ifdef TERA_ASSERT
   debug_only(
       if (EnableTeraHeap) {

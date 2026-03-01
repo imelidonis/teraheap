@@ -2511,8 +2511,16 @@ bool G1CollectedHeap::supports_concurrent_gc_breakpoints() const {
 
 bool G1CollectedHeap::is_archived_object(oop object) const {
 #ifdef TERA_MAINTENANCE 
-  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(object))
+  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(object)) {
+  #ifdef DBG_LOST_REGION
+    // 8
+    const char *name = "G1CollectedHeap::is_archived_object";
+    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(object), (char *) name);
+  #else
+    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(object));
+  #endif // DBG_LOST_REGION
     return false;
+  }
 #endif
 
   return object != NULL && heap_region_containing(object)->is_archive();
@@ -3442,7 +3450,7 @@ public:
     if (region_attr.is_in_cset()) {
       assert( obj->is_forwarded(), "invariant" );
       *p = obj->forwardee();
-      //guarantee(!Universe::teraHeap()->is_in_h2(obj->forwardee()), "make region live???");
+      // guarantee(!Universe::teraHeap()->is_in_h2(obj->forwardee()), "make region live???");
     } else {
       assert(!obj->is_forwarded(), "invariant" );
       assert(region_attr.is_humongous(),
@@ -4468,7 +4476,15 @@ class RegisterNMethodOopClosure: public OopClosure {
 #if defined TERA_C1 || defined TERA_C2
       // if the nmethod is pointing to an h2 obj
       // no need to include the nmethod in the rem set (bcs there are no rem sets in h2)
-      if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) return;
+      if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
+    #ifdef DBG_LOST_REGION
+      const char *name = "RegisterNMethodOopClosure::do_oop";
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
+    #else
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(obj));
+    #endif // DBG_LOST_REGION
+        return;
+      }
 #endif
 
       HeapRegion* hr = _g1h->heap_region_containing(obj);

@@ -49,15 +49,4 @@
 
 #define DEBUG_PRINT 0			      //< Enable debug prints
 
-// This is for debugging.
-// It enables calling mprotect to toggle permissions of free
-// H2 regions. An access to a freed region would cause a
-// segmentation fault.
-// Enable define both in allocator and in jvm
-#define DBG_PROTECT_FREE_REGIONS
-
-// Enables debugging code for the lost region bug.
-// Enable define both in allocator and in jvm
-#define DBG_LOST_REGION
-
 #endif

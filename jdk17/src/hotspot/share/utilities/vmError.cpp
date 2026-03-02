@@ -1320,11 +1320,9 @@ void VMError::report_and_die(Thread* thread, unsigned int sig, address pc, void*
 
 void VMError::report_and_die(Thread* thread, unsigned int sig, address pc, void* siginfo, void* context)
 {
-#ifdef DBG_LOST_REGION
   if (EnableTeraHeap) {
     Universe::teraHeap()->print_sigsegv_info(siginfo);
   }
-#endif
   report_and_die(thread, sig, pc, siginfo, context, "%s", "");
 }
 

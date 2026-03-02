@@ -88,4 +88,5 @@ DEFAULT_FLAGS=(
   -XX:+TeraHeapStatistics
   -XX:AllocateH2At=${H2_MOUNT_POINT}
   -XX:H2FileSize=${H2_SIZE_IN_BYTES}
+  -XX:+ProtectH2RegionsOnFree
 )

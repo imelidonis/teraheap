@@ -17,43 +17,6 @@ Stack<oop *, mtGC> TeraHeap::_th_stack;
 Stack<oop *, mtGC> TeraHeap::_th_adjust_stack;
 Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_stack;
 
-#ifdef DBG_LOST_REGION
-static size_t page_size;
-static int times = 0;
-
-static void segv_handler(int sig, siginfo_t *si, void *arg) {
-  void *addr = si->si_addr;
-  if (times == 0) {
-    times++;
-    return;
-  }
-
-  fprintf(stderr, "SIGSEGV at address %p (si_code=%d)\n", addr, si->si_code);
-  if (Universe::teraHeap()->is_in_h2(addr)) {
-    uint64_t region_idx = region_containing_addr((char *)addr);
-    fprintf(stderr, "L The address is in H2 in region %lu which is used=%d\n", region_idx, is_used(region_idx));
-    struct region *region = get_region(region_idx);
-    fprintf(stderr, "L Region: {\n");
-    fprintf(stderr, "     - start:          %p\n", region->start_address);
-    fprintf(stderr, "     - last alloc end: %p\n", region->last_allocated_end);
-    fprintf(stderr, "  }\n");
-  }
-  _exit(128 + SIGSEGV);
-}
-
-void install_segv_handler() {
-  page_size = sysconf(_SC_PAGESIZE);
-  struct sigaction sa;
-  sa.sa_sigaction = segv_handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  if (sigaction(SIGSEGV, &sa, NULL) != 0) {
-    perror("sigaction");
-    exit(1);
-  }
-}
-#endif // DBG_LOST_REGION
-
 // Constructor of TeraHeap
 TeraHeap::TeraHeap() {
   uint64_t align = CardTable::th_ct_max_alignment_constraint();
@@ -63,6 +26,7 @@ TeraHeap::TeraHeap() {
   }
 
   init(align, AllocateH2At, H2FileSize, H2MaxPartitions);
+  protect_h2_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
 
   _start_addr = start_addr_mem_pool();
   _stop_addr = stop_addr_mem_pool();
@@ -300,9 +264,9 @@ void TeraHeap::free_unused_regions(void) {
     // word). Convert to an inclusive end by subtracting one heap word.
     ct->th_clean_cards(region_start, last_alloc_end_excl - 1, true /* free regions */);
 
-#ifdef DBG_PROTECT_FREE_REGIONS
-    make_region_inaccessible(region->region_start, GCId::current());
-#endif // DBG_PROTECT_FREE_REGIONS
+    if (ProtectH2RegionsOnFree)
+      make_region_inaccessible(region->region_start, GCId::current());
+
     free(region);
     region = next;
   }
@@ -412,22 +376,12 @@ uint64_t TeraHeap::h2_get_region_partId(void* p) {
 	return get_obj_part_id((char *) p);
 }
 
-#ifdef DBG_LOST_REGION
-// Marks the region containing obj as used
-void TeraHeap::mark_used_region(HeapWord *obj, char *from) {
-    mark_used((char *) obj, from, GCId::current());
-
-  if (H2LivenessAnalysis)
-    cast_to_oop(obj)->set_live();
-}
-#else
 void TeraHeap::mark_used_region(HeapWord *obj) {
     mark_used((char *) obj);
 
   if (H2LivenessAnalysis)
     cast_to_oop(obj)->set_live();
 }
-#endif // DBG_LOST_REGION
 
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
@@ -602,7 +556,6 @@ CardTable* TeraHeap::th_card_table() {
   return ctbs->th_card_table();
 }
   
-#ifdef DBG_LOST_REGION
 void TeraHeap::print_sigsegv_info(void *siginfo) {
   void *addr = ((siginfo_t *)siginfo)->si_addr;
   fprintf(stderr, "SIGSEGV at address %p (si_code=%d)\n", addr, ((siginfo_t *)siginfo)->si_code);
@@ -622,5 +575,3 @@ bool TeraHeap::is_in_reclaimed_region(char *addr) {
   uint64_t region_idx = region_containing_addr(addr);
   return (!is_used(region_idx)); 
 }
-
-#endif

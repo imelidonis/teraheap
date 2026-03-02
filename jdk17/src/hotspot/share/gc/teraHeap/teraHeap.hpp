@@ -176,11 +176,7 @@ public:
   void h2_reset_used_field(void);
 
   // Marks the region containing obj as used
-#ifdef DBG_LOST_REGION
-  void mark_used_region(HeapWord *obj, char *from);
-#else
   void mark_used_region(HeapWord *obj);
-#endif // DBG_LOST_REGION
 
   // Prints all active regions
   void print_h2_active_regions(void);
@@ -263,11 +259,9 @@ public:
   void dirty_all_cards();
   // ------------------
 
-#ifdef DBG_LOST_REGION
   void print_sigsegv_info(void *siginfo);
 
   bool is_in_reclaimed_region(char *addr);
-#endif
 };
 
 #endif

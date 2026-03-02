@@ -59,15 +59,9 @@ int main() {
   
 
   reset_used();
-#ifdef DBG_LOST_REGION
-  mark_used(obj3, "testfile", 0);
-  mark_used(obj4, "testfile", 0);
-  mark_used(obj6, "testfile", 0);
-#else
   mark_used(obj3);
   mark_used(obj4);
   mark_used(obj6);
-#endif
   
   //obj2 should be in region 1 
   obj2 = allocate(64000, 10, 0);

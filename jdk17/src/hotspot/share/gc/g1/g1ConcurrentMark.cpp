@@ -1689,14 +1689,7 @@ public:
 #ifdef TERA_MAINTENANCE
     // TODO: check if requires modification
     if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
-    #ifdef DBG_LOST_REGION
-      // TODO: should we mark region live here? --> caused error again
-      // 3
-      const char *name = "G1ObjectCountIsAliveClosure::do_object_b";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-    #else
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-    #endif // DBG_LOST_REGION
       return true;
     }
 #endif

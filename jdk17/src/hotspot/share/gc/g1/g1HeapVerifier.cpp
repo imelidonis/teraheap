@@ -69,12 +69,7 @@ public:
 
 #ifdef TERA_MAINTENANCE
       if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {    
-#ifdef DBG_LOST_REGION
-      const char *name = "VerifyRootsClosure::do_oop_work";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-#else
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-#endif // DBG_LOST_REGION
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
         return;
       }
 #endif
@@ -128,12 +123,7 @@ class G1VerifyCodeRootOopClosure: public OopClosure {
       // if the nmethod is pointing to an h2 obj
       // no need for the nmethod to be included in the rem set of the regions obj (bcs there are no rem sets in h2)
       if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
-#ifdef DBG_LOST_REGION
-      const char *name = "G1VerifyCodeRootOopClosure::do_oop_work";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-#else
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-#endif // DBG_LOST_REGION
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
         return;
       }
 #endif
@@ -223,12 +213,7 @@ public:
 
 #ifdef TERA_MAINTENANCE
     if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {    
-#ifdef DBG_LOST_REGION
-      const char *name = "VerifyLivenessOopClosure::do_oop_work";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-#else
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-#endif // DBG_LOST_REGION
       return;
     }
 #endif

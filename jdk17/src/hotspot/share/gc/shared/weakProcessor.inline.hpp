@@ -64,13 +64,7 @@ public:
 
 #ifdef TERA_MAINTENANCE
     if (EnableTeraHeap && obj != NULL && Universe::teraHeap()->is_in_h2(obj)) {
-      // TODO: check if requires modification
-    #ifdef DBG_LOST_REGION
-      const char *name = "CountingClosure::do_oop";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-    #else
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(obj));
-    #endif // DBG_LOST_REGION
       return;
     }
 #endif

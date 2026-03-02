@@ -353,12 +353,7 @@ class VerifyStrongCodeRootOopClosure: public OopClosure {
 
 #ifdef TERA_MAINTENANCE
     if (Universe::teraHeap()->is_in_h2(obj)) {
-  #ifdef DBG_LOST_REGION
-        const char *name = "VerifyStrongCodeRootOopClosure::do_oop_work";
-        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-  #else
         Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-  #endif // DBG_LOST_REGION
         return;
     }
 #endif

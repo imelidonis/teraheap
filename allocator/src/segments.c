@@ -41,6 +41,7 @@ struct region {
     char *last_allocated_start;
     char *first_allocated_start;
     SLinkedList *dependency_list;
+    SLinkedList *referent_list;
 #if ANONYMOUS
   struct offset *offset_list;
   size_t size_mapped;
@@ -75,12 +76,12 @@ struct offset *offset_list;
 int32_t		 _next_region;
 
 #if STATISTICS
-uint32_t    total_deps = 0;
 double		  alloc_elapsedtime = 0.0;
 double		  free_elapsedtime = 0.0;
 #endif
 
 uint        reclaimed_regions_count; 
+int         protect_regions_on_free = 0;
 
 static inline void check_allocation_failure(void *ptr, const char *msg) {
   if (!ptr) {
@@ -117,6 +118,7 @@ void init_regions(uint64_t partitions) {
     region_array[i].last_allocated_start      = NULL;
     region_array[i].first_allocated_start     = NULL;
     region_array[i].dependency_list           = NULL;
+    region_array[i].referent_list             = NULL;
 #if ANONYMOUS
     region_array[i].size_mapped               = 0;
     region_array[i].offset_list               = NULL;
@@ -207,24 +209,20 @@ char* new_region(size_t size) {
 
   for (i = cur_region; i < cur_region + cont_regions; i++) {
     assertf(region_array[i].used == 0, "Error, write to an already used region");
-  #ifdef DBG_LOST_REGION
-    mark_used(region_array[i].start_address, "new_region", -1);
-  #else
     mark_used(region_array[i].start_address);
-  #endif /* ifdef DBG_LOST_REGION */
     references(region_array[cur_region].start_address, region_array[i].start_address);
     // references(region_array[i].start_address, region_array[cur_region].start_address);
     region_array[i].last_allocated_start = region_array[cur_region].start_address;
     region_array[i].first_allocated_start = region_array[cur_region].start_address;
     region_array[i].last_allocated_end = region_array[cur_region].start_address + size;
 
-#ifdef DBG_PROTECT_FREE_REGIONS
-    // Enable accesses
-    fprintf(stderr, "Enable permissions for region: %u\n", i);
-    if (mprotect(region_array[i].start_address, REGION_SIZE, PROT_READ | PROT_WRITE) != 0) {
-      fprintf(stderr, "mprotect error\n");
+    if (protect_regions_on_free) {
+      // Enable accesses
+      fprintf(stderr, "Enable permissions for region: %u\n", i);
+      if (mprotect(region_array[i].start_address, REGION_SIZE, PROT_READ | PROT_WRITE) != 0) {
+        fprintf(stderr, "mprotect error\n");
+      }
     }
-#endif /* ifdef DBG_PROTECT_FREE_REGIONS */
   }
 
   return region_array[cur_region].start_address;
@@ -344,11 +342,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
     return res;
   }
 
-#ifdef DBG_LOST_REGION
-  mark_used(mapped_region->start_address, "allocate_to_region", -1);
-#else
   mark_used(mapped_region->start_address);
-#endif /* ifdef DBG_LOST_REGION */
   mapped_region->last_allocated_start =
       mapped_region->last_allocated_end;
   mapped_region->last_allocated_end =
@@ -409,6 +403,32 @@ static int region_cmp(const void *a, const void *b) {
   return (a != b);
 }
 
+static void add_referent(int32_t seg1, int32_t seg2) {
+  if (!region_array[seg2].referent_list) {
+    region_array[seg2].referent_list = sll_create(region_cmp);
+  }
+
+  assert(!sll_contains(region_array[seg2].referent_list, &region_array[seg1]));
+  sll_push_front(region_array[seg2].referent_list, &region_array[seg1]);
+}
+
+static void add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
+  if (region_array[seg1].dependency_list &&
+    sll_contains(region_array[seg1].dependency_list, &region_array[seg2]))
+    return;
+
+  if (!region_array[seg1].dependency_list) {
+    region_array[seg1].dependency_list = sll_create(region_cmp);
+  }
+
+  sll_push_front(region_array[seg1].dependency_list, &region_array[seg2]);
+  add_referent(seg1, seg2);
+
+  if (region_array[seg1].used) {
+    mark_used(region_array[seg2].start_address);
+  }
+}
+
 /*
  * function that connects two regions in a tera_group
  * arguments:
@@ -425,24 +445,7 @@ void references(char *obj1, char *obj2) {
   if (seg1 == seg2)
     return;
 
-  // Dependency_list is empty
-  if (!region_array[seg1].dependency_list) {
-    region_array[seg1].dependency_list = sll_create(region_cmp);
-    sll_push_front(region_array[seg1].dependency_list, &region_array[seg2]);
-    return;
-  }
-
-  if (sll_contains(region_array[seg1].dependency_list, &region_array[seg2]))
-    return;
-
-  sll_push_front(region_array[seg1].dependency_list, &region_array[seg2]);
-  if (region_array[seg1].used) {
-#ifdef DBG_LOST_REGION
-    mark_used(region_array[seg2].start_address, "references", -1);
-#else
-    mark_used(region_array[seg2].start_address);
-#endif /* ifdef DBG_LOST_REGION */
-  }
+  add_dependency_if_not_exist(seg1, seg2);
 }
 
 /*
@@ -454,12 +457,11 @@ void print_groups() {
   fprintf(stderr, "Groups:\n");
 
   for (i = 0; i < region_array_size; i++) {
-    if (!region_array[i].dependency_list) {
-      fprintf(stderr, "Region %d has 0 dependencies\n", i);
-      continue;
+    if (region_array[i % region_array_size].last_allocated_end != region_array[i % region_array_size].start_address ) {
+      size_t dep_size = region_array[i].dependency_list ? sll_size(region_array[i].dependency_list) : 0;
+      size_t ref_size = region_array[i].referent_list   ? sll_size(region_array[i].referent_list)   : 0;
+      fprintf(stderr, "Region %d has %lu dependencies and %lu referents\n", i, dep_size, ref_size);
     }
-
-    fprintf(stderr, "Region %d has %lu dependencies\n", i, sll_size(region_array[i].dependency_list));
   }
 }
 
@@ -472,44 +474,7 @@ void reset_used() {
     region_array[i].used = 0;
 }
 
-/*
- * Marks the region that contains this obj as used and increases tera_group
- * counter (if it belongs to a tera_group)
- * Arguments: obj: the object that is alive
- */
-#ifdef DBG_LOST_REGION
-void mark_used(char *obj, char *from, uint gc_number) {
-  uint64_t seg = (obj - region_array[0].start_address) / ((uint64_t)REGION_SIZE);
-
-	assertf(seg >= 0 && seg < region_array_size,
-			"Segment index is out of range %lu", seg);
-  if (region_array[seg].used == 1)
-    return;
-
-  region_array[seg].used = 1;
-  
-  if (!region_array[seg].dependency_list)
-    return;
-
-  SLLIterator it;
-  sll_iter_init(region_array[seg].dependency_list, &it);
-
-  while (sll_iter_has_next(&it)) {
-    struct region *r = (struct region *)sll_iter_next(&it);
-    mark_used(r->start_address, from, gc_number);
-  }
-}
-#else
-void mark_used(char *obj) {
-  uint64_t seg = (obj - region_array[0].start_address) / ((uint64_t)REGION_SIZE);
-
-  assertf(seg >= 0 && seg < region_array_size,
-          "Segment index is out of range %lu", seg);
-  if (region_array[seg].used == 1)
-    return;
-
-  region_array[seg].used = 1;
-
+void mark_live_dependent_regions(uint64_t seg) {
   if (!region_array[seg].dependency_list)
     return;
 
@@ -521,7 +486,23 @@ void mark_used(char *obj) {
     mark_used(r->start_address);
   }
 }
-#endif /* ifdef DBG_LOST_REGION */
+
+/*
+ * Marks the region that contains this obj as used and increases tera_group
+ * counter (if it belongs to a tera_group)
+ * Arguments: obj: the object that is alive
+ */
+void mark_used(char *obj) {
+  uint64_t seg = (obj - region_array[0].start_address) / ((uint64_t)REGION_SIZE);
+
+	assertf(seg >= 0 && seg < region_array_size,
+			"Segment index is out of range %lu", seg);
+  if (region_array[seg].used == 1)
+    return;
+
+  region_array[seg].used = 1;
+  mark_live_dependent_regions(seg);
+}
 
 #if STATISTICS
 void print_statistics() {
@@ -544,7 +525,6 @@ void print_statistics() {
   if (total_regions)
     fprintf(stderr, "Average wasted space: %zu KBytes\n", wasted_space / (1024 * total_regions));
 
-  fprintf(stderr, "Total dependencies:%d\n", total_deps);
   fprintf(stderr, "Total time spent in allocate_to_region:%f ms\n", alloc_elapsedtime);
   fprintf(stderr, "Total time spent in free_regions:%f ms\n", free_elapsedtime);
 }
@@ -565,6 +545,9 @@ struct region_list* free_regions() {
     if (region_array[i].used == 0 && region_array[i].last_allocated_end != region_array[i].start_address) {
       sll_destroy(region_array[i].dependency_list);
       region_array[i].dependency_list = NULL;
+
+      sll_destroy(region_array[i].referent_list);
+      region_array[i].referent_list = NULL;
 
       if (region_array[i].last_allocated_start >= region_array[i].start_address) {
         struct region_list *new_node = malloc(sizeof(struct region_list));
@@ -790,10 +773,8 @@ int is_in_the_same_group(char *obj1, char *obj2) {
 	if (seg1 == seg2)
 		return 1;
 
-  if (!region_array[seg1].dependency_list)
-    return 0;
-
-  return (sll_contains(region_array[seg1].dependency_list, &region_array[seg2]));
+  return (region_array[seg1].dependency_list) ? 
+    sll_contains(region_array[seg1].dependency_list, &region_array[seg2]) : 0;
 }
 
 /*                                                                              
@@ -841,7 +822,6 @@ char* top_in_last_region() {
   return top_reg.last_allocated_end;
 }
 
-#ifdef DBG_PROTECT_FREE_REGIONS
 void make_region_inaccessible(char *region_start, uint gc_number) {
   // Remove read/write permissions
   fprintf(stderr, "[%u] Remove permissions for region: %lu\n", gc_number, region_containing_addr(region_start));
@@ -849,7 +829,6 @@ void make_region_inaccessible(char *region_start, uint gc_number) {
     fprintf(stderr, "mprotect error\n");
   }
 }
-#endif /* ifdef DBG_PROTECT_FREE_REGIONS */
 
 uint64_t region_containing_addr(char *addr) {
   return (addr - region_array[0].start_address) / ((uint64_t)REGION_SIZE);
@@ -1006,4 +985,8 @@ bool object_starts_from_region(char *obj) {
 to the free pool) during the most recent reclamation cycle. */
 uint num_reclaimed_regions(void) {
   return reclaimed_regions_count;
+}
+
+void protect_h2_regions_on_free(int should_protect) {
+  protect_regions_on_free = should_protect;
 }

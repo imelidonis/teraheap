@@ -127,13 +127,7 @@ inline void G1AdjustClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 
 inline bool G1IsAliveClosure::do_object_b(oop p) {
   if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(p)) {
-    // TODO: check if requires modification
-  #ifdef DBG_LOST_REGION
-    const char *name = "G1IsAliveClosure::do_object_b";
-    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(p), (char *) name);
-  #else
     Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord *>(p));
-  #endif // DBG_LOST_REGION
     return true;
   }
   return _bitmap->is_marked(p) || _collector->is_skip_marking(p);

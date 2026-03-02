@@ -5,9 +5,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define DBG_LOST_REGION
-#define DBG_PROTECT_FREE_REGIONS
-
 #define ANONYMOUS 0
 #define PR_BUFFER 1
 #define PR_BUFFER_SIZE (2*1024LU*1024) /* Promotion buffer size */
@@ -78,11 +75,7 @@ void reset_used();
  * Arguments:
  * - obj: the object that is alive
  */
-#ifdef DBG_LOST_REGION
-void mark_used(char *obj, char *from, uint gc_number);
-#else
 void mark_used(char *obj);
-#endif // DBG_LOST_REGION
 
 /*
  * Frees all unused regions
@@ -195,9 +188,7 @@ bool object_starts_from_region(char *obj);
 
 char* top_in_last_region();
 
-#ifdef DBG_PROTECT_FREE_REGIONS
 void make_region_inaccessible(char *region_start, uint gc_number);
-#endif // DBG_PROTECT_FREE_REGIONS
 
 uint64_t region_containing_addr(char *addr);
 int is_used(uint64_t region);
@@ -226,5 +217,7 @@ void free_all_buffers();
 /* Returns the number of regions that were reclaimed (i.e., released back
 to the free pool) during the most recent reclamation cycle. */
 uint num_reclaimed_regions(void);
+
+void protect_h2_regions_on_free(int should_protect);
 
 #endif

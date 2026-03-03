@@ -1240,6 +1240,9 @@ void G1ConcurrentMark::remark() {
     _g1h->resize_heap_if_necessary();
     _g1h->uncommit_regions_if_necessary();
 
+    if (EnableTeraHeap)
+      Universe::teraHeap()->free_unused_regions();
+
     compute_new_sizes();
 
     verify_during_pause(G1HeapVerifier::G1VerifyRemark, VerifyOption_G1UsePrevMarking, "Remark after");

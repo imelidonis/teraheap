@@ -41,7 +41,12 @@ struct region {
     char *last_allocated_start;
     char *first_allocated_start;
     SLinkedList *dependency_list;
+#ifdef TRANSFER_BACK
     SLinkedList *referent_list;
+    bool underTransfer;
+    char *destination_address;
+#endif
+
 #if ANONYMOUS
   struct offset *offset_list;
   size_t size_mapped;
@@ -118,7 +123,11 @@ void init_regions(uint64_t partitions) {
     region_array[i].last_allocated_start      = NULL;
     region_array[i].first_allocated_start     = NULL;
     region_array[i].dependency_list           = NULL;
+#ifdef TRANSFER_BACK
     region_array[i].referent_list             = NULL;
+    region_array[i].underTransfer             = false;
+    region_array[i].destination_address       = NULL;
+#endif
 #if ANONYMOUS
     region_array[i].size_mapped               = 0;
     region_array[i].offset_list               = NULL;
@@ -403,6 +412,7 @@ static int region_cmp(const void *a, const void *b) {
   return (a != b);
 }
 
+#ifdef TRANSFER_BACK
 static void add_referent(int32_t seg1, int32_t seg2) {
   if (!region_array[seg2].referent_list) {
     region_array[seg2].referent_list = sll_create(region_cmp);
@@ -411,6 +421,7 @@ static void add_referent(int32_t seg1, int32_t seg2) {
   assert(!sll_contains(region_array[seg2].referent_list, &region_array[seg1]));
   sll_push_front(region_array[seg2].referent_list, &region_array[seg1]);
 }
+#endif
 
 static void add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
   if (region_array[seg1].dependency_list &&
@@ -422,7 +433,10 @@ static void add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
   }
 
   sll_push_front(region_array[seg1].dependency_list, &region_array[seg2]);
+
+#ifdef TRANSFER_BACK
   add_referent(seg1, seg2);
+#endif
 
   if (region_array[seg1].used) {
     mark_used(region_array[seg2].start_address);
@@ -459,8 +473,12 @@ void print_groups() {
   for (i = 0; i < region_array_size; i++) {
     if (region_array[i % region_array_size].last_allocated_end != region_array[i % region_array_size].start_address ) {
       size_t dep_size = region_array[i].dependency_list ? sll_size(region_array[i].dependency_list) : 0;
+#ifdef TRANSFER_BACK
       size_t ref_size = region_array[i].referent_list   ? sll_size(region_array[i].referent_list)   : 0;
       fprintf(stderr, "Region %d has %lu dependencies and %lu referents\n", i, dep_size, ref_size);
+#else 
+      fprintf(stderr, "Region %d has %lu dependencies.\n", i, dep_size);
+#endif
     }
   }
 }
@@ -546,8 +564,12 @@ struct region_list* free_regions() {
       sll_destroy(region_array[i].dependency_list);
       region_array[i].dependency_list = NULL;
 
+#ifdef TRANSFER_BACK
       sll_destroy(region_array[i].referent_list);
       region_array[i].referent_list = NULL;
+      region_array[i].underTransfer = false;
+      region_array[i].destination_address = NULL;
+#endif
 
       if (region_array[i].last_allocated_start >= region_array[i].start_address) {
         struct region_list *new_node = malloc(sizeof(struct region_list));

@@ -71,7 +71,7 @@ inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
 
 template <class T>
 inline void G1ScanClosureBase::handle_non_cset_obj_common(G1HeapRegionAttr const region_attr, T* p, oop const obj) {
-  if (region_attr.is_humongous() ) {
+  if (region_attr.is_humongous()) {
     _g1h->set_humongous_is_live(obj);
   } else if (region_attr.is_optional()) {
     _par_scan_state->remember_reference_into_optional_region(p);
@@ -89,7 +89,7 @@ inline void G1ScanClosureBase::handle_non_cset_obj_common_tera(G1HeapRegionAttr 
 
   //h2->h1
   //back ref found: update h2 card table flag
-  _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !(_g1h->is_in_young(obj) || region_attr.is_humongous())); 
+  _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !(_g1h->is_in_young(obj) || _g1h->heap_region_containing(obj)->is_humongous())); 
   
   // if h1 obj is in opt cset, remember
   handle_non_cset_obj_common(region_attr,p,obj);

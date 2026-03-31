@@ -25,7 +25,8 @@ TARGET = $(addprefix bin/, \
 				 Clone.class Groupping.class MultiHashMap.class Test_WeakHashMap.class \
 				 ClassInstance.class Test_CM_WeakRef.class Test_H2_CM_YoungInterrupt.class \
 				 Test_H2_FreePath_CM_YoungStorm.class Test_H2_DependencyList_Race.class \
-				 Test_H2_FreePath_CM_YoungStorm_Max_Frees.class Test_H2_FreePath_CM_YoungStorm_EdgeStress.class)
+				 Test_H2_FreePath_CM_YoungStorm_Max_Frees.class Test_H2_FreePath_CM_YoungStorm_EdgeStress.class \
+				 Test_H2_HumongousBackRefsStress.class)
 
 .PHONY: header
 	   

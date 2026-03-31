@@ -82,7 +82,7 @@ set_heap_size() {
     HashMap|Array_List_String)
       H1_SZ=3
       ;;
-    Test_H2_CM_YoungInterrupt)
+    Test_H2_CM_YoungInterrupt|Test_H2_HumongousBackRefsStress)
       H1_SZ=4
       ;;
     Test_H2_FreePath_CM_YoungStorm|Test_H2_FreePath_CM_YoungStorm_Max_Frees|Test_H2_FreePath_CM_YoungStorm_EdgeStress)

@@ -38,6 +38,7 @@ ONLY_EVAC_TESTS=(
   "Test_H2_FreePath_CM_YoungStorm_Max_Frees"
   "Test_H2_FreePath_CM_YoungStorm_EdgeStress"
   "Test_H2_DependencyList_Race"
+  "Test_H2_HumongousBackRefsStress"
 )
 
 # These tests exist only in full benchmark suite

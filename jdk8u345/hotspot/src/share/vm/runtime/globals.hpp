@@ -2509,7 +2509,10 @@ class CommandLineFlags {
                                                                             \
   product(bool, EnableTeraHeap, false,                                      \
           "Enable TeraHeap. Works only with ParallelScavenge Collector")    \
-                                                                            \
+	                                                                    \
+  product(uintx, H2MaxPartitions, 256,                                      \
+          "H2 Maximum partitions per RDD, affects  id array size")          \
+	                                                                    \
   product(bool, TeraHeapStatistics, false,                                  \
           "Print TeraHeap statistics")                                      \
                                                                             \

@@ -776,7 +776,10 @@ public:
   // Stores
   void store_check(Register obj);                // store check for obj - register is destroyed afterwards
   void store_check(Register obj, Address dst);   // same as above, dst is exact store location (reg. is destroyed)
-
+#ifdef TERA_INTERPRETER
+  void h2_store_check_part_1(Register obj);
+  void h2_store_check_part_2(Register obj);
+#endif
 #if INCLUDE_ALL_GCS
 
   void g1_write_barrier_pre(Register obj,
@@ -1157,6 +1160,10 @@ public:
 
   // Load the base of the cardtable byte map into reg.
   void load_byte_map_base(Register reg);
+#ifdef TERA_INTERPRETER
+  // Load the base of the Teraheap cardtable byte map into reg.
+  void load_th_byte_map_base(Register reg);
+#endif
 
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code

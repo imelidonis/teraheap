@@ -11,6 +11,55 @@
 #include "../include/regions.h"
 #include "../include/sharedDefines.h"
 
+static uint64_t _MAX_PARTITIONS;
+
+struct offset {
+  uint64_t offset;
+  struct offset *next;
+};
+
+#if PR_BUFFER
+/* We use promotion buffer in each region to reduce the number of system calls
+ * for small sized objects.
+ */
+struct pr_buffer {
+  pthread_mutex_t buffer_lock;  /* Lock per buffer */
+  char *buffer;                 /* Allocation buffer */
+  char *first_obj_addr;         /* First object address in region */
+  char *alloc_ptr;              /* Allocation pointer for the buffer */
+  size_t size;					/* Current size of the buffer */
+};
+#endif
+
+/*
+ * The struct for tera_group array
+ */
+struct tera_group {
+    struct region *region;
+    struct tera_group *next;
+};
+
+/*
+ * The struct for regions
+ */
+struct region {
+    char *start_address;
+    char *last_allocated_end;
+    char *last_allocated_start;
+    char *first_allocated_start;
+    struct tera_group *dependency_list;
+#if ANONYMOUS
+  struct offset *offset_list;
+  size_t size_mapped;
+#endif
+#if PR_BUFFER
+    struct pr_buffer *pr_buffer;
+#endif
+    int8_t used;
+    uint32_t rdd_id;
+    uint32_t part_id;
+};
+
 // Mapping of rdd_id to the corresponding region.
 // Locking the Mapping prevents multiple threads from
 // allocating to the same same region.
@@ -51,8 +100,9 @@ static inline void check_allocation_failure(void *ptr, const char *msg) {
 /*
  * Initialize region array, tera_group array and their fields
  */
-void init_regions() {
+void init_regions(uint64_t partitions) {
   int32_t i;
+  _MAX_PARTITIONS = partitions;
 
   region_enabled = -1;
   offset_list = NULL;
@@ -61,7 +111,7 @@ void init_regions() {
   check_allocation_failure(region_array, "[ERROR] -- Failed to allocate memory for region_array\n");
 
   id_mapping_array =
-      malloc((MAX_PARTITIONS * max_rdd_id) * sizeof(struct id_to_reg_mapping));
+      malloc((_MAX_PARTITIONS * max_rdd_id) * sizeof(struct id_to_reg_mapping));
   check_allocation_failure(
       id_mapping_array, "[ERROR] -- Failed to allocate memory for id_mapping_array\n");
 
@@ -80,8 +130,8 @@ void init_regions() {
     region_array[i].size_mapped               = 0;
     region_array[i].offset_list               = NULL;
 #endif
-    region_array[i].rdd_id                    = MAX_PARTITIONS * max_rdd_id;
-    region_array[i].part_id                   = MAX_PARTITIONS * max_rdd_id;
+    region_array[i].rdd_id                    = _MAX_PARTITIONS * max_rdd_id;
+    region_array[i].part_id                   = _MAX_PARTITIONS * max_rdd_id;
 #if PR_BUFFER
     region_array[i].pr_buffer                 = malloc(sizeof(struct pr_buffer));
     region_array[i].pr_buffer->buffer         = NULL;
@@ -92,7 +142,7 @@ void init_regions() {
 #endif
   }
 
-  for (i = 0; i < MAX_PARTITIONS * max_rdd_id; i++) {
+  for (i = 0; i < _MAX_PARTITIONS * max_rdd_id; i++) {
     id_mapping_array[i].mapped_region = NULL;
     pthread_mutex_init(&id_mapping_array[i].mapping_lock, NULL);
   }
@@ -190,7 +240,7 @@ char* new_region(size_t size) {
 }
 
 uint64_t get_id(uint64_t rdd_id, uint64_t partition_id) {
-  return (rdd_id % max_rdd_id) * MAX_PARTITIONS + partition_id;
+  return (rdd_id % max_rdd_id) * _MAX_PARTITIONS + partition_id;
 }
 
 char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
@@ -603,7 +653,7 @@ struct region_list* free_regions() {
                                 region_array[i].part_id)].mapped_region = NULL;
       }
 
-      region_array[i].rdd_id = MAX_PARTITIONS * max_rdd_id;
+      region_array[i].rdd_id = _MAX_PARTITIONS * max_rdd_id;
 
       reclaimed_regions_count++;
     }

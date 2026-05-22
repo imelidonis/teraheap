@@ -794,14 +794,20 @@ jint universe_init() {
   return JNI_OK;
 }
 
+#if defined (__aarch64__)
+void Universe::initialize_teraHeap() {
+  _teraHeap = new TeraHeap();
+}
+#endif
+
 jint Universe::initialize_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
   _collectedHeap = GCConfig::arguments()->create_heap();
-
+#if !defined (__aarch64__)
   if ( UseG1GC && EnableTeraHeap ) {
     _teraHeap = new TeraHeap();
   }
-
+#endif
   log_info(gc)("Using %s", _collectedHeap->name());
   return _collectedHeap->initialize();
 }

@@ -19,6 +19,17 @@
 #define HEADER_SIZE (32)  // Header size of the Dummy object	
 #define align_size_up_(size, alignment) (((size) + ((alignment) - 1)) & ~((alignment) - 1))
 
+static uint64_t _MAX_PARTITIONS;
+
+struct _mem_pool{
+    char *mmap_start;                                   //< Memory mapped allocation start addresss
+    char* start_address;                                //< Aligned start address of TeraCache
+    char* cur_alloc_ptr;                                //< Current allocation pointer of TeraCache
+    char* stop_address;                                 //< Last address of TeraCache
+
+    uint64_t size;                                              //< Current allocated bytes in TeraCache
+};
+
 char dev[150] = { '\0' };
 
 uint64_t dev_size = 0;
@@ -78,8 +89,9 @@ void create_file(const char *path, uint64_t size) {
 }
 
 // Initialize allocator
-void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size) {
+void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions) {
   fd = -1;
+  _MAX_PARTITIONS = partitions;
 
 #if ANONYMOUS
   // Anonymous mmap
@@ -109,16 +121,16 @@ void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size) {
 
   region_array_size = dev_size / REGION_SIZE;
 
-  assertf(region_array_size >= MAX_PARTITIONS,
+  assertf(region_array_size >= _MAX_PARTITIONS,
           "Device size should be larger, because region_array_size is "
-          "calculated to be smaller than MAX_PARTITIONS!");
+          "calculated to be smaller than _MAX_PARTITIONS!");
 
-  max_rdd_id = region_array_size / MAX_PARTITIONS;
+  max_rdd_id = region_array_size / _MAX_PARTITIONS;
 
   pthread_mutex_init(&th_mem_pool_lock, NULL);
 
-  init_regions();
-	req_init();
+  init_regions(_MAX_PARTITIONS);
+  req_init();
 }
 
 // Return the start address of the memory allocation pool

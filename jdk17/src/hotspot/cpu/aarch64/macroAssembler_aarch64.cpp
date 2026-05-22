@@ -4203,7 +4203,14 @@ void MacroAssembler::movoop(Register dst, jobject obj, bool immediate) {
 #ifdef ASSERT
     {
       ThreadInVMfromUnknown tiv;
+#ifdef TERA_INTERPRETER
+      if (EnableTeraHeap)
+        assert(Universe::heap()->is_in(JNIHandles::resolve(obj)) || Universe::is_in_h2(JNIHandles::resolve(obj)), "should be real oop");
+      else
+        assert(Universe::heap()->is_in(JNIHandles::resolve(obj)), "should be real oop");
+#else
       assert(Universe::heap()->is_in(JNIHandles::resolve(obj)), "should be real oop");
+#endif
     }
 #endif
     oop_index = oop_recorder()->find_index(obj);
@@ -4441,6 +4448,17 @@ void MacroAssembler::load_byte_map_base(Register reg) {
   // even be negative. It is thus materialised as a constant.
   mov(reg, (uint64_t)byte_map_base);
 }
+
+#ifdef TERA_INTERPRETER
+void MacroAssembler::load_th_byte_map_base(Register reg) {
+  CardTable::CardValue* byte_map_base =
+    ((CardTableBarrierSet*)(BarrierSet::barrier_set()))->card_table()->th_byte_map_base();
+
+  // Strictly speaking the byte_map_base isn't an address at all, and it might
+  // even be negative. It is thus materialised as a constant.
+  mov(reg, (uint64_t)byte_map_base);
+}   
+#endif
 
 void MacroAssembler::build_frame(int framesize) {
   assert(framesize >= 2 * wordSize, "framesize must include space for FP/LR");

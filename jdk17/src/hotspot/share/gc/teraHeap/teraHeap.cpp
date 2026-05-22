@@ -62,7 +62,7 @@ TeraHeap::TeraHeap() {
     ShouldNotReachHere();
   }
 
-  init(align, AllocateH2At, H2FileSize);
+  init(align, AllocateH2At, H2FileSize, H2MaxPartitions);
 
   _start_addr = start_addr_mem_pool();
   _stop_addr = stop_addr_mem_pool();

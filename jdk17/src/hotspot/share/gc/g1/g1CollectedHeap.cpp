@@ -1685,7 +1685,9 @@ jint G1CollectedHeap::initialize() {
                                                      HeapAlignment);
 
   initialize_reserved_region(heap_rs);
-
+#if defined (__aarch64__)
+  CollectedHeap::initialize();
+#endif
   //G1 card table
   G1CardTable* ct = new G1CardTable(heap_rs.region());
   ct->initialize(); 
@@ -1695,6 +1697,9 @@ jint G1CollectedHeap::initialize() {
 #ifdef TERA_CARDS
   //tera card table
   if (EnableTeraHeap) {
+#if defined (__aarch64__)
+    Universe::initialize_teraHeap();
+#endif
     _tera_heap_reserved = MemRegion(
       (HeapWord*)Universe::teraHeap()->h2_start_addr(),
       (HeapWord*)Universe::teraHeap()->h2_end_addr());

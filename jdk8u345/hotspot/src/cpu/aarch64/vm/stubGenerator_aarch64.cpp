@@ -675,28 +675,80 @@ class StubGenerator: public StubCodeGenerator {
         {
           CardTableModRefBS* ct = (CardTableModRefBS*)bs;
           assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
+DEBUG_ONLY(if (EnableTeraHeap) { assert(sizeof(*ct->th_byte_map_base) == sizeof(jbyte), "adjust this code"); });
+#ifdef TERA_INTERPRETER
+          if (EnableTeraHeap) {
+            Label L_h2_loop;
+            Label L_in_h2;
+            Label L_done_h2;
+            const Register count = end;  // 'end' register contains bytes count now
 
-          Label L_loop;
+            __ lea(scratch, Address((address)Universe::teraHeap()->h2_start_addr(), relocInfo::none));
+            __ cmp(start, scratch);
+            __ br(Assembler::GE, L_in_h2);
 
-           __ lsr(start, start, CardTableModRefBS::card_shift);
-           __ lsr(end, end, CardTableModRefBS::card_shift);
-           __ sub(end, end, start); // number of bytes to copy
+            __ lsr(start, start, CardTableModRefBS::card_shift);
+            __ lsr(end, end, CardTableModRefBS::card_shift);
+            __ sub(end, end, start); // number of bytes to copy
+            __ load_byte_map_base(scratch);
+            __ add(start, start, scratch);
+            __ b(L_done_h2);
 
-          const Register count = end; // 'end' register contains bytes count now
-          __ load_byte_map_base(scratch);
-          __ add(start, start, scratch);
-          if (UseConcMarkSweepGC) {
-            __ membar(__ StoreStore);
+            __ bind(L_in_h2);
+            __ lsr(start, start, CardTableModRefBS::th_card_shift);
+            __ lsr(end, end, CardTableModRefBS::th_card_shift);
+            __ sub(end, end, start); // number of bytes to copy
+            __ load_th_byte_map_base(scratch);
+            __ add(start, start, scratch);
+
+            __ BIND(L_done_h2);
+            if (UseConcMarkSweepGC) {
+              __ membar(__ StoreStore);
+            }
+            __ BIND(L_h2_loop);
+            __ strb(zr, Address(start, count));
+            __ subs(count, count, 1);
+            __ br(Assembler::GE, L_h2_loop);
+          }else{
+            Label L_loop;
+
+            __ lsr(start, start, CardTableModRefBS::card_shift);
+            __ lsr(end, end, CardTableModRefBS::card_shift);
+            __ sub(end, end, start); // number of bytes to copy
+
+            const Register count = end; // 'end' register contains bytes count now
+            __ load_byte_map_base(scratch);
+            __ add(start, start, scratch);
+            if (UseConcMarkSweepGC) {
+              __ membar(__ StoreStore);
+            }
+            __ BIND(L_loop);
+            __ strb(zr, Address(start, count));
+            __ subs(count, count, 1);
+            __ br(Assembler::GE, L_loop);
           }
-          __ BIND(L_loop);
-          __ strb(zr, Address(start, count));
-          __ subs(count, count, 1);
-          __ br(Assembler::GE, L_loop);
+#else
+            Label L_loop;
+
+            __ lsr(start, start, CardTableModRefBS::card_shift);
+            __ lsr(end, end, CardTableModRefBS::card_shift);
+            __ sub(end, end, start); // number of bytes to copy
+
+            const Register count = end; // 'end' register contains bytes count now
+            __ load_byte_map_base(scratch);
+            __ add(start, start, scratch);
+            if (UseConcMarkSweepGC) {
+              __ membar(__ StoreStore);
+            }
+            __ BIND(L_loop);
+            __ strb(zr, Address(start, count));
+            __ subs(count, count, 1);
+            __ br(Assembler::GE, L_loop);
+#endif//TERA_INTERPRETER
         }
         break;
       default:
         ShouldNotReachHere();
-
     }
     __ bind(L_done);
   }

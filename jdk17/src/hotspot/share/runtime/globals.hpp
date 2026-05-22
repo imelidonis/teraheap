@@ -965,6 +965,8 @@ const intx ObjectAlignmentInBytes = 8;
   product(ccstr, AllocateH2At, NULL,					    \
           "Path to the directory where the H2 file will be created")	    \
                                                                             \
+  product(uintx, H2MaxPartitions, 256,                                      \
+          "H2 Maximum partitions per RDD, affects  id array size")          \
                                                                             \
   /* JVMTI heap profiling */                                                \
                                                                             \

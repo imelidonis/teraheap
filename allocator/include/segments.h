@@ -17,57 +17,10 @@
  * THRESHOLD should always be less than the PR_BUFFER_SIZE*/
 #define THRESHOLD (1*1024LU*1024)
 
-struct offset {
-  uint64_t offset;
-  struct offset *next;
-};
-
-#if PR_BUFFER
-/* We use promotion buffer in each region to reduce the number of system calls
- * for small sized objects.
- */
-struct pr_buffer {
-  pthread_mutex_t buffer_lock;  /* Lock per buffer */
-  char *buffer;					        /* Allocation buffer */
-  char *first_obj_addr;			    /* First object address in region */
-  char *alloc_ptr;			        /* Allocation pointer for the buffer */
-  size_t size;					        /* Current size of the buffer */
-};
-#endif
-
-/*
- * The struct for tera_group array
- */
-struct tera_group {
-    struct region *region;
-    struct tera_group *next;
-};
-
-/*
- * The struct for regions
- */
-struct region {
-    char *start_address;
-    char *last_allocated_end;
-    char *last_allocated_start;
-    char *first_allocated_start;
-    struct tera_group *dependency_list;
-#if ANONYMOUS
-  struct offset *offset_list;
-  size_t size_mapped;
-#endif
-#if PR_BUFFER
-    struct pr_buffer *pr_buffer;
-#endif
-    int8_t used;
-    uint32_t rdd_id;
-    uint32_t part_id;
-};
-
 /*
  * Initialize region array, tera_group array and their fields
  */
-void init_regions();
+void init_regions(uint64_t partitions);
 
 /*
  * Finds an empty regions and returns its starting address

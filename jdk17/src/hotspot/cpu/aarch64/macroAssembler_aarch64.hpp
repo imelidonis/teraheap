@@ -1220,7 +1220,10 @@ public:
 
   // Load the base of the cardtable byte map into reg.
   void load_byte_map_base(Register reg);
-
+#ifdef TERA_INTERPRETER
+  // Load the base of the Teraheap cardtable byte map into reg.
+  void load_th_byte_map_base(Register reg);
+#endif
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code
 

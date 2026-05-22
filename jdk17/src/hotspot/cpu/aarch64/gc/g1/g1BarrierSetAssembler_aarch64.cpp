@@ -43,6 +43,10 @@
 
 #define __ masm->
 
+#ifdef TERA_INTERPRETER
+  #define TIMES_OOP (UseCompressedOops ? Address::times_4 : Address::times_8)
+#endif
+
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count, RegSet saved_regs) {
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
@@ -90,9 +94,59 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
   __ push(saved_regs, sp);
   assert_different_registers(start, count, scratch);
   assert_different_registers(c_rarg0, count);
+#ifdef TERA_INTERPRETER
+  __ pusha();
+  Label L_done;
+  if (EnableTeraHeap) {
+    Label L_h1;
+    // Load the TeraHeap's H2 start address in scratch
+    __ lea(scratch, Address((address)Universe::teraHeap()->h2_start_addr(), relocInfo::none));
+    // Check if array is in H1 or H2
+    __ cmp(start, scratch);
+    __ br(Assembler::LT, L_h1);
+    // Obj in H2
+    Label L_loop;
+    const Register end = count;
+    assert_different_registers(start, end);
+
+    __ cbz(count, L_done); // zero count - nothing to do
+
+    __ lea(end, Address(start, count, Address::lsl(LogBytesPerHeapOop))); // end = start + count << LogBytesPerHeapOop
+    __ sub(end, end, BytesPerHeapOop); // last element address to make inclusive
+
+    __ lsr(start, start, CardTable::th_card_shift);
+    __ lsr(end, end, CardTable::th_card_shift);
+    __ sub(end, end, start); // number of bytes to copy
+
+    BarrierSet *bs = BarrierSet::barrier_set();
+    CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+    CardTable* ct = ctbs->th_card_table();
+    intptr_t th_disp = (intptr_t) ct->th_byte_map_base();
+    __ mov(scratch, th_disp);
+    //__ load_th_byte_map_base(scratch);
+    __ add(start, start, scratch);
+
+    __ bind(L_loop);
+    //__ add(scratch, start, count);      // scratch = current card address
+    //__ strb(zr, Address(scratch));      // zero the card
+    __ strb(zr, Address(start, count));
+    __ subs(count, count, 1);
+    __ br(Assembler::GE, L_loop);
+    __ b(L_done);
+    __ bind(L_h1);
+  }
+#endif// TERA_INTERPRETER
+
+  // Obj in H1
   __ mov(c_rarg0, start);
   __ mov(c_rarg1, count);
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry), 2);
+
+#ifdef TERA_INTERPRETER
+  __ bind(L_done);
+  __ popa();
+#endif
+
   __ pop(saved_regs, sp);
 }
 
@@ -207,57 +261,118 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
 
   Label done;
   Label runtime;
+#ifdef TERA_INTERPRETER
+  // if the store address is in H2, dirty the TeraHeap card table and skip the normal H1 barrier.
+  if (EnableTeraHeap) {
+    Label L_in_h1;
+    Label L_in_h2;
+
+    // Compare store_addr against H2 start address.
+    intptr_t h2_start = (intptr_t)Universe::teraHeap()->h2_start_addr();
+    // tmp2 = h2_start_addr
+    __ movptr(tmp2, h2_start);
+    // if (store_addr >= h2_start) -> L_in_h2 else L_in_h1
+    __ cmp(store_addr, tmp2);
+    __ br(Assembler::GE, L_in_h2);
+    __ b(L_in_h1);
+
+    // H2: use TeraHeap card table
+    __ bind(L_in_h2);
+
+    CardTable* th_ct = ctbs->th_card_table();
+
+    const Register card_index = tmp;   // index into th_card_table
+    const Register th_base    = tmp2;  // base of TH byte map
+
+    // card_index = store_addr >> th_card_shift
+    __ mov(card_index, store_addr);
+    __ lsr(card_index, card_index, CardTable::th_card_shift);
+
+    // th_base = th_byte_map_base (no relocation, just an immediate ptr value)
+    ///__ load_th_byte_map_base(th_base);
+    intptr_t th_byte_map_base = (intptr_t)th_ct->th_byte_map_base();
+    __ movptr(th_base, th_byte_map_base);
+
+    // card_addr_h2 = th_base + card_index
+    const Register card_addr_h2 = card_index;
+    __ add(card_addr_h2, card_index, th_base);
+
+    __ strb(zr, Address(card_addr_h2));
+
+    __ b(done);
+
+    __ bind(L_in_h1);
+  }
+#endif // TERA_INTERPRETER
+
+  // G1 post-write barrier (H1 / regular heap)
 
   // Does store cross heap regions?
-
+  // tmp = (store_addr ^ new_val) >> LogOfHRGrainBytes
   __ eor(tmp, store_addr, new_val);
   __ lsr(tmp, tmp, HeapRegion::LogOfHRGrainBytes);
-  __ cbz(tmp, done);
+  __ cbz(tmp, done);               // same region -> done
 
   // crosses regions, storing NULL?
+  __ cbz(new_val, done);           // storing NULL -> done
 
-  __ cbz(new_val, done);
-
-  // storing region crossing non-NULL, is card already dirty?
+  // storing region-crossing non-NULL oop, is card already dirty?
 
   const Register card_addr = tmp;
 
+  // card_addr = card index = store_addr >> card_shift
   __ lsr(card_addr, store_addr, CardTable::card_shift);
 
-  // get the address of the card
+  // get the address of the card in the normal G1 card table
   __ load_byte_map_base(tmp2);
   __ add(card_addr, card_addr, tmp2);
+
+  // if card is "young" we don't need to dirty it
   __ ldrb(tmp2, Address(card_addr));
   __ cmpw(tmp2, (int)G1CardTable::g1_young_card_val());
   __ br(Assembler::EQ, done);
 
+  // we only dirty old cards
   assert((int)CardTable::dirty_card_val() == 0, "must be 0");
 
   __ membar(Assembler::StoreLoad);
 
+  // if already dirty, nothing to do
   __ ldrb(tmp2, Address(card_addr));
   __ cbzw(tmp2, done);
 
   // storing a region crossing, non-NULL oop, card is clean.
   // dirty card and log.
 
+  // card = dirty (0)
   __ strb(zr, Address(card_addr));
 
+  // pointer to the card is enqueued on the rem set log
   __ ldr(rscratch1, queue_index);
   __ cbz(rscratch1, runtime);
+
   __ sub(rscratch1, rscratch1, wordSize);
   __ str(rscratch1, queue_index);
 
   __ ldr(tmp2, buffer);
   __ str(card_addr, Address(tmp2, rscratch1));
+
   __ b(done);
 
+  // Runtime slow path
   __ bind(runtime);
-  // save the live input values
-  RegSet saved = RegSet::of(store_addr);
-  __ push(saved, sp);
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, thread);
-  __ pop(saved, sp);
+  {
+    // save the live input values
+    RegSet saved = RegSet::of(store_addr);
+    __ push(saved, sp);
+
+    __ call_VM_leaf(
+      CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry),
+      card_addr, thread
+    );
+
+    __ pop(saved, sp);
+  }
 
   __ bind(done);
 }

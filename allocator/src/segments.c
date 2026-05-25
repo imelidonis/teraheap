@@ -28,7 +28,7 @@ struct pr_buffer {
   char *buffer;                 /* Allocation buffer */
   char *first_obj_addr;         /* First object address in region */
   char *alloc_ptr;              /* Allocation pointer for the buffer */
-  size_t size;					        /* Current size of the buffer */
+  size_t size;					/* Current size of the buffer */
 };
 #endif
 

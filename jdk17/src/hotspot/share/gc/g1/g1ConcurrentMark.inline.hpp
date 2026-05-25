@@ -43,14 +43,7 @@
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
 #ifdef TERA_MAINTENANCE
   if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
-  #ifdef DBG_LOST_REGION
-    // TODO: should we mark region live here? --> caused error again
-    // 1
-    const char *name = "G1CMIsAliveClosure::do_object_b";
-    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-  #else 
     Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-  #endif // DBG_LOST_REGION
     return true;
   }
 #endif
@@ -72,16 +65,8 @@ inline bool G1CMSubjectToDiscoveryClosure::do_object_b(oop obj) {
 #endif
 
 #ifdef TERA_MAINTENANCE
-  // TODO: check if requires modification/removal
   if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
-  #ifdef DBG_LOST_REGION
-    // TODO: should we mark region live here? --> caused error again
-    // 2
-    const char *name = "G1CMSubjectToDiscoveryClosure::do_object_b";
-    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-  #else 
     Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-  #endif // DBG_LOST_REGION
     return true;
   }
 #endif
@@ -234,12 +219,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
       if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {    
-      #ifdef DBG_LOST_REGION
-        const char *name = "G1CMTask::process_grey_task_entry";
-        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-      #else
         Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-      #endif // DBG_LOST_REGION
         return;
       }
 #endif
@@ -362,12 +342,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   //  (2) Fence heap traversal to H2
   //  return false (did not add anything to the bitmap)
   if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
-  #ifdef DBG_LOST_REGION
-    const char *name = "G1CMTask::make_reference_grey";
-    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-  #else
     Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-  #endif // DBG_LOST_REGION
     return false;
   }
 #endif

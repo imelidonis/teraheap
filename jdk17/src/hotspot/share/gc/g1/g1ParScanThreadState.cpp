@@ -776,7 +776,7 @@ void G1ParScanThreadState::th_ref_update(T*p, oop obj, G1HeapRegionAttr region_a
   //    allocated after the cm marking => thus no tera flag is enabled and is included in the cset
   //    it was above TAMPs and thus it was not found during the CM. therefore it doesnt have its tera flag enabled
   //  or in cset but we are in young gc      
-  _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !(_g1h->is_in_young(obj) || region_attr.is_humongous()));
+  _g1h->th_card_table()->inline_write_ref_field_gc((void*) p, obj, !(_g1h->is_in_young(obj) || _g1h->heap_region_containing(obj)->is_humongous()));
 }
 #endif
 

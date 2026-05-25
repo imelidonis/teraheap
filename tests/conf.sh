@@ -35,7 +35,10 @@ ONLY_EVAC_TESTS=(
   "Test_CM_WeakRef"
   "Test_H2_CM_YoungInterrupt"
   "Test_H2_FreePath_CM_YoungStorm"
+  "Test_H2_FreePath_CM_YoungStorm_Max_Frees"
+  "Test_H2_FreePath_CM_YoungStorm_EdgeStress"
   "Test_H2_DependencyList_Race"
+  "Test_H2_HumongousBackRefsStress"
 )
 
 # These tests exist only in full benchmark suite
@@ -86,4 +89,5 @@ DEFAULT_FLAGS=(
   -XX:+TeraHeapStatistics
   -XX:AllocateH2At=${H2_MOUNT_POINT}
   -XX:H2FileSize=${H2_SIZE_IN_BYTES}
+  -XX:+ProtectH2RegionsOnFree
 )

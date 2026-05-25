@@ -176,17 +176,10 @@ public:
   void h2_reset_used_field(void);
 
   // Marks the region containing obj as used
-#ifdef DBG_LOST_REGION
-  void mark_used_region(HeapWord *obj, char *from);
-#else
   void mark_used_region(HeapWord *obj);
-#endif // DBG_LOST_REGION
 
   // Prints all active regions
   void print_h2_active_regions(void);
-
-  // Groups the region of obj with the previously enabled region (single-threaded)
-  void group_region_enabled(HeapWord *obj, void *obj_field);
 
   // If the current thread is relocating an object to H2, record cross-heap / cross-H2-region
   // reference metadata (region dependency or H2 card marking) for the reference slot `obj_field`.
@@ -198,12 +191,6 @@ public:
 
   // Prints all the region groups
   void print_region_groups(void);
-
-  // Enables groupping with region of obj (single-threaded)
-  void enable_groups(HeapWord *old_addr, HeapWord *new_addr);
-
-  // Disables region groupping (single-threaded)
-  void disable_groups(void);
 
   // Enables groupping with region of obj (multi-threaded)
   void thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord *new_addr);
@@ -271,6 +258,10 @@ public:
   // Make every card of H2 dirty (used for debugging)
   void dirty_all_cards();
   // ------------------
+
+  void print_sigsegv_info(void *siginfo);
+
+  bool is_in_reclaimed_region(char *addr);
 };
 
 #endif

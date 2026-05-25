@@ -91,15 +91,9 @@ int main() {
   print_groups();
 
   reset_used();
-#ifdef DBG_LOST_REGION
-  mark_used(obj1, "testfile", 0);
-  mark_used(obj6, "testfile", 0);
-  mark_used(obj8, "testfile", 0);
-#else
   mark_used(obj1);
   mark_used(obj6);
   mark_used(obj8);
-#endif
 
   //nothing should be freed because all regions belong to the same tera_group 
   free_regions();
@@ -109,13 +103,8 @@ int main() {
   print_groups();
 
   reset_used();
-#ifdef DBG_LOST_REGION
-  mark_used(obj1, "testfile", 0);
-  mark_used(obj6, "testfile", 0);
-#else
   mark_used(obj1);
   mark_used(obj6);
-#endif
   assertf(total_used_regions() == 3,
           "Number of used regions is incorrect %lu", total_used_regions());
 

@@ -44,13 +44,7 @@ void G1CodeBlobClosure::HeapRegionGatheringOopClosure::do_oop_work(T* p) {
     // if the nmethod is pointing to an h2 obj
     // no need to include the nmethod in the rem set (bcs there are no rem sets in h2)
     if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(o)) {
-    #ifdef DBG_LOST_REGION
-      // 11 --
-      const char *name = "G1CodeBlobClosure::HeapRegionGatheringOopClosure::do_oop_work";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(o), (char *) name);
-    #else 
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(o));
-    #endif
       return;
     }
 #endif
@@ -80,15 +74,10 @@ void G1CodeBlobClosure::MarkingOopClosure::do_oop_work(T* p) {
       // no need to mark it as live
       //  (1) set H2 region live bit
       //  (2) Fence heap traversal to H2
-      if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(o)) {    
-      #ifdef DBG_LOST_REGION
-        const char *name = "G1CodeBlobClosure::MarkingOopClosure::do_oop_work";
-        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(o), (char *) name);
-      #else
-        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(o));
-      #endif // DBG_LOST_REGION
-        return;
-      }
+    if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(o)) {    
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(o));
+      return;
+    }
 #endif
 
     _cm->mark_in_next_bitmap(_worker_id, o);

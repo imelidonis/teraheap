@@ -69,6 +69,7 @@ public:
 
 #ifdef TERA_MAINTENANCE
       if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {    
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
         return;
       }
 #endif
@@ -121,7 +122,10 @@ class G1VerifyCodeRootOopClosure: public OopClosure {
 #ifdef TERA_MAINTENANCE
       // if the nmethod is pointing to an h2 obj
       // no need for the nmethod to be included in the rem set of the regions obj (bcs there are no rem sets in h2)
-      if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) return;
+      if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
+        Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
+        return;
+      }
 #endif
 
       // Now fetch the region containing the object
@@ -209,6 +213,7 @@ public:
 
 #ifdef TERA_MAINTENANCE
     if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {    
+      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
       return;
     }
 #endif

@@ -93,8 +93,6 @@ inline bool G1FullCollector::h2_should_trace(T* p) {
          Universe::teraHeap()->is_in_h2(p), "Error in h2_should_trace");
 
   Universe::teraHeap()->h2_push_backward_reference((void *)p, obj);
-  G1HeapRegionAttr region_attr = g1h->region_attr(obj);
-
   g1h->th_card_table()->inline_write_ref_field_gc((void *) p, obj, !(g1h->is_in_young(obj) || g1h->heap_region_containing(obj)->is_humongous()));
 
   return false;

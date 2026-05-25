@@ -90,17 +90,9 @@ static inline bool requires_marking(const void* entry, G1CollectedHeap* g1h) {
   //  (2) Fence heap traversal to H2
   //   return false
   if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(entry)) {  
-    
     assert(oopDesc::is_oop(cast_to_oop(entry), true /* ignore mark word */),
-         "Invalid oop in SATB buffer: " PTR_FORMAT, p2i(entry));
-
-  #ifdef DBG_LOST_REGION
-    const char *name = "requires_marking";
-    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(cast_to_oop(entry)), (char *) name);
-  #else  
+           "Invalid oop in SATB buffer: " PTR_FORMAT, p2i(entry));
     Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(cast_to_oop(entry)));
-  #endif // DBG_LOST_REGION
-
     return false;
   }
 #endif

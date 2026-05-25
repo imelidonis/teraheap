@@ -1240,6 +1240,9 @@ void G1ConcurrentMark::remark() {
     _g1h->resize_heap_if_necessary();
     _g1h->uncommit_regions_if_necessary();
 
+    if (EnableTeraHeap)
+      Universe::teraHeap()->free_unused_regions();
+
     compute_new_sizes();
 
     verify_during_pause(G1HeapVerifier::G1VerifyRemark, VerifyOption_G1UsePrevMarking, "Remark after");
@@ -1689,14 +1692,7 @@ public:
 #ifdef TERA_MAINTENANCE
     // TODO: check if requires modification
     if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(obj)) {
-    #ifdef DBG_LOST_REGION
-      // TODO: should we mark region live here? --> caused error again
-      // 3
-      const char *name = "G1ObjectCountIsAliveClosure::do_object_b";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj), (char *) name);
-    #else
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(obj));
-    #endif // DBG_LOST_REGION
       return true;
     }
 #endif

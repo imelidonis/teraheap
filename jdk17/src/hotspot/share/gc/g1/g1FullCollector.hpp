@@ -51,12 +51,7 @@ class G1FullGCSubjectToDiscoveryClosure: public BoolObjectClosure {
 public:
   bool do_object_b(oop p) {
     if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(p)) {
-  #ifdef DBG_LOST_REGION
-      const char *name = "G1FullGCSubjectToDiscoveryClosure::do_object_b";
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(p), (char *) name);
-  #else
       Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(p));
-  #endif // DBG_LOST_REGION
     }
     assert(p != NULL, "must be");
     return true;

@@ -864,6 +864,14 @@ struct region *get_region(uint64_t region_index) {
   return &region_array[region_index];
 }
 
+char *region_get_start_address(struct region *region) {
+  return region->start_address;
+}
+
+char *region_get_last_allocated_end(struct region *region) {
+  return region->last_allocated_end;
+}
+
 #if PR_BUFFER
 
 /*

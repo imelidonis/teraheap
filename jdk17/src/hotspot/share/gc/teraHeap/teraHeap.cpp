@@ -565,8 +565,8 @@ void TeraHeap::print_sigsegv_info(void *siginfo) {
     struct region *region = get_region(region_idx);
     fprintf(stderr, "L The address is in H2 in region %lu which is used=%d\n", region_idx, is_used(region_idx));
     fprintf(stderr, "L Region: {\n");
-    fprintf(stderr, "     - start:          %p\n", region->start_address);
-    fprintf(stderr, "     - last alloc end: %p\n", region->last_allocated_end);
+    fprintf(stderr, "     - start:          %p\n", region_get_start_address(region));
+    fprintf(stderr, "     - last alloc end: %p\n", region_get_last_allocated_end(region));
     fprintf(stderr, "  }\n");
   }
 }

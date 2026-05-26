@@ -15,6 +15,8 @@
  * THRESHOLD should always be less than the PR_BUFFER_SIZE*/
 #define THRESHOLD (1*1024LU*1024)
 
+struct region;
+
 /*
  * Initialize region array, tera_group array and their fields
  */
@@ -194,6 +196,12 @@ void make_region_inaccessible(char *region_start, uint gc_number);
 uint64_t region_containing_addr(char *addr);
 int is_used(uint64_t region);
 struct region *get_region(uint64_t region_index);
+
+// Returns the start_address of a region
+char *region_get_start_address(struct region *region);
+
+// Returns the end address of last allocation of a region
+char *region_get_last_allocated_end(struct region *region);
 
 #if PR_BUFFER
 /*

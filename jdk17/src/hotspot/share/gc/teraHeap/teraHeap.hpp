@@ -123,7 +123,7 @@ public:
   HeapWord *get_first_object_in_region(HeapWord *addr);
 
   // Add new object in the region
-  char *h2_add_object(oop obj, size_t size);
+  char *h2_add_object(oop obj, size_t size, size_t worker_id);
 
   // Pop the objects that are in `_th_stack`. These objects are
   // located in the Java Heap and we need to ensure that they will be
@@ -251,6 +251,8 @@ public:
   // Tera statistics for objects that we move to H2, forward references,
   // and backward references.
   TeraStatistics* get_tera_stats();
+
+  void update_allocator_state();
 
   // ------------------
   // Utility functions

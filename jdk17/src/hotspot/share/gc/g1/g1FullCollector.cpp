@@ -238,6 +238,9 @@ void G1FullCollector::collect() {
 
   phase2_prepare_compaction();
 
+  if (EnableTeraHeap)
+    Universe::teraHeap()->update_allocator_state();
+
   phase3_adjust_pointers();
 
   phase4_do_compaction();

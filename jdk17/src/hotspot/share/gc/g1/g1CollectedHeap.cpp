@@ -3226,19 +3226,24 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
            
        
-       if (may_do_optional_evacuation) { 
+        if (may_do_optional_evacuation) { 
           evacuate_optional_collection_set(&per_thread_states);
-       }
+        }
        
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
 
-// #ifdef TERA_MAINTENANCE
-        // if (EnableTeraHeap) {
+#ifdef TERA_MAINTENANCE
+        if (EnableTeraHeap) {
+          // Wait to complete all the transfers to H2 and then continue
+          // TODO: uncomment
+          // Universe::teraHeap()->h2_complete_transfers();  
+
           // if (collector_state()->in_young_gc_before_mixed())
           //   Universe::teraHeap()->free_unused_regions();
-        // }
-// #endif
+          Universe::teraHeap()->update_allocator_state(); 
+        }
+#endif
 
         start_new_collection_set();
 

@@ -25,7 +25,7 @@ TeraHeap::TeraHeap() {
     ShouldNotReachHere();
   }
 
-  init(align, AllocateH2At, H2FileSize, H2MaxPartitions);
+  init(align, AllocateH2At, H2FileSize, H2MaxPartitions, ParallelGCThreads);
   protect_h2_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
 
   _start_addr = start_addr_mem_pool();
@@ -385,10 +385,10 @@ void TeraHeap::mark_used_region(HeapWord *obj) {
 
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
-char* TeraHeap::h2_add_object(oop obj, size_t size) {
+char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
 	char *pos;			// Allocation position
 
-	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id());
+	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
 	
 	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 
@@ -539,6 +539,10 @@ bool TeraHeap::is_h2_group_enabled() {
 TeraStatistics* TeraHeap::get_tera_stats() {
   assert(TeraHeapStatistics, "TeraHeapStatistics not enabled!");
   return tera_stats;
+}
+
+void TeraHeap::update_allocator_state() {
+  update_allocator_global_state();
 }
 
 // Make every card of H2 dirty

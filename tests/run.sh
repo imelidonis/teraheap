@@ -27,8 +27,8 @@ Usage:
 
 Options:
   -n <iterations>       Number of iterations to run.
-  -m <mode>             Execution mode. One of: all, int, c1, c2, debug, msgbox.
-                        (If omitted, the script should use its default mode which is all.)
+  -m <mode>             Execution mode. One of: default, int, c1, c2, debug, msgbox.
+                        (If omitted, the script should use its default mode.)
   -t <gc_threads_csv>   Comma-separated list of Parallel GC thread counts (e.g., 1,2,4,8).
   -d <evac|full>        Select benchmark suite.
                         (If omitted, the script should run full GC benchmarks.)
@@ -208,9 +208,9 @@ do
     m)
       MODE=${OPTARG}
       case "$MODE" in
-        all|int|c1|c2|debug|msgbox) ;;
+        default|int|c1|c2|debug|msgbox) ;;
         *)
-          echo "Error: invalid MODE '$MODE'. Expected one of: all, int, c1, c2, debug, msgbox" >&2
+          echo "Error: invalid MODE '$MODE'. Expected one of: default, int, c1, c2, debug, msgbox" >&2
           usage 1
           ;;
       esac

@@ -17,6 +17,10 @@ Stack<oop *, mtGC> TeraHeap::_th_stack;
 Stack<oop *, mtGC> TeraHeap::_th_adjust_stack;
 Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_stack;
 
+#ifdef ASSERT
+Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_to_verify_stack;
+#endif // ASSERT
+
 // Constructor of TeraHeap
 TeraHeap::TeraHeap() {
   uint64_t align = CardTable::th_ct_max_alignment_constraint();
@@ -208,6 +212,14 @@ void TeraHeap::h2_push_humongous_start(void *p) {
   assert(!_th_humongous_stack.is_empty(), "Sanity Check");
 }
 
+#ifdef ASSERT
+void TeraHeap::push_humongous_to_verify(HeapRegion *hr) {
+  // Called by a single thread, does not need lock
+  _th_humongous_to_verify_stack.push(hr);
+  assert(!_th_humongous_to_verify_stack.is_empty(), "Sanity Check");
+}
+#endif // ASSERT
+
 // Resets the used field of all regions in H2
 void TeraHeap::h2_reset_used_field(void) {
   reset_used();
@@ -296,6 +308,13 @@ oop* TeraHeap::h2_adjust_next_back_reference() {
 HeapRegion *TeraHeap::h2_get_next_humongous_start() {
   return (!_th_humongous_stack.is_empty() ? _th_humongous_stack.pop() : NULL);
 }
+
+#ifdef ASSERT
+// Get the next humongous region to verify it is on the free list (only for debugging)
+HeapRegion *TeraHeap::verify_next_humongous() {
+  return (!_th_humongous_to_verify_stack.is_empty() ? _th_humongous_to_verify_stack.pop() : NULL);
+}
+#endif // ASSERT
 
 // Enable region groupping (multi-threaded)
 void TeraHeap::thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord* new_addr) {
@@ -390,7 +409,7 @@ char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
 
 	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
 	
-	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
+	assert((HeapWord *) pos + size * HeapWordSize < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 
 	_start_array.th_allocate_block((HeapWord *)pos);
 
@@ -543,6 +562,7 @@ TeraStatistics* TeraHeap::get_tera_stats() {
 
 void TeraHeap::update_allocator_state() {
   update_allocator_global_state();
+	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 }
 
 // Make every card of H2 dirty

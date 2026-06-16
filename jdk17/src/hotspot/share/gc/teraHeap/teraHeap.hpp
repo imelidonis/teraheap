@@ -36,6 +36,12 @@ private:
   // Stack to keep the humongous objects that are marked to move to H2.
   // We drain this stack in the compaction phase of a Full GC.
   static Stack<HeapRegion *, mtGC> _th_humongous_stack;
+
+#ifdef ASSERT
+  // Stack to keep moved h2 regions to verify they are free after Full GC
+  static Stack<HeapRegion *, mtGC> _th_humongous_to_verify_stack;
+#endif // ASSERT
+
   /*---------------------------------------------*/
 
   TeraStatistics *tera_stats;
@@ -139,11 +145,22 @@ public:
   // move them during the compaction phase.
   void h2_push_humongous_start(void *p);
 
+#ifdef ASSERT
+  // Push a humongous region to a stack to verify that they are on the 
+  // free-list after Full GC.
+  void push_humongous_to_verify(HeapRegion *hr);
+#endif // ASSERT
+
   // Get the next backward reference from the stack to adjust
   oop* h2_adjust_next_back_reference();
 
   // Get the next humongous starting region from the stack to move the whole object to H2
   HeapRegion *h2_get_next_humongous_start();
+
+  #ifdef ASSERT
+  // Get the next humongous region to verify it is on the free list (only for debugging)
+  HeapRegion *verify_next_humongous();
+  #endif // ASSERT
 
   // Explicit (using systemcall) write 'data' with 'size' to the specific
   // 'offset' in the file.

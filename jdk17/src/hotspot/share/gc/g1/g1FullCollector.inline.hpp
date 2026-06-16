@@ -60,16 +60,15 @@ void G1FullCollector::update_from_compacting_to_skip_compacting(uint region_idx)
   _region_attr_table.set_skip_compacting(region_idx);
 }
 
-void G1FullCollector::set_compacting_for_humongous(HeapRegion* hum_start) {
+void G1FullCollector::set_compacting_for_humongous(HeapRegion* hum_region) {
   if (!EnableTeraHeap)
     return;
 
-  assert(hum_start->is_humongous()
-         && hum_start == hum_start->humongous_start_region()
-         && cast_to_oop(hum_start->bottom())->is_marked_move_h2(),
-         "Region should be the beginning of H2 candidate Humongous object");
+  assert(hum_region->is_humongous()
+         && cast_to_oop(hum_region->humongous_start_region()->bottom())->is_marked_move_h2(),
+         "Region should be part of H2 candidate Humongous object");
 
-  _region_attr_table.set_compacting(hum_start->hrm_index());
+  _region_attr_table.set_compacting(hum_region->hrm_index());
 }
 
 template<class T>

@@ -139,9 +139,6 @@ void G1FullGCCompactTask::h2_move_humongous(HeapRegion* hr, uint worker_id) {
     obj->init_mark();
     Universe::teraHeap()->h2_move_obj(obj_addr, destination, size, true /* in fgc */);
   }
-
-  // TODO: this assertion may break if object is not yet copied.
-  assert(cast_to_oop(destination)->klass() != NULL, "should have a class");
 }
 
 void G1FullGCCompactTask::work(uint worker_id) {
@@ -169,7 +166,12 @@ void G1FullGCCompactTask::work(uint worker_id) {
       do {
         HeapRegion *next = g1h->next_region_in_humongous(hum_region);
         hum_region->set_containing_set(nullptr);
-        G1CollectedHeap::heap()->free_humongous_region(hum_region, nullptr);
+        g1h->free_humongous_region(hum_region, nullptr);
+        collector()->set_invalid(hum_region->hrm_index());
+
+        // Called only in debug mode
+        g1h->verify_humongous_free_after_h2_transfer(hum_region);
+
         hum_region = next;
       } while (hum_region != nullptr);
 

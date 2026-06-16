@@ -303,6 +303,11 @@ void G1FullCollector::complete_collection() {
 
   _heap->prepare_heap_for_mutators();
 
+  if (EnableTeraHeap) {
+    // Called only in debug mode
+    _heap->verify_transfered_humongous_are_on_free_list();
+  }
+
   _heap->policy()->record_full_collection_end();
   _heap->gc_epilogue(true);
 

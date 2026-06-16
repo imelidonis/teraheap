@@ -67,11 +67,13 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
       oop obj = cast_to_oop(hhr_start->bottom());
       if (!_bitmap->is_marked(obj)) {
         free_pinned_region<true>(hr);
-      } else if (EnableTeraHeap
-          && obj->is_marked_move_h2()
-          && !Universe::teraHeap()->is_in_h2(obj->forwardee())
-          && hhr_start == hr) {
-        prepare_humongous_for_h2(hhr_start, obj);
+      } else if (EnableTeraHeap && obj->is_marked_move_h2()) {
+        // Promote Humongous regions marked to move to H2 to Compacting
+        _collector->set_compacting_for_humongous(hr);
+
+        if (hhr_start == hr && !Universe::teraHeap()->is_in_h2(obj->forwardee())) {
+          prepare_humongous_for_h2(hhr_start, obj);
+        }
       }
     } else if (hr->is_open_archive()) {
       bool is_empty = _collector->live_words(hr->hrm_index()) == 0;
@@ -286,7 +288,6 @@ void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_humongous_for_h2(H
 
   obj->forward_to(cast_to_oop(h2_address));
   Universe::teraHeap()->h2_push_humongous_start((void *)hr);
-  _collector->set_compacting_for_humongous(hr);
 }
 
 void G1FullGCPrepareTask::prepare_serial_compaction() {

@@ -240,6 +240,14 @@ size_t TeraStatistics::get_sum_thr_bytes_copy_h2(){
   return sum_bytes;
 }
 
+double TeraStatistics::get_time_copy_h2(uint worker_id){
+  return thr_time_copy_h2[worker_id];
+}
+
+double TeraStatistics::get_time_alloc_h2(uint worker_id){
+  return thr_time_alloc_h2[worker_id];
+}
+
 double TeraStatistics::get_average_time_ms_h2() {
   uint contributing_threads_alloc = 0, contributing_threads_copy = 0;
 

@@ -564,6 +564,11 @@ double G1Policy::average_time_ms(G1GCPhaseTimes::GCParPhases phase) const {
   return phase_times()->average_time_ms(phase);
 }
 
+double G1Policy::average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase) const {
+  return phase_times()->average_time_without_h2_ms(phase);
+}
+
+
 double G1Policy::young_other_time_ms() const {
   return phase_times()->young_cset_choice_time_ms() +
          phase_times()->average_time_ms(G1GCPhaseTimes::YoungFreeCSet);

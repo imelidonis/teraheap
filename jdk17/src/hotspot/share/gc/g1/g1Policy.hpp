@@ -173,6 +173,8 @@ public:
 private:
   G1CollectionSet* _collection_set;
   double average_time_ms(G1GCPhaseTimes::GCParPhases phase) const;
+  double average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase) const; 
+
   double other_time_ms(double pause_time_ms) const;
 
   double young_other_time_ms() const;

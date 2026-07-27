@@ -129,11 +129,48 @@ double WorkerDataArray<T>::average() const {
 }
 
 template <typename T>
+double WorkerDataArray<T>::average_wihtout_h2() const {
+  uint contributing_threads = 0;
+  for (uint i = 0; i < _length; ++i) {
+    if (get(i) != uninitialized()) {
+      contributing_threads++;
+    }
+  }
+  if (contributing_threads == 0) {
+    return 0.0;
+  }
+  return sum_without_h2() / (double) contributing_threads;
+}
+
+
+template <typename T>
 T WorkerDataArray<T>::sum() const {
   T s = 0;
   for (uint i = 0; i < _length; ++i) {
     if (get(i) != uninitialized()) {
       s += get(i);
+    }
+  }
+  return s;
+}
+
+template <typename T>
+T WorkerDataArray<T>::sum_without_h2() const {
+  T s = 0;
+  for (uint i = 0; i < _length; ++i) {
+    if (get(i) != uninitialized()) {
+    
+    #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+      if(EnableTeraHeap && TeraHeapStatistics){
+        assert(get(i) > Universe::teraHeap()->get_tera_stats()->get_time_alloc_h2(i) +  Universe::teraHeap()->get_tera_stats()->get_time_copy_h2(i)); 
+        s += get(i) - Universe::teraHeap()->get_tera_stats()->get_time_alloc_h2(i) -  Universe::teraHeap()->get_tera_stats()->get_time_copy_h2(i);
+      } else {
+        s += get(i);
+      }
+    #else
+       s += get(i);
+    #endif
+
     }
   }
   return s;

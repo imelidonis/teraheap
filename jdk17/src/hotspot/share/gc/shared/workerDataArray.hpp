@@ -73,7 +73,9 @@ private:
 
   // The sum() and average() methods below consider uninitialized slots to be 0.
   double average() const;
+  double average_wihtout_h2() const;
   T sum() const;
+  T sum_without_h2() const; 
 
   const char* title() const {
     return _title;

@@ -142,6 +142,10 @@ public:
     h2_copy_ms = get_max_thr_time_copy_h2();
   }
 
+  double get_time_copy_h2(uint worker_id); 
+
+  double get_time_alloc_h2(uint worker_id); 
+
   double get_average_time_ms_h2(); 
   size_t get_sum_thr_bytes_copy_h2();
 

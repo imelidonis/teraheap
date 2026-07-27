@@ -34,6 +34,7 @@ private:
 
   double* thr_time_alloc_h2;
   double* thr_time_copy_h2;
+  size_t* thr_bytes_copy_h2;
 
   // total time of allocation to H2
   double h2_allocate_ms;
@@ -109,6 +110,9 @@ public:
   // Add the time it took for a thread to make a copy to H2
   void thr_add_time_copy_h2(uint thread_id, double time);
 
+  // Add the size of object that a thread copied to H2
+  void thr_add_bytes_copy_h2(uint thread_id, size_t bytes);
+  
   // Increase the appropriate counter for the distribution
   // NOTE: call when adding objects to H2
   void add_obj_size_distribution(size_t size);
@@ -137,6 +141,9 @@ public:
   void record_h2_max_copy_time() {
     h2_copy_ms = get_max_thr_time_copy_h2();
   }
+
+  double get_average_time_ms_h2(); 
+  size_t get_sum_thr_bytes_copy_h2();
 
   void set_is_in_mix(bool is_mixed_gc) {
     _is_mixed_gc = is_mixed_gc;
@@ -235,6 +242,10 @@ private:
   double get_max_thr_time_alloc_h2();
 
   double get_max_thr_time_copy_h2();
+
+  double get_sum_thr_time_alloc_h2();
+
+  double get_sum_thr_time_copy_h2(); 
 
   int get_total_regions_scanned();
 

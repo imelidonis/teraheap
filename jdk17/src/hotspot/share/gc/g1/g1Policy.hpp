@@ -236,6 +236,7 @@ private:
   void update_rs_length_prediction(size_t prediction);
 
   size_t predict_bytes_to_copy(HeapRegion* hr) const;
+  size_t predict_h2_bytes_to_copy(HeapRegion* hr) const;  
   double predict_survivor_regions_evac_time() const;
 
   // Check whether a given young length (young_length) fits into the

@@ -131,6 +131,8 @@
 
 #define VISITED_TERA_OBJ  203     //< Object visited during GC Analysis
 
+#define TWO_FACTOR_COST_MODEL_IN_CSET // Use cost model with different cost per byte metrics for h1 and h2 bytes, or not
+
 // #define RUSAGE_MUTATOR  //< Enables rusage measuremetns excluding STW GCs
 
 #endif  // _SHARE_DEFINES_H_

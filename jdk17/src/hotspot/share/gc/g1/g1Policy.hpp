@@ -173,8 +173,9 @@ public:
 private:
   G1CollectionSet* _collection_set;
   double average_time_ms(G1GCPhaseTimes::GCParPhases phase) const;
-  double average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase) const; 
-
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  double average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase) const;
+#endif
   double other_time_ms(double pause_time_ms) const;
 
   double young_other_time_ms() const;
@@ -238,7 +239,9 @@ private:
   void update_rs_length_prediction(size_t prediction);
 
   size_t predict_bytes_to_copy(HeapRegion* hr) const;
-  size_t predict_h2_bytes_to_copy(HeapRegion* hr) const;  
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  size_t predict_h2_bytes_to_copy(HeapRegion* hr) const;
+#endif
   double predict_survivor_regions_evac_time() const;
 
   // Check whether a given young length (young_length) fits into the

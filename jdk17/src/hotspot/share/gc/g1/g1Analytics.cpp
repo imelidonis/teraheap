@@ -88,14 +88,18 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
     _young_cost_per_card_merge_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _mixed_cost_per_card_merge_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _copy_cost_per_byte_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
-    _h2_copy_cost_per_byte_ms_seq(new TruncatedSeq(TruncatedSeqLength)), 
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    _h2_copy_cost_per_byte_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
+  #endif
     _constant_other_time_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _young_other_cost_per_region_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _non_young_other_cost_per_region_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _pending_cards_seq(new TruncatedSeq(TruncatedSeqLength)),
     _rs_length_seq(new TruncatedSeq(TruncatedSeqLength)),
     _cost_per_byte_ms_during_cm_seq(new TruncatedSeq(TruncatedSeqLength)),
-    _h2_cost_per_byte_ms_during_cm_seq(new TruncatedSeq(TruncatedSeqLength)), 
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    _h2_cost_per_byte_ms_during_cm_seq(new TruncatedSeq(TruncatedSeqLength)),
+  #endif
     _recent_prev_end_times_for_all_gcs_sec(new TruncatedSeq(NumPrevPausesForHeuristics)),
     _long_term_pause_time_ratio(0.0),
     _short_term_pause_time_ratio(0.0) {
@@ -115,7 +119,9 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
   _young_cost_per_card_scan_ms_seq->add(young_only_cost_per_card_scan_ms_defaults[index]);
 
   _copy_cost_per_byte_ms_seq->add(cost_per_byte_ms_defaults[index]);
+ #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   _h2_copy_cost_per_byte_ms_seq->add(cost_per_byte_ms_defaults[index]);
+ #endif
   _constant_other_time_ms_seq->add(constant_other_time_ms_defaults[index]);
   _young_other_cost_per_region_ms_seq->add(young_other_cost_per_region_ms_defaults[index]);
   _non_young_other_cost_per_region_ms_seq->add(non_young_other_cost_per_region_ms_defaults[index]);
@@ -208,6 +214,7 @@ void G1Analytics::report_cost_per_byte_ms(double cost_per_byte_ms, bool mark_or_
   }
 }
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
 void G1Analytics::report_h2_cost_per_byte_ms(double h2_cost_per_byte_ms, bool mark_or_rebuild_in_progress) {
   if (mark_or_rebuild_in_progress) {
     _h2_cost_per_byte_ms_during_cm_seq->add(h2_cost_per_byte_ms);
@@ -215,6 +222,7 @@ void G1Analytics::report_h2_cost_per_byte_ms(double h2_cost_per_byte_ms, bool ma
     _h2_copy_cost_per_byte_ms_seq->add(h2_cost_per_byte_ms);
   }
 }
+#endif
 
 void G1Analytics::report_young_other_cost_per_region_ms(double other_cost_per_region_ms) {
   _young_other_cost_per_region_ms_seq->add(other_cost_per_region_ms);
@@ -284,6 +292,7 @@ double G1Analytics::predict_object_copy_time_ms_during_cm(size_t bytes_to_copy) 
   }
 }
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
 double G1Analytics::predict_h2_object_copy_time_ms_during_cm(size_t h2_bytes_to_copy) const {
   if (!enough_samples_available(_h2_cost_per_byte_ms_during_cm_seq)) {
     return (1.1 * h2_bytes_to_copy) * predict_zero_bounded(_h2_copy_cost_per_byte_ms_seq);
@@ -291,6 +300,7 @@ double G1Analytics::predict_h2_object_copy_time_ms_during_cm(size_t h2_bytes_to_
     return h2_bytes_to_copy * predict_zero_bounded(_h2_cost_per_byte_ms_during_cm_seq);
   }
 }
+#endif
 
 double G1Analytics::predict_object_copy_time_ms(size_t bytes_to_copy, bool during_concurrent_mark) const {
   if (during_concurrent_mark) {
@@ -300,6 +310,7 @@ double G1Analytics::predict_object_copy_time_ms(size_t bytes_to_copy, bool durin
   }
 }
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
 double G1Analytics::predict_h2_object_copy_time_ms(size_t h2_bytes_to_copy, bool during_concurrent_mark) const {
   if (during_concurrent_mark) {
     return predict_h2_object_copy_time_ms_during_cm(h2_bytes_to_copy);
@@ -307,6 +318,7 @@ double G1Analytics::predict_h2_object_copy_time_ms(size_t h2_bytes_to_copy, bool
     return h2_bytes_to_copy * predict_zero_bounded(_h2_copy_cost_per_byte_ms_seq);
   }
 }
+#endif
 
 double G1Analytics::predict_constant_other_time_ms() const {
   return predict_zero_bounded(_constant_other_time_ms_seq);

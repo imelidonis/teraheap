@@ -710,8 +710,9 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
 
     double time = os::elapsedTime() - start;
     Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(_worker_id, time);
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
     Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(_worker_id, word_sz);
-    
+  #endif
   } else {
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
   }

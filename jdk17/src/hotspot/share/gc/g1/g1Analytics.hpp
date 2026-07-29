@@ -63,7 +63,9 @@ class G1Analytics: public CHeapObj<mtGC> {
 
   // The cost to copy a byte in ms.
   TruncatedSeq* _copy_cost_per_byte_ms_seq;
-  TruncatedSeq* _h2_copy_cost_per_byte_ms_seq; 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  TruncatedSeq* _h2_copy_cost_per_byte_ms_seq;
+#endif
   TruncatedSeq* _constant_other_time_ms_seq;
   TruncatedSeq* _young_other_cost_per_region_ms_seq;
   TruncatedSeq* _non_young_other_cost_per_region_ms_seq;
@@ -72,7 +74,9 @@ class G1Analytics: public CHeapObj<mtGC> {
   TruncatedSeq* _rs_length_seq;
 
   TruncatedSeq* _cost_per_byte_ms_during_cm_seq;
-  TruncatedSeq* _h2_cost_per_byte_ms_during_cm_seq; 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  TruncatedSeq* _h2_cost_per_byte_ms_during_cm_seq;
+#endif
 
   // Statistics kept per GC stoppage, pause or full.
   TruncatedSeq* _recent_prev_end_times_for_all_gcs_sec;
@@ -130,7 +134,9 @@ public:
   void report_card_merge_to_scan_ratio(double cards_per_entry_ratio, bool for_young_gc);
   void report_rs_length_diff(double rs_length_diff);
   void report_cost_per_byte_ms(double cost_per_byte_ms, bool mark_or_rebuild_in_progress);
-  void report_h2_cost_per_byte_ms(double h2_cost_per_byte_ms, bool mark_or_rebuild_in_progress); 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  void report_h2_cost_per_byte_ms(double h2_cost_per_byte_ms, bool mark_or_rebuild_in_progress);
+#endif
   void report_young_other_cost_per_region_ms(double other_cost_per_region_ms);
   void report_non_young_other_cost_per_region_ms(double other_cost_per_region_ms);
   void report_constant_other_time_ms(double constant_other_time_ms);
@@ -152,10 +158,14 @@ public:
   double predict_card_scan_time_ms(size_t card_num, bool for_young_gc) const;
 
   double predict_object_copy_time_ms_during_cm(size_t bytes_to_copy) const;
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   double predict_h2_object_copy_time_ms_during_cm(size_t h2_bytes_to_copy) const;
+#endif
 
   double predict_object_copy_time_ms(size_t bytes_to_copy, bool during_concurrent_mark) const;
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   double predict_h2_object_copy_time_ms(size_t h2_bytes_to_copy, bool during_concurrent_mark) const;
+#endif
 
   double predict_constant_other_time_ms() const;
 

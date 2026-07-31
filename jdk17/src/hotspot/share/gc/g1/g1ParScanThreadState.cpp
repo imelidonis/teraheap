@@ -663,12 +663,12 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   if (TeraHeapStatistics) {
     Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*HeapWordSize );
 
-    Ticks start = Ticks::now();
+    double start = os::elapsedTime();
 
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz);
 
-    Tickspan time = Ticks::now() - start;
-    Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, TimeHelper::counter_to_millis(time.value()));
+    double time = os::elapsedTime() - start;
+    Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time);
   } else {
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz);
   }
@@ -704,12 +704,15 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   // ----------------------------------
 
   if (TeraHeapStatistics) {
-    Ticks start = Ticks::now();
+    double start = os::elapsedTime();
 
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
 
-    Tickspan time = Ticks::now() - start;
-    Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(_worker_id, TimeHelper::counter_to_millis(time.value()));
+    double time = os::elapsedTime() - start;
+    Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(_worker_id, time);
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(_worker_id, word_sz);
+  #endif
   } else {
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
   }

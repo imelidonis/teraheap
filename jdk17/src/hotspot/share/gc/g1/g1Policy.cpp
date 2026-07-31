@@ -564,6 +564,12 @@ double G1Policy::average_time_ms(G1GCPhaseTimes::GCParPhases phase) const {
   return phase_times()->average_time_ms(phase);
 }
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+double G1Policy::average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase) const {
+  return phase_times()->average_time_without_h2_ms(phase);
+}
+#endif
+
 double G1Policy::young_other_time_ms() const {
   return phase_times()->young_cset_choice_time_ms() +
          phase_times()->average_time_ms(G1GCPhaseTimes::YoungFreeCSet);
@@ -748,9 +754,30 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
     size_t copied_bytes = p->sum_thread_work_items(G1GCPhaseTimes::MergePSS, G1GCPhaseTimes::MergePSSCopiedBytes);
 
     if (copied_bytes > 0) {
-      double cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
+      double cost_per_byte_ms;
+      #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+        if (EnableTeraHeap && TeraHeapStatistics) {
+          cost_per_byte_ms = (average_time_without_h2_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
+        } else {
+          cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
+        }
+      #else
+         cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
+      #endif
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, collector_state()->mark_or_rebuild_in_progress());
     }
+ 
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    if (EnableTeraHeap && TeraHeapStatistics) {
+      size_t copied_bytes_h2 = Universe::teraHeap()->get_tera_stats()->get_sum_thr_bytes_copy_h2();
+      double average_time_ms_h2 = Universe::teraHeap()->get_tera_stats()->get_average_time_ms_h2();
+
+      if (copied_bytes_h2 > 0) {
+        double cost_h2_per_byte_ms = average_time_ms_h2 / copied_bytes_h2;
+      _ analytics->report_h2_cost_per_byte_ms(cost_h2_per_byte_ms, collector_state()->mark_or_rebuild_in_progress());
+      }
+    }
+  #endif
 
     if (_collection_set->young_region_length() > 0) {
       _analytics->report_young_other_cost_per_region_ms(young_other_time_ms() /
@@ -911,9 +938,8 @@ size_t G1Policy::predict_bytes_to_copy(HeapRegion* hr) const {
   size_t bytes_to_copy;
   if (!hr->is_young()) {
 #ifdef TERA_CONC_MARKING
-   
-    //bytes to copy in H1
-    //the other bytes are reclaimamble bytes = garbage + h2 live bytes
+    // Bytes to copy in H1
+    // The other bytes are reclaimamble bytes = garbage + h2 live bytes
     if (EnableTeraHeap)
       bytes_to_copy = hr->max_live_bytes() - hr->h2_marked_bytes();
     else
@@ -926,6 +952,30 @@ size_t G1Policy::predict_bytes_to_copy(HeapRegion* hr) const {
   }
   return bytes_to_copy;
 }
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+size_t G1Policy::predict_h2_bytes_to_copy(HeapRegion* hr) const {
+  // During young gc we do not transfer objects to h2 so cost time is zero
+  if (!_g1h->collector_state()->in_mixed_phase()) {
+    return 0;
+  }
+  size_t h2_bytes_to_copy;
+  if (!hr->is_young()) {
+#ifdef TERA_CONC_MARKING
+    // Bytes to copy in H2
+    if (EnableTeraHeap)
+      h2_bytes_to_copy = hr->h2_marked_bytes();
+    else
+      h2_bytes_to_copy = 0;
+#else
+    h2_bytes_to_copy = 0;
+#endif
+  } else {
+    h2_bytes_to_copy = 0;
+  }
+  return h2_bytes_to_copy;
+}
+#endif
 
 double G1Policy::predict_eden_copy_time_ms(uint count, size_t* bytes_to_copy) const {
   if (count == 0) {
@@ -940,7 +990,13 @@ double G1Policy::predict_eden_copy_time_ms(uint count, size_t* bytes_to_copy) co
 
 double G1Policy::predict_region_copy_time_ms(HeapRegion* hr) const {
   size_t const bytes_to_copy = predict_bytes_to_copy(hr);
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  size_t const h2_bytes_to_copy = predict_h2_bytes_to_copy(hr);
+  return _analytics->predict_object_copy_time_ms(bytes_to_copy, collector_state()->mark_or_rebuild_in_progress()) + _analytics->predict_h2_object_copy_time_ms(h2_bytes_to_copy, collector_state()->mark_or_rebuild_in_progress());
+#else 
   return _analytics->predict_object_copy_time_ms(bytes_to_copy, collector_state()->mark_or_rebuild_in_progress());
+#endif
+
 }
 
 double G1Policy::predict_region_non_copy_time_ms(HeapRegion* hr,

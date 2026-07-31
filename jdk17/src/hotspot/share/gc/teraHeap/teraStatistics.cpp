@@ -44,6 +44,9 @@ TeraStatistics::TeraStatistics() {
   // NOTE: these arrays are not freed as the destructor is never called
   thr_time_alloc_h2 = NEW_C_HEAP_ARRAY(double, ParallelGCThreads, mtGC);
   thr_time_copy_h2 = NEW_C_HEAP_ARRAY(double, ParallelGCThreads, mtGC);
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  thr_bytes_copy_h2 = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads, mtGC);
+#endif
 
   h2_card_table_scan_time_ms = 0;
   evac_time_ms = 0;
@@ -88,6 +91,9 @@ void TeraStatistics::reset_counters(void) {
 
   memset(thr_time_alloc_h2, 0, ParallelGCThreads * sizeof(double));
   memset(thr_time_copy_h2, 0, ParallelGCThreads * sizeof(double));
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  memset(thr_bytes_copy_h2, 0, ParallelGCThreads * sizeof(size_t));
+#endif
 
   memset(thr_fgc_regions_scanned, 0, ParallelGCThreads * sizeof(int));
   memset(thr_fgc_regions_skipped, 0, ParallelGCThreads * sizeof(int));
@@ -129,6 +135,12 @@ void TeraStatistics::thr_add_time_alloc_h2(uint thread_id, double time) {
 void TeraStatistics::thr_add_time_copy_h2(uint thread_id, double time) {
   thr_time_copy_h2[thread_id] += time;
 }
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+void TeraStatistics::thr_add_bytes_copy_h2(uint thread_id, size_t bytes) {
+  thr_bytes_copy_h2[thread_id] += bytes;
+}
+#endif
 
 void TeraStatistics::add_obj_size_distribution(size_t size) {
 		size_t obj_size = (size * HeapWordSize) / 1024UL;
@@ -209,6 +221,64 @@ double TeraStatistics::get_max_thr_time_copy_h2() {
 
   return max_time;
 }
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+double TeraStatistics::get_sum_thr_time_alloc_h2() {
+  double sum_time = 0.0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    sum_time += thr_time_alloc_h2[i];
+  }
+  return sum_time;
+}
+
+double TeraStatistics::get_sum_thr_time_copy_h2() {
+  double sum_time = 0.0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    sum_time += thr_time_copy_h2[i];
+  }
+  return sum_time;
+}
+
+size_t TeraStatistics::get_sum_thr_bytes_copy_h2() {
+  size_t sum_bytes = 0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    sum_bytes += thr_bytes_copy_h2[i];
+  }
+  return sum_bytes;
+}
+
+double TeraStatistics::get_time_copy_h2(uint worker_id) {
+  return thr_time_copy_h2[worker_id];
+}
+
+double TeraStatistics::get_time_alloc_h2(uint worker_id) {
+  return thr_time_alloc_h2[worker_id];
+}
+
+double TeraStatistics::get_average_time_ms_h2() {
+  uint contributing_threads_alloc = 0;
+  uint contributing_threads_copy = 0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    if (thr_time_alloc_h2[i] != 0)
+      contributing_threads_alloc++;
+    if (thr_time_copy_h2[i] != 0)
+      contributing_threads_copy++;
+  }
+  double sum_time_copy = get_sum_thr_time_copy_h2();
+  double sum_time_alloc = get_sum_thr_time_alloc_h2();
+  double avg_copy = 0.0;
+  double avg_alloc = 0.0;
+
+  if (contributing_threads_alloc != 0) {
+    avg_alloc = sum_time_alloc / (double) contributing_threads_alloc;
+  }
+
+  if (contributing_threads_copy != 0) {
+    avg_copy = sum_time_copy / (double) contributing_threads_copy;
+  }
+  return (avg_copy + avg_alloc) * 1000.0;
+}
+#endif
 
 #ifdef BACK_REF_STAT
 // Add a new entry to the histogram for 'obj'

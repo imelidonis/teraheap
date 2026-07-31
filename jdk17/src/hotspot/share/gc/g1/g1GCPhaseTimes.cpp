@@ -290,6 +290,15 @@ double G1GCPhaseTimes::average_time_ms(GCParPhases phase) {
   return _gc_par_phases[phase]->average() * 1000.0;
 }
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+double G1GCPhaseTimes::average_time_without_h2_ms(GCParPhases phase) {
+  if (_gc_par_phases[phase] == NULL) {
+    return 0.0;
+  }
+  return _gc_par_phases[phase]->average_wihtout_h2() * 1000.0;
+}
+#endif
+
 size_t G1GCPhaseTimes::sum_thread_work_items(GCParPhases phase, uint index) {
   if (_gc_par_phases[phase] == NULL) {
     return 0;

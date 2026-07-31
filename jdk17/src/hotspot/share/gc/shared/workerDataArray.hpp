@@ -73,7 +73,15 @@ private:
 
   // The sum() and average() methods below consider uninitialized slots to be 0.
   double average() const;
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  double average_wihtout_h2() const;
+#endif
+
   T sum() const;
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  T sum_without_h2() const;
+#endif
+
 
   const char* title() const {
     return _title;

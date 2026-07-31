@@ -774,7 +774,7 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
 
       if (copied_bytes_h2 > 0) {
         double cost_h2_per_byte_ms = average_time_ms_h2 / copied_bytes_h2;
-      _ analytics->report_h2_cost_per_byte_ms(cost_h2_per_byte_ms, collector_state()->mark_or_rebuild_in_progress());
+        _analytics->report_h2_cost_per_byte_ms(cost_h2_per_byte_ms, collector_state()->mark_or_rebuild_in_progress());
       }
     }
   #endif

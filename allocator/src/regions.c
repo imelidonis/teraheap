@@ -144,7 +144,13 @@ void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint6
 
   n_gc_threads = total_gc_threads;
 
+#ifdef CUSTOM_GROUPING
+  fprintf(stderr, "[INFO] custom grouping enabled: using thread id for groups\n");
+  // NOTE: or the number of gc threads
+  max_rdd_id = n_gc_threads;
+#else
   max_rdd_id = region_array_size / _MAX_PARTITIONS;
+#endif /* ifdef CUSTOM_GROUPING */
 
   pthread_mutex_init(&th_mem_pool_lock, NULL);
 
@@ -186,6 +192,10 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thr
   assert(thread_id < n_gc_threads);
 
   char* alloc_ptr = NULL;
+
+#ifdef CUSTOM_GROUPING
+  rdd_id = thread_id;
+#endif /* ifdef CUSTOM_GROUPING */
 
   assertf(size > 0, "Object should be > 0");
 

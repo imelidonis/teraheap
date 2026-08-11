@@ -80,9 +80,9 @@ size_t G1FullGCCompactTask::G1CompactRegionClosure::apply(oop obj) {
 
       double time = os::elapsedTime() - start;
       Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(_worker_id, time);
-    #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-      Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(_worker_id, size);
-    #endif
+   
+      Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(_worker_id, size * HeapWordSize);
+    
     } else {
       obj->init_mark();
       Universe::teraHeap()->h2_move_obj(obj_addr, destination, size, true /* in fgc */);
@@ -138,9 +138,9 @@ void G1FullGCCompactTask::h2_move_humongous(HeapRegion* hr, uint worker_id) {
 
     double time = os::elapsedTime() - start;
     Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(worker_id, time);
-  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(worker_id, size);
-  #endif
+  
+    Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(worker_id, size * HeapWordSize);
+  
   } else {
     obj->init_mark();
     Universe::teraHeap()->h2_move_obj(obj_addr, destination, size, true /* in fgc */);

@@ -665,12 +665,12 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
 
     double start = os::elapsedTime();
 
-    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz);
+    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id);
 
     double time = os::elapsedTime() - start;
     Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time);
   } else {
-    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz);
+    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id);
   }
 
   assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");

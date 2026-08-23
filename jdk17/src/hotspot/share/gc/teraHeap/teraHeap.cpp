@@ -17,6 +17,10 @@ Stack<oop *, mtGC> TeraHeap::_th_stack;
 Stack<oop *, mtGC> TeraHeap::_th_adjust_stack;
 Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_stack;
 
+#ifdef ASSERT
+Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_to_verify_stack;
+#endif // ASSERT
+
 // Constructor of TeraHeap
 TeraHeap::TeraHeap() {
   uint64_t align = CardTable::th_ct_max_alignment_constraint();
@@ -25,7 +29,7 @@ TeraHeap::TeraHeap() {
     ShouldNotReachHere();
   }
 
-  init(align, AllocateH2At, H2FileSize, H2MaxPartitions);
+  init(align, AllocateH2At, H2FileSize, H2MaxPartitions, ParallelGCThreads);
   protect_h2_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
 
   _start_addr = start_addr_mem_pool();
@@ -208,6 +212,14 @@ void TeraHeap::h2_push_humongous_start(void *p) {
   assert(!_th_humongous_stack.is_empty(), "Sanity Check");
 }
 
+#ifdef ASSERT
+void TeraHeap::push_humongous_to_verify(HeapRegion *hr) {
+  // Called by a single thread, does not need lock
+  _th_humongous_to_verify_stack.push(hr);
+  assert(!_th_humongous_to_verify_stack.is_empty(), "Sanity Check");
+}
+#endif // ASSERT
+
 // Resets the used field of all regions in H2
 void TeraHeap::h2_reset_used_field(void) {
   reset_used();
@@ -297,6 +309,13 @@ HeapRegion *TeraHeap::h2_get_next_humongous_start() {
   return (!_th_humongous_stack.is_empty() ? _th_humongous_stack.pop() : NULL);
 }
 
+#ifdef ASSERT
+// Get the next humongous region to verify it is on the free list (only for debugging)
+HeapRegion *TeraHeap::verify_next_humongous() {
+  return (!_th_humongous_to_verify_stack.is_empty() ? _th_humongous_to_verify_stack.pop() : NULL);
+}
+#endif // ASSERT
+
 // Enable region groupping (multi-threaded)
 void TeraHeap::thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord* new_addr) {
   if (!EnableTeraHeap)
@@ -385,12 +404,12 @@ void TeraHeap::mark_used_region(HeapWord *obj) {
 
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
-char* TeraHeap::h2_add_object(oop obj, size_t size) {
+char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
 	char *pos;			// Allocation position
 
-	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id());
+	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
 	
-	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
+	assert((HeapWord *) pos + size * HeapWordSize < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 
 	_start_array.th_allocate_block((HeapWord *)pos);
 
@@ -539,6 +558,11 @@ bool TeraHeap::is_h2_group_enabled() {
 TeraStatistics* TeraHeap::get_tera_stats() {
   assert(TeraHeapStatistics, "TeraHeapStatistics not enabled!");
   return tera_stats;
+}
+
+void TeraHeap::update_allocator_state() {
+  update_allocator_global_state();
+	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 }
 
 // Make every card of H2 dirty

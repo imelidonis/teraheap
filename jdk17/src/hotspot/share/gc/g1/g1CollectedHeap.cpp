@@ -2505,6 +2505,32 @@ void G1CollectedHeap::verify(VerifyOption vo) {
   _verifier->verify(vo);
 }
 
+#ifdef ASSERT
+void G1CollectedHeap::verify_humongous_free_after_h2_transfer(HeapRegion *hum_region) {
+  assert(EnableTeraHeap, "TeraHeap should be enabled!");
+  assert(hum_region->is_free(), "Region must be free after H2 transfer!");
+  assert(hum_region->top() == hum_region->bottom(), "Region must be empty after H2 transfer!");
+  assert(hum_region->containing_set() == nullptr, "Containing set should be empty after H2 transfer!");
+  assert(hum_region->rem_set()->is_empty(), "Remebered Set must be empty after H2 transfer!");
+  assert(!hum_region->is_humongous(), "Region should not be Humongous after H2 transfer!");
+
+  // This region will be checked after rebuilding the free-list at the end of
+  // Full GC
+  Universe::teraHeap()->push_humongous_to_verify(hum_region);
+}
+
+void G1CollectedHeap::verify_transfered_humongous_are_on_free_list() {
+  assert(EnableTeraHeap, "TeraHeap should be enabled!");
+
+  HeapRegion *hr = Universe::teraHeap()->verify_next_humongous();
+
+  while (hr) {
+    assert(is_on_master_free_list(hr), "Humongous region should be in the free-list after H2 transfer!");
+    hr = Universe::teraHeap()->verify_next_humongous();
+  }
+}
+#endif // ASSERT
+
 bool G1CollectedHeap::supports_concurrent_gc_breakpoints() const {
   return true;
 }
@@ -3226,19 +3252,24 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
            
        
-       if (may_do_optional_evacuation) { 
+        if (may_do_optional_evacuation) { 
           evacuate_optional_collection_set(&per_thread_states);
-       }
+        }
        
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
 
-// #ifdef TERA_MAINTENANCE
-        // if (EnableTeraHeap) {
+#ifdef TERA_MAINTENANCE
+        if (EnableTeraHeap) {
+          // Wait to complete all the transfers to H2 and then continue
+          // TODO: uncomment
+          // Universe::teraHeap()->h2_complete_transfers();  
+
           // if (collector_state()->in_young_gc_before_mixed())
           //   Universe::teraHeap()->free_unused_regions();
-        // }
-// #endif
+          Universe::teraHeap()->update_allocator_state(); 
+        }
+#endif
 
         start_new_collection_set();
 

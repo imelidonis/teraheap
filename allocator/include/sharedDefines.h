@@ -49,4 +49,7 @@
 
 #define DEBUG_PRINT 0			      //< Enable debug prints
 
+#define LOCKFREE_GLOBAL_UPDATE
+#define CUSTOM_GROUPING
+
 #endif

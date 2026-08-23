@@ -42,6 +42,14 @@ pthread_mutex_t th_mem_pool_lock;
 volatile struct _mem_pool th_mem_pool;
 int fd;
 
+int n_gc_threads = 0;
+
+// Per-Thread state
+#ifdef LOCKFREE_GLOBAL_UPDATE
+size_t *per_thread_size;
+char **per_thread_alloc_ptr;
+#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
+
 intptr_t align_size_up(intptr_t size, intptr_t alignment) {
 	return align_size_up_(size, alignment);
 }
@@ -88,8 +96,17 @@ void create_file(const char *path, uint64_t size) {
   }
 }
 
+void reset_per_thread_state() {
+#ifdef LOCKFREE_GLOBAL_UPDATE
+  for (int i = 0; i < n_gc_threads; i++) {
+    per_thread_size[i] = 0;
+    per_thread_alloc_ptr[i] = th_mem_pool.cur_alloc_ptr;
+  }
+#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
+}
+
 // Initialize allocator
-void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions) {
+void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads) {
   fd = -1;
   _MAX_PARTITIONS = partitions;
 
@@ -125,9 +142,25 @@ void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint6
           "Device size should be larger, because region_array_size is "
           "calculated to be smaller than _MAX_PARTITIONS!");
 
+  n_gc_threads = total_gc_threads;
+
+#ifdef CUSTOM_GROUPING
+  fprintf(stderr, "[INFO] custom grouping enabled: using thread id for groups\n");
+  // NOTE: or the number of gc threads
+  max_rdd_id = n_gc_threads;
+#else
   max_rdd_id = region_array_size / _MAX_PARTITIONS;
+#endif /* ifdef CUSTOM_GROUPING */
 
   pthread_mutex_init(&th_mem_pool_lock, NULL);
+
+#ifdef LOCKFREE_GLOBAL_UPDATE
+  fprintf(stderr, "[INFO] Lockfree enabled\n");
+  per_thread_size = malloc(n_gc_threads * sizeof(size_t));
+  per_thread_alloc_ptr = malloc(n_gc_threads * sizeof(char *));
+
+  reset_per_thread_state();
+#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 
   init_regions(_MAX_PARTITIONS);
   req_init();
@@ -155,8 +188,14 @@ size_t mem_pool_size() {
 #endif
 }
 
-char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id) {
+char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id) {
+  assert(thread_id < n_gc_threads);
+
   char* alloc_ptr = NULL;
+
+#ifdef CUSTOM_GROUPING
+  rdd_id = thread_id;
+#endif /* ifdef CUSTOM_GROUPING */
 
   assertf(size > 0, "Object should be > 0");
 
@@ -173,6 +212,13 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id) {
 
   char *cur_allocation_ptr = (char *) (((uint64_t) alloc_ptr) + size * HEAPWORD);
 
+#ifdef LOCKFREE_GLOBAL_UPDATE
+  per_thread_size[thread_id] += size;
+
+  if (cur_allocation_ptr > per_thread_alloc_ptr[thread_id]) {
+    per_thread_alloc_ptr[thread_id] = cur_allocation_ptr;
+  }
+#else
   pthread_mutex_lock(&th_mem_pool_lock);
 
   char *prev_allocation_ptr = th_mem_pool.cur_alloc_ptr;
@@ -184,7 +230,13 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id) {
   }
 
   pthread_mutex_unlock(&th_mem_pool_lock);
+#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 
+
+#ifndef LOCKFREE_GLOBAL_UPDATE
+  // NOTE: no sure if these are necessary.
+  // NOTE: this code is executed in `update_allocator_global_state` once
+  //    after the GC instead of once per allocation
   assertf(prev_allocation_ptr <= th_mem_pool.cur_alloc_ptr,
           "Error alloc ptr: Prev = %p, Cur = %p", prev_allocation_ptr,
           th_mem_pool.cur_alloc_ptr);
@@ -196,8 +248,39 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id) {
         (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HEAPWORD - 1)) &
                  -HEAPWORD);
   }
+#endif /* ifndef LOCKFREE_GLOBAL_UPDATE */
 
   return alloc_ptr;
+}
+
+// Update global variables to avoid locking
+void update_allocator_global_state() {
+#ifdef LOCKFREE_GLOBAL_UPDATE
+  char *prev_allocation_ptr = th_mem_pool.cur_alloc_ptr;
+  for (int i = 0; i < n_gc_threads; i++) {
+    // update_size
+    th_mem_pool.size += per_thread_size[i];
+    // update_top
+    if (per_thread_alloc_ptr[i] > th_mem_pool.cur_alloc_ptr) {
+      th_mem_pool.cur_alloc_ptr = per_thread_alloc_ptr[i];
+    }
+  }
+
+  assertf(prev_allocation_ptr <= th_mem_pool.cur_alloc_ptr,
+          "Error alloc ptr: Prev = %p, Cur = %p", prev_allocation_ptr,
+          th_mem_pool.cur_alloc_ptr);
+  (void)prev_allocation_ptr; // NOTE: otherwise compiler complains
+
+  // Alighn to 8 words the pointer (TODO: CHANGE TO ASSERTION)
+  if ((uint64_t)th_mem_pool.cur_alloc_ptr % HEAPWORD != 0) {
+    fprintf(stderr, "[INFO] alignment");
+    th_mem_pool.cur_alloc_ptr =
+        (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HEAPWORD - 1)) &
+                 -HEAPWORD);
+  }
+
+  reset_per_thread_state();
+#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 }
 
 // Return the current allocation pointer
@@ -206,6 +289,15 @@ char* cur_alloc_ptr() {
   assertf(th_mem_pool.cur_alloc_ptr >= th_mem_pool.start_address &&
           th_mem_pool.cur_alloc_ptr < th_mem_pool.stop_address,
           "Allocation pointer out-of-bound")
+
+#ifdef LOCKFREE_GLOBAL_UPDATE
+  for (int i = 0; i < n_gc_threads; i++) {
+    if (per_thread_alloc_ptr[i] != th_mem_pool.cur_alloc_ptr) {
+      fprintf(stderr, "[ERROR] Top not updated yet: [%d]:%p != %p\n", i, per_thread_alloc_ptr[i], th_mem_pool.cur_alloc_ptr);
+      exit(1);
+    }
+  }
+#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 
   return th_mem_pool.cur_alloc_ptr;
 }

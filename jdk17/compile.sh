@@ -188,7 +188,7 @@ function run_make() {
     intercept-build make CONF=linux-$TARGET_PLATFORM-server-$variant images
     cd ../
     compdb -p jdk17 list >compile_commands_$variant.json
-    mv compile_commands_$variant.json jdk17
+    mv compile_commands_$variant.json jdk17/compile_commands.json
     cd - || exit
   fi
 }

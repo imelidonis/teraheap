@@ -35,7 +35,7 @@ extern "C" {
 
   // Initialize allocator with start address 'heap_end + 1'. The end of the
   // heap.
-  void      init(uint64_t alignment, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions);
+  void      init(uint64_t alignment, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads);
 
   // Return the start address of the memory allocation pool
   char*     start_addr_mem_pool(void);
@@ -45,7 +45,9 @@ extern "C" {
 
   // Allocate a new object with `size` and return the `start allocation
   // address`.
-  char*     allocate(size_t size, uint64_t rdd_id, uint64_t partition_id);
+  char*     allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id);
+  // Update global variables to avoid locking
+  void      update_allocator_global_state();
 
   // Return the last address of the memory allocation pool
   char*     stop_addr_mem_pool(void);

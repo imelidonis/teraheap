@@ -80,6 +80,7 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _phase_times(NULL),
   _mark_remark_start_sec(0),
   _mark_cleanup_start_sec(0),
+  _mark_cycle_id(0),
   _tenuring_threshold(MaxTenuringThreshold),
   _max_survivor_regions(0),
   _survivors_age_table(true)
@@ -565,8 +566,8 @@ double G1Policy::average_time_ms(G1GCPhaseTimes::GCParPhases phase) const {
 }
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-double G1Policy::average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase) const {
-  return phase_times()->average_time_without_h2_ms(phase);
+double G1Policy::average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase, TeraStatistics::evac_phase which_phase) const {
+  return phase_times()->average_time_without_h2_ms(phase,which_phase);
 }
 #endif
 
@@ -752,12 +753,19 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
 
     // Update prediction for copy cost per byte
     size_t copied_bytes = p->sum_thread_work_items(G1GCPhaseTimes::MergePSS, G1GCPhaseTimes::MergePSSCopiedBytes);
+    size_t copied_bytes_h2 = 0;
+
+    if (EnableTeraHeap && TeraHeapStatistics) {
+      Universe::teraHeap()->get_tera_stats()->record_h1_copied_bytes(copied_bytes);
+      copied_bytes_h2 = Universe::teraHeap()->get_tera_stats()->get_sum_thr_bytes_copy_h2();
+      Universe::teraHeap()->get_tera_stats()->record_h2_copied_bytes(copied_bytes_h2);
+    }
 
     if (copied_bytes > 0) {
       double cost_per_byte_ms;
       #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
         if (EnableTeraHeap && TeraHeapStatistics) {
-          cost_per_byte_ms = (average_time_without_h2_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
+          cost_per_byte_ms = (average_time_without_h2_ms(G1GCPhaseTimes::ObjCopy, TeraStatistics::inital_evac_phase) + average_time_without_h2_ms(G1GCPhaseTimes::OptObjCopy, TeraStatistics::optional_evac_phase)) / copied_bytes;
         } else {
           cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
         }
@@ -769,9 +777,7 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
  
   #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
     if (EnableTeraHeap && TeraHeapStatistics) {
-      size_t copied_bytes_h2 = Universe::teraHeap()->get_tera_stats()->get_sum_thr_bytes_copy_h2();
-      double average_time_ms_h2 = Universe::teraHeap()->get_tera_stats()->get_average_time_ms_h2();
-
+      double average_time_ms_h2 = Universe::teraHeap()->get_tera_stats()->get_average_time_ms_h2(TeraStatistics::inital_evac_phase) + Universe::teraHeap()->get_tera_stats()->get_average_time_ms_h2(TeraStatistics::optional_evac_phase);
       if (copied_bytes_h2 > 0) {
         double cost_h2_per_byte_ms = average_time_ms_h2 / copied_bytes_h2;
         _analytics->report_h2_cost_per_byte_ms(cost_h2_per_byte_ms, collector_state()->mark_or_rebuild_in_progress());
@@ -1169,6 +1175,10 @@ void G1Policy::decide_on_conc_mark_initiation() {
 }
 
 void G1Policy::record_concurrent_mark_cleanup_end(bool has_rebuilt_remembered_sets) {
+  if (EnableTeraHeap && TeraHeapStatistics) {
+    _mark_cycle_id++;
+    Universe::teraHeap()->get_tera_stats()->record_cycle_no(_mark_cycle_id);
+  }
   bool mixed_gc_pending = false;
   if (has_rebuilt_remembered_sets) {
     G1CollectionSetCandidates* candidates = G1CollectionSetChooser::build(_g1h->workers(), _g1h->num_regions());

@@ -291,11 +291,11 @@ double G1GCPhaseTimes::average_time_ms(GCParPhases phase) {
 }
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-double G1GCPhaseTimes::average_time_without_h2_ms(GCParPhases phase) {
+double G1GCPhaseTimes::average_time_without_h2_ms(GCParPhases phase, TeraStatistics::evac_phase which_phase) {
   if (_gc_par_phases[phase] == NULL) {
     return 0.0;
   }
-  return _gc_par_phases[phase]->average_wihtout_h2() * 1000.0;
+  return _gc_par_phases[phase]->average_wihtout_h2(which_phase) * 1000.0;
 }
 #endif
 

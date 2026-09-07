@@ -243,7 +243,7 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
   // return the average time for a phase in milliseconds
   double average_time_ms(GCParPhases phase);
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-  double average_time_without_h2_ms(GCParPhases phase);
+  double average_time_without_h2_ms(GCParPhases phase, TeraStatistics::evac_phase which_phase);
 #endif
 
   size_t sum_thread_work_items(GCParPhases phase, uint index = 0);

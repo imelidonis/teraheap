@@ -42,16 +42,34 @@ TeraStatistics::TeraStatistics() {
   total_h2_humongous = 0;
 
   // NOTE: these arrays are not freed as the destructor is never called
-  thr_time_alloc_h2 = NEW_C_HEAP_ARRAY(double, ParallelGCThreads, mtGC);
-  thr_time_copy_h2 = NEW_C_HEAP_ARRAY(double, ParallelGCThreads, mtGC);
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-  thr_bytes_copy_h2 = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads, mtGC);
+  thr_time_alloc_h2 = NEW_C_HEAP_ARRAY(double*, ParallelGCThreads, mtGC);
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    thr_time_alloc_h2[i] = NEW_C_HEAP_ARRAY(double, 2, mtGC);
+  }
+
+  thr_time_copy_h2 = NEW_C_HEAP_ARRAY(double*, ParallelGCThreads, mtGC);
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    thr_time_copy_h2[i] = NEW_C_HEAP_ARRAY(double, 2, mtGC);
+  }
+
+  during_h1_time_flag = NEW_C_HEAP_ARRAY(uint*, ParallelGCThreads, mtGC);
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    during_h1_time_flag[i] = NEW_C_HEAP_ARRAY(uint, 2, mtGC);
+  }
+
+  which_phase = dummy;
+  h2_allocate_ms = 0;
+  h2_copy_ms = 0;
 #endif
+
+  thr_bytes_copy_h2 = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads, mtGC);
+  h1_copied_bytes = 0;
+  h2_copied_bytes = 0;
+  conc_cycle_id = 0;
 
   h2_card_table_scan_time_ms = 0;
   evac_time_ms = 0;
-  h2_allocate_ms = 0;
-  h2_copy_ms = 0;
 
   _is_mixed_gc = false;
   _is_full_gc = false;
@@ -89,12 +107,22 @@ void TeraStatistics::reset_counters(void) {
   backward_ref = 0;
   reclaimed_regions_count = 0;
 
-  memset(thr_time_alloc_h2, 0, ParallelGCThreads * sizeof(double));
-  memset(thr_time_copy_h2, 0, ParallelGCThreads * sizeof(double));
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-  memset(thr_bytes_copy_h2, 0, ParallelGCThreads * sizeof(size_t));
-#endif
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    memset(thr_time_alloc_h2[i], 0, 2 * sizeof(double));
+  }
 
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    memset(thr_time_copy_h2[i], 0, 2 * sizeof(double));
+  }
+
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    memset(during_h1_time_flag[i], 0, 2 * sizeof(uint));
+  }
+
+  which_phase = dummy;
+#endif
+  memset(thr_bytes_copy_h2, 0, ParallelGCThreads * sizeof(size_t));
   memset(thr_fgc_regions_scanned, 0, ParallelGCThreads * sizeof(int));
   memset(thr_fgc_regions_skipped, 0, ParallelGCThreads * sizeof(int));
 }
@@ -128,20 +156,6 @@ size_t TeraStatistics::get_h2_humongous() {
   return total_h2_humongous;
 }
 
-void TeraStatistics::thr_add_time_alloc_h2(uint thread_id, double time) {
-  thr_time_alloc_h2[thread_id] += time;
-}
-
-void TeraStatistics::thr_add_time_copy_h2(uint thread_id, double time) {
-  thr_time_copy_h2[thread_id] += time;
-}
-
-#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-void TeraStatistics::thr_add_bytes_copy_h2(uint thread_id, size_t bytes) {
-  thr_bytes_copy_h2[thread_id] += bytes;
-}
-#endif
-
 void TeraStatistics::add_obj_size_distribution(size_t size) {
 		size_t obj_size = (size * HeapWordSize) / 1024UL;
 		int count = 0;
@@ -167,8 +181,11 @@ void TeraStatistics::print_gc_stats() {
     thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS  = %lu", total_objects_moved);
     thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS_SIZE = %lu", total_objects_size);
     thlog_or_tty->print_cr("[MIXED] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
     thlog_or_tty->print_cr("[MIXED] | TIME_TO_ALLOC_H2 %.3lf ms", h2_allocate_ms);
     thlog_or_tty->print_cr("[MIXED] | TIME_TO_COPY_H2 %.3lf ms", h2_copy_ms);
+  #endif
+    thlog_or_tty->print_cr("[MIXED] | BYTES_COPIED_TO_H2 %lu and BYTES_COPIED_TO_H1 %lu in CONC_MARK_CYCLE_NO %lu", h2_copied_bytes,  h1_copied_bytes,  conc_cycle_id);
     thlog_or_tty->print_cr("[MIXED] | WASTE_SPACE = %u", h2_waste_space * HeapWordSize);
   } else if (_is_full_gc) {
     // FGC phases breakdown
@@ -177,9 +194,11 @@ void TeraStatistics::print_gc_stats() {
     thlog_or_tty->print_cr("[FULL] | TOTAL_OBJECTS_SIZE = %lu", total_objects_size);
     thlog_or_tty->print_cr("[FULL] | RECLAIMED_REGIONS = %u", reclaimed_regions_count);
     thlog_or_tty->print_cr("[FULL] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
     thlog_or_tty->print_cr("[FULL] | TIME_TO_ALLOC_H2 %.3lf ms", h2_allocate_ms);
     thlog_or_tty->print_cr("[FULL] | TIME_TO_COPY_H2 %.3lf ms (accurate for single threaded)", h2_copy_ms);
-    
+  #endif
+    thlog_or_tty->print_cr("[FULL] | BYTES_COPIED_TO_H2 %lu and BYTES_COPIED_TO_H1 %lu in CONC_MARK_CYCLE_NO %lu", h2_copied_bytes,  h1_copied_bytes,  conc_cycle_id);
     thlog_or_tty->print_cr("[FULL] | Regions Scanned = %d", get_total_regions_scanned());
     thlog_or_tty->print_cr("[FULL] | Regions Skipped = %d", get_total_regions_skipped());
   } else {
@@ -198,10 +217,24 @@ void TeraStatistics::print_gc_stats() {
   reset_counters();
 }
 
+void TeraStatistics::thr_add_bytes_copy_h2(uint thread_id, size_t bytes) {
+  thr_bytes_copy_h2[thread_id] += bytes;
+}
+
+size_t TeraStatistics::get_sum_thr_bytes_copy_h2() {
+  size_t sum_bytes = 0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    sum_bytes += thr_bytes_copy_h2[i];
+  }
+  return sum_bytes;
+}
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+
 double TeraStatistics::get_max_thr_time_alloc_h2() {
   double max_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    double time = thr_time_alloc_h2[i];
+    double time = thr_time_alloc_h2[i][inital_evac_phase] + thr_time_alloc_h2[i][optional_evac_phase];
     if (time > max_time) {
       max_time = time;
     }
@@ -213,7 +246,7 @@ double TeraStatistics::get_max_thr_time_alloc_h2() {
 double TeraStatistics::get_max_thr_time_copy_h2() {
   double max_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    double time = thr_time_copy_h2[i];
+    double time = thr_time_copy_h2[i][inital_evac_phase] + thr_time_copy_h2[i][optional_evac_phase];
     if (time > max_time) {
       max_time = time;
     }
@@ -222,46 +255,60 @@ double TeraStatistics::get_max_thr_time_copy_h2() {
   return max_time;
 }
 
-#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+void TeraStatistics::thr_add_time_alloc_h2(uint thread_id, double time) {
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  assert(during_h1_time_flag[thread_id][which_phase] == 0 || during_h1_time_flag[thread_id][which_phase] == 1 || during_h1_time_flag[thread_id][which_phase] == 2, "wrong values in during_h1_time_flag\n");
+  if (during_h1_time_flag[thread_id][which_phase] == 1) {
+    thr_time_alloc_h2[thread_id][which_phase] += time;
+  }
+}
+
+void TeraStatistics::thr_add_time_copy_h2(uint thread_id, double time) {
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  assert(during_h1_time_flag[thread_id][which_phase] == 0 || during_h1_time_flag[thread_id][which_phase] == 1 || during_h1_time_flag[thread_id][which_phase] == 2, "wrong values in during_h1_time_flag\n");
+  if (during_h1_time_flag[thread_id][which_phase] == 1) {
+    thr_time_copy_h2[thread_id][which_phase] += time;
+  }
+}
+
 double TeraStatistics::get_sum_thr_time_alloc_h2() {
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
   double sum_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    sum_time += thr_time_alloc_h2[i];
+    sum_time += thr_time_alloc_h2[i][which_phase];
   }
   return sum_time;
 }
 
 double TeraStatistics::get_sum_thr_time_copy_h2() {
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
   double sum_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    sum_time += thr_time_copy_h2[i];
+    sum_time += thr_time_copy_h2[i][which_phase];
   }
   return sum_time;
 }
 
-size_t TeraStatistics::get_sum_thr_bytes_copy_h2() {
-  size_t sum_bytes = 0;
-  for (uint i = 0; i < ParallelGCThreads; i++) {
-    sum_bytes += thr_bytes_copy_h2[i];
-  }
-  return sum_bytes;
-}
-
 double TeraStatistics::get_time_copy_h2(uint worker_id) {
-  return thr_time_copy_h2[worker_id];
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  return thr_time_copy_h2[worker_id][which_phase];
 }
 
 double TeraStatistics::get_time_alloc_h2(uint worker_id) {
-  return thr_time_alloc_h2[worker_id];
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  return thr_time_alloc_h2[worker_id][which_phase];
 }
 
-double TeraStatistics::get_average_time_ms_h2() {
+double TeraStatistics::get_average_time_ms_h2(enum evac_phase phase) {
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  assert(phase == inital_evac_phase || phase == optional_evac_phase, "wrong value for enum\n"); 
+  which_phase = phase;
   uint contributing_threads_alloc = 0;
   uint contributing_threads_copy = 0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    if (thr_time_alloc_h2[i] != 0)
+    if (thr_time_alloc_h2[i][which_phase] != 0)
       contributing_threads_alloc++;
-    if (thr_time_copy_h2[i] != 0)
+    if (thr_time_copy_h2[i][which_phase] != 0)
       contributing_threads_copy++;
   }
   double sum_time_copy = get_sum_thr_time_copy_h2();
@@ -276,6 +323,7 @@ double TeraStatistics::get_average_time_ms_h2() {
   if (contributing_threads_copy != 0) {
     avg_copy = sum_time_copy / (double) contributing_threads_copy;
   }
+  which_phase = dummy;
   return (avg_copy + avg_alloc) * 1000.0;
 }
 #endif

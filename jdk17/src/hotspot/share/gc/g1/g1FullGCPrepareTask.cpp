@@ -193,12 +193,14 @@ size_t G1FullGCPrepareTask::G1PrepareCompactLiveClosure::apply(oop object) {
     if (TeraHeapStatistics) {
       Universe::teraHeap()->get_tera_stats()->add_object( object->size()*HeapWordSize );
 
-      double start = os::elapsedTime();
+      Ticks start = Ticks::now();
 
       h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size, _worker_id);
 
-      double time = os::elapsedTime() - start;
-      Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time);
+      Tickspan time = Ticks::now() - start;
+    #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+      Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time.seconds());
+    #endif
     } else {
       h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(object, size, _worker_id);
     }
@@ -265,12 +267,14 @@ void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_humongous_for_h2(H
   if (TeraHeapStatistics) {
     Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*HeapWordSize );
 
-    double start = os::elapsedTime();
+    Ticks start = Ticks::now();
 
     h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size(), _worker_id);
 
-    double time = os::elapsedTime() - start;
-    Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time);
+    Tickspan time = Ticks::now() - start;
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time.seconds());
+  #endif
   } else {
     h2_address = (HeapWord *) Universe::teraHeap()->h2_add_object(obj, obj->size(), _worker_id);
   }

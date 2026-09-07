@@ -174,7 +174,7 @@ private:
   G1CollectionSet* _collection_set;
   double average_time_ms(G1GCPhaseTimes::GCParPhases phase) const;
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-  double average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase) const;
+  double average_time_without_h2_ms(G1GCPhaseTimes::GCParPhases phase, TeraStatistics::evac_phase which_phase) const;
 #endif
   double other_time_ms(double pause_time_ms) const;
 
@@ -333,6 +333,7 @@ public:
   // Record start, end, and completion of cleanup.
   void record_concurrent_mark_cleanup_start();
   void record_concurrent_mark_cleanup_end(bool has_rebuilt_remembered_sets);
+  size_t _mark_cycle_id;
 
   void print_phases();
 

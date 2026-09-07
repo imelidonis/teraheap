@@ -77,7 +77,7 @@ void G1ParScanThreadState::trim_queue_partially() {
   assert(_task_queue->size() <= _stack_trim_lower_threshold, "invariant");
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-  if(EnableTeraHeap && TeraHeapStatistics) {
+  if (EnableTeraHeap && TeraHeapStatistics) {
     if (Universe::teraHeap()->get_tera_stats()->get_during_h1_time_flag(_worker_id) != 2) {
       Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id,0);
     }

@@ -978,6 +978,13 @@ public:
     _rem_set_opt_trim_partially_time() { }
 
   bool do_heap_region(HeapRegion* r) {
+
+    //do not measure the time for h2 consumed during rem sets, beacuse g1 doesnot too
+    #ifdef TWO_FACTOR_COST_MODEL_IN_CSET 
+      if (EnableTeraHeap && TeraHeapStatistics) {
+        Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id,2);
+      }
+    #endif
     uint const region_idx = r->hrm_index();
 
     // The individual references for the optional remembered set are per-worker, so we
@@ -986,6 +993,13 @@ public:
       G1EvacPhaseWithTrimTimeTracker timer(_pss, _rem_set_opt_root_scan_time, _rem_set_opt_trim_partially_time);
       scan_opt_rem_set_roots(r);
     }
+
+ //init the flag, so for strong code roots phase, the h2 time will be taken into consideration, since g1 does too. 
+    #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+      if (EnableTeraHeap && TeraHeapStatistics) {
+        Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id, 0);
+      }
+    #endif
 
     if (_scan_state->claim_collection_set_region(region_idx)) {
       EventGCPhaseParallel event;

@@ -3065,9 +3065,6 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
 
     do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
 
-    Universe::teraHeap()->get_tera_stats()->record_h2_max_allocate_time();
-    Universe::teraHeap()->get_tera_stats()->record_h2_max_copy_time();
-
     Universe::teraHeap()->get_tera_stats()->print_gc_stats();
 
   } else {
@@ -3248,13 +3245,29 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 #endif
 
         // Actually do the work...        
+        #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+          if (EnableTeraHeap && TeraHeapStatistics) {
+            Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::inital_evac_phase);
+          }
+        #endif
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 
            
        
         if (may_do_optional_evacuation) { 
+        #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+          if (EnableTeraHeap && TeraHeapStatistics) {
+            Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::optional_evac_phase);
+          }
+        #endif
           evacuate_optional_collection_set(&per_thread_states);
         }
+
+        #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+          if (EnableTeraHeap && TeraHeapStatistics) {
+            Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::dummy);
+          }
+        #endif
        
         post_evacuate_collection_set(evacuation_info, &rdcqs, &per_thread_states);
 
@@ -3837,11 +3850,24 @@ protected:
     G1GCPhaseTimes* p = _g1h->phase_times();
 
     Ticks start = Ticks::now();
+    
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    if (EnableTeraHeap && TeraHeapStatistics) {
+      Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(worker_id, 1);
+    }
+  #endif
+
     G1ParEvacuateFollowersClosure cl(_g1h, pss, _task_queues, &_terminator, objcopy_phase);
     cl.do_void();
 
     assert(pss->queue_is_empty(), "should be empty");
 
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    if (EnableTeraHeap && TeraHeapStatistics) {
+      Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(worker_id, 0);
+    }
+  #endif
+    
     Tickspan evac_time = (Ticks::now() - start);
     p->record_or_add_time_secs(objcopy_phase, worker_id, evac_time.seconds() - cl.term_time());
 

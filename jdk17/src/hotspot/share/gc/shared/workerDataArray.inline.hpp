@@ -130,7 +130,7 @@ double WorkerDataArray<T>::average() const {
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
 template <typename T>
-double WorkerDataArray<T>::average_wihtout_h2() const {
+double WorkerDataArray<T>::average_wihtout_h2(TeraStatistics::evac_phase which_phase) const {
   uint contributing_threads = 0;
   for (uint i = 0; i < _length; ++i) {
     if (get(i) != uninitialized()) {
@@ -140,7 +140,7 @@ double WorkerDataArray<T>::average_wihtout_h2() const {
   if (contributing_threads == 0) {
     return 0.0;
   }
-  return sum_without_h2() / (double) contributing_threads;
+  return sum_without_h2(which_phase) / (double) contributing_threads;
 }
 #endif
 
@@ -158,14 +158,22 @@ T WorkerDataArray<T>::sum() const {
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
 template <typename T>
-T WorkerDataArray<T>::sum_without_h2() const {
+T WorkerDataArray<T>::sum_without_h2(TeraStatistics::evac_phase which_phase) const {
+  guarantee(which_phase != TeraStatistics::dummy, "sum_without_h2 is called and phase argument is dummy\n");
+  Universe::teraHeap()->get_tera_stats()->set_which_phase(which_phase);
   T s = 0;
   for (uint i = 0; i < _length; ++i) {
     if (get(i) != uninitialized()) {
-        assert(get(i) > Universe::teraHeap()->get_tera_stats()->get_time_alloc_h2(i) +  Universe::teraHeap()->get_tera_stats()->get_time_copy_h2(i));
-        s += get(i) - Universe::teraHeap()->get_tera_stats()->get_time_alloc_h2(i) -  Universe::teraHeap()->get_tera_stats()->get_time_copy_h2(i);
+      double total = get(i);
+      double alloc =  Universe::teraHeap()->get_tera_stats()->get_time_alloc_h2(i);
+      double copy  = Universe::teraHeap()->get_tera_stats()->get_time_copy_h2(i);
+
+      guarantee(total >= alloc +  copy, "for thread %u total time is %.15lf and h2 alloc time is %.15lf and h2 copy time is %.15lf in phase %d \n",i, total, alloc, copy, (int)which_phase);
+    
+      s += (total - alloc -  copy);
     }
   }
+  Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::dummy);
   return s;
 }
 #endif

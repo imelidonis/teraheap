@@ -73,14 +73,15 @@ size_t G1FullGCCompactTask::G1CompactRegionClosure::apply(oop obj) {
   if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(destination)) {
     // Move object to H2
     if (TeraHeapStatistics) {
-      double start = os::elapsedTime();
+      Ticks start = Ticks::now();
 
       obj->init_mark();
       Universe::teraHeap()->h2_move_obj(obj_addr, destination, size, true /* in fgc */);
 
-      double time = os::elapsedTime() - start;
-      Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(_worker_id, time);
-   
+      Tickspan time = Ticks::now() - start;
+    #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+      Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(_worker_id, time.seconds());
+    #endif
       Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(_worker_id, size * HeapWordSize);
     
     } else {
@@ -131,14 +132,15 @@ void G1FullGCCompactTask::h2_move_humongous(HeapRegion* hr, uint worker_id) {
 
   // Move object to H2
   if (TeraHeapStatistics) {
-    double start = os::elapsedTime();
+    Ticks start = Ticks::now();
 
     obj->init_mark();
     Universe::teraHeap()->h2_move_obj(obj_addr, destination, size, true /* in fgc */);
 
-    double time = os::elapsedTime() - start;
-    Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(worker_id, time);
-  
+    Tickspan time = Ticks::now() - start;
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    Universe::teraHeap()->get_tera_stats()->thr_add_time_copy_h2(worker_id, time.seconds());
+  #endif
     Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(worker_id, size * HeapWordSize);
   
   } else {

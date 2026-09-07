@@ -282,8 +282,6 @@ void G1FullCollector::complete_collection() {
 #endif // RUSAGE_MUTATOR
 
   if (EnableTeraHeap && TeraHeapStatistics) {
-    Universe::teraHeap()->get_tera_stats()->record_h2_max_allocate_time();
-    Universe::teraHeap()->get_tera_stats()->record_h2_max_copy_time();
 
     Universe::teraHeap()->get_tera_stats()->print_gc_stats();
   }

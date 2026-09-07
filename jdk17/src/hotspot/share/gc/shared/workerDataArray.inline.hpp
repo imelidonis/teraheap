@@ -159,7 +159,7 @@ T WorkerDataArray<T>::sum() const {
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
 template <typename T>
 T WorkerDataArray<T>::sum_without_h2(TeraStatistics::evac_phase which_phase) const {
-  guarantee(which_phase != TeraStatistics::dummy, "sum_without_h2 is called and phase argument is dummy\n");
+  assert(which_phase != TeraStatistics::dummy, "sum_without_h2 is called and phase argument is dummy\n");
   Universe::teraHeap()->get_tera_stats()->set_which_phase(which_phase);
   T s = 0;
   for (uint i = 0; i < _length; ++i) {
@@ -168,7 +168,7 @@ T WorkerDataArray<T>::sum_without_h2(TeraStatistics::evac_phase which_phase) con
       double alloc =  Universe::teraHeap()->get_tera_stats()->get_time_alloc_h2(i);
       double copy  = Universe::teraHeap()->get_tera_stats()->get_time_copy_h2(i);
 
-      guarantee(total >= alloc +  copy, "for thread %u total time is %.15lf and h2 alloc time is %.15lf and h2 copy time is %.15lf in phase %d \n",i, total, alloc, copy, (int)which_phase);
+      assert(total >= alloc +  copy, "for thread %u total time is %.15lf and h2 alloc time is %.15lf and h2 copy time is %.15lf in phase %d \n",i, total, alloc, copy, (int)which_phase);
     
       s += (total - alloc -  copy);
     }

@@ -256,29 +256,23 @@ double TeraStatistics::get_max_thr_time_copy_h2() {
 }
 
 void TeraStatistics::thr_add_time_alloc_h2(uint thread_id, double time) {
-  if (which_phase == dummy) {
-    fprintf(stderr, "add alloc with dummy\n");
-    return;
-  }
-  guarantee(during_h1_time_flag[thread_id][which_phase] == 0 || during_h1_time_flag[thread_id][which_phase] == 1 || during_h1_time_flag[thread_id][which_phase] == 2, "wrong values in during_h1_time_flag\n");
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  assert(during_h1_time_flag[thread_id][which_phase] == 0 || during_h1_time_flag[thread_id][which_phase] == 1 || during_h1_time_flag[thread_id][which_phase] == 2, "wrong values in during_h1_time_flag\n");
   if (during_h1_time_flag[thread_id][which_phase] == 1) {
     thr_time_alloc_h2[thread_id][which_phase] += time;
   }
 }
 
 void TeraStatistics::thr_add_time_copy_h2(uint thread_id, double time) {
-  if (which_phase == dummy) {
-    fprintf(stderr, "add copy with dummy\n");
-    return;
-  }
-  guarantee(during_h1_time_flag[thread_id][which_phase] == 0 || during_h1_time_flag[thread_id][which_phase] == 1 || during_h1_time_flag[thread_id][which_phase] == 2, "wrong values in during_h1_time_flag\n");
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  assert(during_h1_time_flag[thread_id][which_phase] == 0 || during_h1_time_flag[thread_id][which_phase] == 1 || during_h1_time_flag[thread_id][which_phase] == 2, "wrong values in during_h1_time_flag\n");
   if (during_h1_time_flag[thread_id][which_phase] == 1) {
     thr_time_copy_h2[thread_id][which_phase] += time;
   }
 }
 
 double TeraStatistics::get_sum_thr_time_alloc_h2() {
-  guarantee(which_phase != dummy, "Should not access get_sum_thr_time_alloc_h2 in dummy phase\n");
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
   double sum_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
     sum_time += thr_time_alloc_h2[i][which_phase];
@@ -287,7 +281,7 @@ double TeraStatistics::get_sum_thr_time_alloc_h2() {
 }
 
 double TeraStatistics::get_sum_thr_time_copy_h2() {
-  guarantee(which_phase != dummy, "Should not access get_sum_thr_time_copy_h2 in dummy phase\n");
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
   double sum_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
     sum_time += thr_time_copy_h2[i][which_phase];
@@ -296,19 +290,19 @@ double TeraStatistics::get_sum_thr_time_copy_h2() {
 }
 
 double TeraStatistics::get_time_copy_h2(uint worker_id) {
-  guarantee(which_phase != dummy, "Should not access get_time_copy_h2 in dummy phase\n");
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
   return thr_time_copy_h2[worker_id][which_phase];
 }
 
 double TeraStatistics::get_time_alloc_h2(uint worker_id) {
-  guarantee(which_phase != dummy, "Should not access get_time_alloc_h2 in dummy phase\n");
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
   return thr_time_alloc_h2[worker_id][which_phase];
 }
 
 double TeraStatistics::get_average_time_ms_h2(enum evac_phase phase) {
-  guarantee(which_phase == dummy, "Should not access get_average_time_ms_h2 in non dummy phase\n");
+  assert(which_phase != dummy, "Should not access in dummy phase\n");
+  assert(phase == inital_evac_phase || phase == optional_evac_phase, "wrong value for enum\n"); 
   which_phase = phase;
-  guarantee(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "wrong value for enum\n"); 
   uint contributing_threads_alloc = 0;
   uint contributing_threads_copy = 0;
   for (uint i = 0; i < ParallelGCThreads; i++) {

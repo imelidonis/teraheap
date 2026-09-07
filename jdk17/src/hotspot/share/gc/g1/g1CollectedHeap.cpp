@@ -3248,17 +3248,15 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
             Universe::teraHeap()->get_tera_stats()->record_h2_scan_time( (task_time.seconds() * 1000.0) );
         }
 #endif
-
-        // Actually do the work...        
         #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
           if (EnableTeraHeap && TeraHeapStatistics) {
             Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::inital_evac_phase);
           }
         #endif
+
+        // Actually do the work...        
         evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
 
-           
-       
         if (may_do_optional_evacuation) { 
         #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
           if (EnableTeraHeap && TeraHeapStatistics) {

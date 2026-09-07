@@ -21,9 +21,9 @@ class TeraStatistics: public CHeapObj<mtInternal> {
 public:
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-  //initial_evac_phase stands for "evacuation of initial collection set is now taking place"
-  //Correspondingly, for optional evacuation phase.
-  //dummy is default. 
+  // initial_evac_phase stands for "evacuation of initial collection set is now taking place"
+  // Correspondingly, for optional evacuation phase.
+  // dummy is default. 
   enum evac_phase {
     inital_evac_phase = 0,
     optional_evac_phase,
@@ -45,7 +45,7 @@ private:
   // time for evacuation to be completed
   double evac_time_ms;
 
-  //bytes copied to H2 from each thread
+  // bytes copied to H2 from each thread
   size_t* thr_bytes_copy_h2;
 
   // number of cocnurrent marking cycle
@@ -54,7 +54,7 @@ private:
   // total bytes copied to H1 + H2
   size_t h1_copied_bytes;
 
-  //total bytes copied to H2
+  // total bytes copied to H2
   size_t h2_copied_bytes;
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
@@ -65,22 +65,19 @@ private:
   // total time of copying to H2
   double h2_copy_ms;
 
-  //time spent from thread i in evac_phase p for allocation
+  // Time spent from thread i in evac_phase p for allocation
   double** thr_time_alloc_h2;
 
-  //time spent from thread i in evac_phase p for copy
+  // Time spent from thread i in evac_phase p for copy
   double** thr_time_copy_h2;
 
-  //flag for thread i in evac_phase p
-  //0 stands for "do not count time for H2"
-  //1 stands for "count time for H2"
-  //2 stands for "in any case do not set the flag 1"
+  // Flag for thread i in evac_phase p:
+  //  0 stands for "do not count time for H2"
+  //  1 stands for "count time for H2"
+  //  2 stands for "in any case do not set the flag 1"
   uint**   during_h1_time_flag;
 
-  // double h2_average_time_ms;
-  // double h1_avg_time_objcopy;
-  // double h1_avg_time_optobjcopy;
-  //in which phase g1 currnetly is 
+  // In which phase g1 currnetly is 
   enum evac_phase which_phase;
 #endif
 
@@ -171,38 +168,38 @@ public:
   // Add the size of object in bytes that a thread copied to H2
   void thr_add_bytes_copy_h2(uint thread_id, size_t bytes);
 
-  //get the total bytes that were copied TO h2
+  // Get the total bytes that were copied TO h2
   size_t get_sum_thr_bytes_copy_h2();
 
-  //which number of concurrnet marking cycle
+  // Which number of concurrent marking cycle
   void record_cycle_no(size_t cocn_cycle_no) {
     conc_cycle_id = cocn_cycle_no;
   }
 
-  //The amount of bytes g1 tracked as copied bytes during the last gc 
+  // The amount of bytes g1 tracked as copied bytes during the last gc 
   void record_h1_copied_bytes(size_t h1_bytes) {
     h1_copied_bytes = h1_bytes;
   }
 
-  //The amount of bytes copied to H2
+  // The amount of bytes copied to H2
   void record_h2_copied_bytes(size_t h2_bytes) {
     h2_copied_bytes = h2_bytes;
   }
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-  //get the time thread worker_id spent for copying bytes to H2
+  // Get the time thread worker_id spent for copying bytes to H2
   double get_time_copy_h2(uint worker_id);
 
-  //get the time thread worker_id spent for allocating space for H2
+  // Get the time thread worker_id spent for allocating space for H2
   double get_time_alloc_h2(uint worker_id);
 
-  //The average time per thread spent during copying bytes to H2
+  // The average time per thread spent during copying bytes to H2
   double get_average_time_ms_h2(enum evac_phase phase);
 
-  //The total time that all threads spent during allocating space for H2
+  // The total time that all threads spent during allocating space for H2
   double get_sum_thr_time_alloc_h2();
 
-  //The total time that all threads spent during copying bytes to H2
+  // The total time that all threads spent during copying bytes to H2
   double get_sum_thr_time_copy_h2();
 
   // Add the time it took for a thread to make an allocation in H2
@@ -211,19 +208,19 @@ public:
   // Add the time it took for a thread to make a copy to H2
   void thr_add_time_copy_h2(uint thread_id, double time);
 
-  //set the flag that indicates whether g1 is tracking time for obj copy phase in evacuation or not
+  // Set the flag that indicates whether g1 is tracking time for obj copy phase in evacuation or not
   void set_during_h1_time_flag(uint worker_id, uint flag) {
-    guarantee(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "wrong value for enum\n"); 
+    assert(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "wrong value for enum\n"); 
     during_h1_time_flag[worker_id][which_phase] = flag;
   }
 
-  //get the value of the flag that indicates whether g1 is tracking time for obj copy phase in evacuation or not
+  // Get the value of the flag that indicates whether g1 is tracking time for obj copy phase in evacuation or not
   uint get_during_h1_time_flag(uint worker_id) {
-    guarantee(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "wrong value for enum\n"); 
+    assert(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "wrong value for enum\n"); 
     return during_h1_time_flag[worker_id][which_phase];
   }
 
-  //set the phase in which g1 currently is 
+  // Set the phase in which g1 currently is 
   void set_which_phase(enum evac_phase phase) {
     which_phase = phase;
   }

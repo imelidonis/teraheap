@@ -58,6 +58,13 @@ private:
   size_t h2_copied_bytes;
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  // note: these counters do not include root scanning time during evacuation phases for compatibility with g1
+  // total time of allocation to H2 
+  double h2_allocate_ms;
+
+  // total time of copying to H2
+  double h2_copy_ms;
+
   //time spent from thread i in evac_phase p for allocation
   double** thr_time_alloc_h2;
 
@@ -196,7 +203,7 @@ public:
   double get_sum_thr_time_alloc_h2();
 
   //The total time that all threads spent during copying bytes to H2
-  double get_sum_thr_time_copy_h2(); 
+  double get_sum_thr_time_copy_h2();
 
   // Add the time it took for a thread to make an allocation in H2
   void thr_add_time_alloc_h2(uint thread_id, double time);
@@ -219,6 +226,14 @@ public:
   //set the phase in which g1 currently is 
   void set_which_phase(enum evac_phase phase) {
     which_phase = phase;
+  }
+
+  void record_h2_max_allocate_time() {
+    h2_allocate_ms = get_max_thr_time_alloc_h2();
+  }
+
+  void record_h2_max_copy_time() {
+    h2_copy_ms = get_max_thr_time_copy_h2();
   }
 #endif
 
@@ -315,6 +330,12 @@ public:
   }
 
 private:
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  double get_max_thr_time_alloc_h2();
+
+  double get_max_thr_time_copy_h2();
+#endif
 
   int get_total_regions_scanned();
 

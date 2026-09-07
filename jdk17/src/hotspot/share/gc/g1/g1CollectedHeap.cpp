@@ -3065,6 +3065,11 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
 
     do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
 
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    Universe::teraHeap()->get_tera_stats()->record_h2_max_allocate_time();
+    Universe::teraHeap()->get_tera_stats()->record_h2_max_copy_time();
+  #endif
+
     Universe::teraHeap()->get_tera_stats()->print_gc_stats();
 
   } else {

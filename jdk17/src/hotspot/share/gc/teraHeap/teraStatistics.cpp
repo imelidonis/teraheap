@@ -59,6 +59,8 @@ TeraStatistics::TeraStatistics() {
   }
 
   which_phase = dummy;
+  h2_allocate_ms = 0;
+  h2_copy_ms = 0;
 #endif
 
   thr_bytes_copy_h2 = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads, mtGC);
@@ -179,6 +181,10 @@ void TeraStatistics::print_gc_stats() {
     thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS  = %lu", total_objects_moved);
     thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS_SIZE = %lu", total_objects_size);
     thlog_or_tty->print_cr("[MIXED] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    thlog_or_tty->print_cr("[MIXED] | TIME_TO_ALLOC_H2 %.3lf ms", h2_allocate_ms);
+    thlog_or_tty->print_cr("[MIXED] | TIME_TO_COPY_H2 %.3lf ms", h2_copy_ms);
+  #endif
     thlog_or_tty->print_cr("[MIXED] | BYTES_COPIED_TO_H2 %lu and BYTES_COPIED_TO_H1 %lu in CONC_MARK_CYCLE_NO %lu", h2_copied_bytes,  h1_copied_bytes,  conc_cycle_id);
     thlog_or_tty->print_cr("[MIXED] | WASTE_SPACE = %u", h2_waste_space * HeapWordSize);
   } else if (_is_full_gc) {
@@ -188,6 +194,10 @@ void TeraStatistics::print_gc_stats() {
     thlog_or_tty->print_cr("[FULL] | TOTAL_OBJECTS_SIZE = %lu", total_objects_size);
     thlog_or_tty->print_cr("[FULL] | RECLAIMED_REGIONS = %u", reclaimed_regions_count);
     thlog_or_tty->print_cr("[FULL] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    thlog_or_tty->print_cr("[FULL] | TIME_TO_ALLOC_H2 %.3lf ms", h2_allocate_ms);
+    thlog_or_tty->print_cr("[FULL] | TIME_TO_COPY_H2 %.3lf ms (accurate for single threaded)", h2_copy_ms);
+  #endif
     thlog_or_tty->print_cr("[FULL] | BYTES_COPIED_TO_H2 %lu and BYTES_COPIED_TO_H1 %lu in CONC_MARK_CYCLE_NO %lu", h2_copied_bytes,  h1_copied_bytes,  conc_cycle_id);
     thlog_or_tty->print_cr("[FULL] | Regions Scanned = %d", get_total_regions_scanned());
     thlog_or_tty->print_cr("[FULL] | Regions Skipped = %d", get_total_regions_skipped());
@@ -220,6 +230,31 @@ size_t TeraStatistics::get_sum_thr_bytes_copy_h2() {
 }
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+
+double TeraStatistics::get_max_thr_time_alloc_h2() {
+  double max_time = 0.0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    double time = thr_time_alloc_h2[i][inital_evac_phase] + thr_time_alloc_h2[i][optional_evac_phase];
+    if (time > max_time) {
+      max_time = time;
+    }
+  }
+
+  return max_time;
+}
+
+double TeraStatistics::get_max_thr_time_copy_h2() {
+  double max_time = 0.0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    double time = thr_time_copy_h2[i][inital_evac_phase] + thr_time_copy_h2[i][optional_evac_phase];
+    if (time > max_time) {
+      max_time = time;
+    }
+  }
+
+  return max_time;
+}
+
 void TeraStatistics::thr_add_time_alloc_h2(uint thread_id, double time) {
   if (which_phase == dummy) {
     fprintf(stderr, "add alloc with dummy\n");

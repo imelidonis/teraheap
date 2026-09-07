@@ -64,25 +64,25 @@ void G1ParScanThreadState::trim_queue_partially() {
 
   const Ticks start = Ticks::now();
 
-  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    if (EnableTeraHeap && TeraHeapStatistics) {
-      if (Universe::teraHeap()->get_tera_stats()->get_during_h1_time_flag(_worker_id) != 2) {
-        Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id,1);
-      }
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  if (EnableTeraHeap && TeraHeapStatistics) {
+    if (Universe::teraHeap()->get_tera_stats()->get_during_h1_time_flag(_worker_id) != 2) {
+      Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id,1);
     }
-  #endif
+  }
+#endif
 
   trim_queue_to_threshold(_stack_trim_lower_threshold);
   assert(_task_queue->overflow_empty(), "invariant");
   assert(_task_queue->size() <= _stack_trim_lower_threshold, "invariant");
 
-  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    if(EnableTeraHeap && TeraHeapStatistics) {
-      if (Universe::teraHeap()->get_tera_stats()->get_during_h1_time_flag(_worker_id) != 2) {
-        Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id,0);
-      }
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  if(EnableTeraHeap && TeraHeapStatistics) {
+    if (Universe::teraHeap()->get_tera_stats()->get_during_h1_time_flag(_worker_id) != 2) {
+      Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id,0);
     }
-  #endif
+  }
+#endif
 
   _trim_ticks += Ticks::now() - start;
 }

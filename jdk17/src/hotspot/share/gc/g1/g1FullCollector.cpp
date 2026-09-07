@@ -283,6 +283,10 @@ void G1FullCollector::complete_collection() {
 
   if (EnableTeraHeap && TeraHeapStatistics) {
 
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    Universe::teraHeap()->get_tera_stats()->record_h2_max_allocate_time();
+    Universe::teraHeap()->get_tera_stats()->record_h2_max_copy_time();
+  #endif
     Universe::teraHeap()->get_tera_stats()->print_gc_stats();
   }
 

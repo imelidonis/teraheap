@@ -45,12 +45,12 @@ TeraStatistics::TeraStatistics() {
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   thr_time_alloc_h2 = NEW_C_HEAP_ARRAY(double*, ParallelGCThreads, mtGC);
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    thr_time_alloc_h2[i] = NEW_C_HEAP_ARRAY(double, 2, mtGC);
+    thr_time_alloc_h2[i] = NEW_C_HEAP_ARRAY(double, 3, mtGC);
   }
 
   thr_time_copy_h2 = NEW_C_HEAP_ARRAY(double*, ParallelGCThreads, mtGC);
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    thr_time_copy_h2[i] = NEW_C_HEAP_ARRAY(double, 2, mtGC);
+    thr_time_copy_h2[i] = NEW_C_HEAP_ARRAY(double, 3, mtGC);
   }
 
   during_h1_time_flag = NEW_C_HEAP_ARRAY(uint*, ParallelGCThreads, mtGC);
@@ -109,11 +109,11 @@ void TeraStatistics::reset_counters(void) {
 
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    memset(thr_time_alloc_h2[i], 0, 2 * sizeof(double));
+    memset(thr_time_alloc_h2[i], 0, 3 * sizeof(double));
   }
 
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    memset(thr_time_copy_h2[i], 0, 2 * sizeof(double));
+    memset(thr_time_copy_h2[i], 0, 3 * sizeof(double));
   }
 
   for (uint i = 0; i < ParallelGCThreads; i++) {
@@ -234,7 +234,7 @@ size_t TeraStatistics::get_sum_thr_bytes_copy_h2() {
 double TeraStatistics::get_max_thr_time_alloc_h2() {
   double max_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    double time = thr_time_alloc_h2[i][inital_evac_phase] + thr_time_alloc_h2[i][optional_evac_phase];
+    double time = thr_time_alloc_h2[i][inital_evac_phase] + thr_time_alloc_h2[i][optional_evac_phase] + thr_time_alloc_h2[i][full_gc];
     if (time > max_time) {
       max_time = time;
     }
@@ -246,7 +246,7 @@ double TeraStatistics::get_max_thr_time_alloc_h2() {
 double TeraStatistics::get_max_thr_time_copy_h2() {
   double max_time = 0.0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    double time = thr_time_copy_h2[i][inital_evac_phase] + thr_time_copy_h2[i][optional_evac_phase];
+    double time = thr_time_copy_h2[i][inital_evac_phase] + thr_time_copy_h2[i][optional_evac_phase] + thr_time_copy_h2[i][full_gc];
     if (time > max_time) {
       max_time = time;
     }

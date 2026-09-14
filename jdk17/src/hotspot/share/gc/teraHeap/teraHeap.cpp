@@ -405,6 +405,10 @@ void TeraHeap::mark_used_region(HeapWord *obj) {
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
 char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
+#ifdef ENABLE_SINGLE_THREAD_ALLOCATION
+  MutexLocker x(tera_heap_lock);
+#endif // ENABLE_SINGLE_THREAD_ALLOCATION
+
 	char *pos;			// Allocation position
 
 	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);

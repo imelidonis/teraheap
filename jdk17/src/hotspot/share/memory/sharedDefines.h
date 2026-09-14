@@ -84,6 +84,7 @@
                                   // with fastmap with enabled
                                   // -XX:AllocateHeapAt="/mnt/dir"
                                   // or -XX:AllocateOldGenAt="/mnt/dir"
+// #define ENABLE_SINGLE_THREAD_ALLOCATION
 
 
 

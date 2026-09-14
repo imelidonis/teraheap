@@ -211,13 +211,13 @@ public:
 
   // Set the flag that indicates whether g1 is tracking time for obj copy phase in evacuation or not
   void set_during_h1_time_flag(uint worker_id, uint flag) {
-    assert(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "wrong value for enum\n"); 
+    assert(which_phase == inital_evac_phase || which_phase == optional_evac_phase || which_phase == full_gc, "wrong value for enum\n");
     during_h1_time_flag[worker_id][which_phase] = flag;
   }
 
   // Get the value of the flag that indicates whether g1 is tracking time for obj copy phase in evacuation or not
   uint get_during_h1_time_flag(uint worker_id) {
-    assert(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "wrong value for enum\n"); 
+    assert(which_phase == inital_evac_phase || which_phase == optional_evac_phase || which_phase == full_gc, "wrong value for enum\n");
     return during_h1_time_flag[worker_id][which_phase];
   }
 

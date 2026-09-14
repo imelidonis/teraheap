@@ -222,7 +222,9 @@ void G1FullCollector::prepare_collection() {
     Universe::teraHeap()->get_tera_stats()->set_is_in_full_gc(G1CollectedHeap::heap()->collector_state()->in_full_gc());
   #ifdef TWO_FACTOR_COST_MODEL_IN_CSET 
     Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::full_gc);
-    Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(1);
+    for (uint worker_id = 0; worker_id < workers(); worker_id++){
+      Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(worker_id, 1);
+    }
   #endif
   }
 }

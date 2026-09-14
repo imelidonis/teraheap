@@ -300,8 +300,9 @@ double TeraStatistics::get_time_alloc_h2(uint worker_id) {
 }
 
 double TeraStatistics::get_average_time_ms_h2(enum evac_phase phase) {
-  assert(which_phase != dummy, "Should not access in dummy phase\n");
-  assert(phase == inital_evac_phase || phase == optional_evac_phase, "wrong value for enum\n"); 
+  assert(which_phase == dummy, "Should access in dummy phase\n");
+  assert(phase == inital_evac_phase || phase == optional_evac_phase, "wrong value for enum\n");
+  assert(_is_full_gc == 0, "we are in full gc here");
   which_phase = phase;
   uint contributing_threads_alloc = 0;
   uint contributing_threads_copy = 0;
@@ -435,4 +436,3 @@ int TeraStatistics::get_total_regions_skipped() {
     num_regions += thr_fgc_regions_skipped[i];
   return num_regions;
 }
-

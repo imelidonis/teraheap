@@ -27,6 +27,7 @@ public:
   enum evac_phase {
     inital_evac_phase = 0,
     optional_evac_phase,
+    full_gc,
     dummy
   };
 #endif

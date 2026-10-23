@@ -5,7 +5,7 @@ H2_CARD_SEGMENT_SIZE=$((8 * 1024))
 STRIPE_SIZE=$(( H2_REGION_SIZE / H2_CARD_SEGMENT_SIZE ))
 H2_SIZE_IN_BYTES=$(echo "700 * 1024 * 1024 * 1024" | bc)
 JAVA="../jdk17/build/linux-x86_64-server-release/jdk/bin/java"
-H2_MOUNT_POINT="/mnt/spark/"
+H2_MOUNT_POINT="/mnt/fmap/"
 
 # These tests exit in both benchmarks suites (evac and full). Same
 # name different implementation regarding of the GC trigger.

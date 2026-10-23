@@ -204,6 +204,9 @@ void G1MonitoringSupport::initialize_serviceability() {
 
 MemoryUsage G1MonitoringSupport::memory_usage() {
   MutexLocker x(MonitoringSupport_lock, Mutex::_no_safepoint_check_flag);
+  if (EnableTeraHeap)
+    return MemoryUsage(InitialHeapSize, _overall_used, _overall_committed, 1200LL*1024*1024*1024);
+
   return MemoryUsage(InitialHeapSize, _overall_used, _overall_committed, _g1h->max_capacity());
 }
 

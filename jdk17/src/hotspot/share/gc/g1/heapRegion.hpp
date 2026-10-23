@@ -363,6 +363,7 @@ public:
     // the reclaimable space for this region is: garbage + h2 live bytes
     if (EnableTeraHeap)
       return capacity() - (known_live_bytes - _h2_marked_bytes);
+      // return capacity() - known_live_bytes; /***** For G1 cost model runs *********/
     else
       return capacity() - known_live_bytes;
 #else

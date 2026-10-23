@@ -132,8 +132,8 @@ void init_regions(uint64_t partitions) {
     region_array[i].size_mapped               = 0;
     region_array[i].offset_list               = NULL;
 #endif
-    region_array[i].rdd_id                    = _MAX_PARTITIONS * max_rdd_id;
-    region_array[i].part_id                   = _MAX_PARTITIONS * max_rdd_id;
+    region_array[i].rdd_id                    = _MAX_PARTITIONS - 1;
+    region_array[i].part_id                   = _MAX_PARTITIONS - 1;
 #if PR_BUFFER
     region_array[i].pr_buffer                 = malloc(sizeof(struct pr_buffer));
     region_array[i].pr_buffer->buffer         = NULL;
@@ -604,7 +604,8 @@ struct region_list* free_regions() {
                                 region_array[i].part_id)].mapped_region = NULL;
       }
 
-      region_array[i].rdd_id = _MAX_PARTITIONS * max_rdd_id;
+      region_array[i].rdd_id = _MAX_PARTITIONS -1;
+      region_array[i].part_id = _MAX_PARTITIONS -1;
 
       reclaimed_regions_count++;
     }

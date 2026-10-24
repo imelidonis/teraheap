@@ -766,7 +766,7 @@ void G1ParScanThreadState::th_ref_update(T*p, oop obj, G1HeapRegionAttr region_a
   if (Universe::teraHeap()->is_in_h2(obj)) {
     //p (h2) -> obj (h2)
     //check for dependency list update
-    Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj)); //this has a lock
+    Universe::teraHeap()->group_regions((HeapWord *)p, cast_from_oop<HeapWord*>(obj));
     return;
   }
 

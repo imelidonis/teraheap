@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/mman.h>
@@ -37,12 +38,16 @@ struct pr_buffer {
  */
 #define CACHE_LINE_SIZE 64
 
+struct dep_set;   // lock-free set of region dependencies (see below)
+
 struct region {
     char *start_address;
     char *last_allocated_end;
     char *last_allocated_start;
     char *first_allocated_start;
-    SLinkedList *dependency_list;
+    // The regions this region references: a lock-free hash set (struct
+    // dep_set, below), not an SLinkedList any more
+    struct dep_set *dependency_list;
 #ifdef TRANSFER_BACK
     SLinkedList *referent_list;
     bool underTransfer;
@@ -415,6 +420,243 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
 }
 
 /*
+ * ---------------------------------------------------------------------------
+ * Dependency sets: lock-free hash sets of region indices
+ * ---------------------------------------------------------------------------
+ *
+ * region_array[r].dependency_list holds the regions that region r
+ * references. GC threads add entries in parallel (references()), look
+ * them up (is_in_the_same_group()) and walk them (mark_used()), without
+ * a lock:
+ *  - Open addressing, linear probing. A slot holds seg + 1 (DEP_EMPTY = 0
+ *    is an empty slot). Entries are never removed one by one; a region's
+ *    whole set is freed in free_regions(), at a safepoint.
+ *  - Insert: CAS an empty slot from DEP_EMPTY to the key. No duplicates:
+ *    with no deletes, the probe path of a key never has a hole before it.
+ *  - Growth (above half full): the thread that starts it installs a table
+ *    of twice the capacity in 'next' (CAS), freezes every empty slot of the
+ *    old table (CAS DEP_EMPTY -> DEP_FROZEN, so no insert can land there any
+ *    more), copies every key to the new table, and publishes the new table
+ *    in the region (CAS). A thread that meets a frozen slot continues in
+ *    'next'. Old tables stay readable (and keep 'next') until
+ *    free_regions() frees them.
+ *  - Liveness: an insert is a full fence (CAS) before it reads 'used' of the
+ *    source region, and mark_used() fences between setting 'used' and
+ *    walking the set. So a new edge is either seen by the walk, or the
+ *    inserter sees 'used' and marks the target itself.
+ */
+#define DEP_EMPTY         0u
+#define DEP_FROZEN        UINT32_MAX
+#define DEP_INITIAL_CAP   16u          /* 64 bytes of slots */
+
+struct dep_set {
+  uint32_t capacity;                   /* power of 2 */
+  uint32_t count;                      /* entries (atomic add; may run ahead) */
+  struct dep_set *next;                /* larger table during and after growth */
+  struct dep_set *retired_link;        /* list of tables to free at a safepoint */
+  uint32_t slots[];
+};
+
+/* Tables replaced by growth, freed in free_regions() (at a safepoint) */
+static struct dep_set *retired_dep_sets = NULL;
+
+static struct dep_set *dep_set_alloc(uint32_t capacity) {
+  size_t bytes = sizeof(struct dep_set) + (size_t) capacity * sizeof(uint32_t);
+  bytes = (bytes + CACHE_LINE_SIZE - 1) & ~((size_t) CACHE_LINE_SIZE - 1);
+  struct dep_set *s = aligned_alloc(CACHE_LINE_SIZE, bytes);
+  check_allocation_failure(s, "[ERROR] -- Failed to allocate a region dependency set\n");
+  memset(s, 0, bytes);
+  s->capacity = capacity;
+  return s;
+}
+
+static inline uint32_t dep_slot(uint32_t key, uint32_t capacity) {
+  return (uint32_t) ((key * 0x9E3779B97F4A7C15ULL) >> 32) & (capacity - 1);
+}
+
+static inline struct dep_set *dep_load(struct dep_set **p) {
+  return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+}
+
+/* 1 if 'key' is in the set (any table of the chain), 0 otherwise */
+static int dep_set_contains(struct dep_set *s, uint32_t key) {
+  while (s != NULL) {
+    const uint32_t cap = s->capacity;
+    uint32_t i = dep_slot(key, cap);
+    int go_next = 0;
+    for (uint32_t n = 0; n < cap; n++, i = (i + 1) & (cap - 1)) {
+      const uint32_t v = __atomic_load_n(&s->slots[i], __ATOMIC_ACQUIRE);
+      if (v == key)
+        return 1;
+      if (v == DEP_EMPTY)
+        return 0;
+      if (v == DEP_FROZEN) {
+        go_next = 1;
+        break;
+      }
+    }
+    if (!go_next)
+      return 0;
+    s = dep_load(&s->next);
+  }
+  return 0;
+}
+
+static void dep_set_grow(struct dep_set **owner, struct dep_set *s);
+
+/*
+ * Insert 'key' into table 's' (or the tables after it).
+ * Returns 1 if this call inserted it, 0 if it was already there.
+ */
+static int dep_table_insert(struct dep_set **owner, struct dep_set *s, uint32_t key) {
+  for (;;) {
+    const uint32_t cap = s->capacity;
+    uint32_t i = dep_slot(key, cap);
+    int go_next = 0;
+    for (uint32_t n = 0; n < cap; n++, i = (i + 1) & (cap - 1)) {
+      uint32_t v = __atomic_load_n(&s->slots[i], __ATOMIC_ACQUIRE);
+      if (v == key)
+        return 0;
+      if (v == DEP_FROZEN) {
+        go_next = 1;
+        break;
+      }
+      if (v != DEP_EMPTY)
+        continue;                      /* another key: keep probing */
+
+      /* Keep the table at most half full */
+      if (2 * (__atomic_load_n(&s->count, __ATOMIC_RELAXED) + 1) > cap) {
+        dep_set_grow(owner, s);
+        go_next = 1;
+        break;
+      }
+
+      uint32_t expected = DEP_EMPTY;
+      if (__atomic_compare_exchange_n(&s->slots[i], &expected, key, 0,
+                                      __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
+        __atomic_add_fetch(&s->count, 1, __ATOMIC_RELAXED);
+        return 1;
+      }
+      if (expected == key)
+        return 0;                      /* inserted by another thread */
+      if (expected == DEP_FROZEN) {
+        go_next = 1;
+        break;
+      }
+      /* another key took the slot: keep probing */
+    }
+    if (!go_next)
+      dep_set_grow(owner, s);          /* no empty slot left (should not happen) */
+    s = dep_load(&s->next);
+  }
+}
+
+/*
+ * Grow table 's' of the set '*owner': install the larger table, freeze and
+ * copy the old one, publish the new one. Any number of threads may run
+ * this for the same table; each one copies every key it sees (inserts are
+ * idempotent), so the new table is complete once any of them returns.
+ */
+static void dep_set_grow(struct dep_set **owner, struct dep_set *s) {
+  struct dep_set *nxt = dep_load(&s->next);
+  if (nxt == NULL) {
+    struct dep_set *cand = dep_set_alloc(s->capacity * 2);
+    struct dep_set *expected = NULL;
+    if (__atomic_compare_exchange_n(&s->next, &expected, cand, 0,
+                                    __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
+      nxt = cand;
+    } else {
+      free(cand);
+      nxt = expected;
+    }
+  }
+
+  for (uint32_t i = 0; i < s->capacity; i++) {
+    uint32_t v = __atomic_load_n(&s->slots[i], __ATOMIC_ACQUIRE);
+    while (v == DEP_EMPTY) {
+      uint32_t expected = DEP_EMPTY;
+      if (__atomic_compare_exchange_n(&s->slots[i], &expected, DEP_FROZEN, 0,
+                                      __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
+        v = DEP_FROZEN;
+      } else {
+        v = expected;
+      }
+    }
+    if (v != DEP_FROZEN)
+      dep_table_insert(owner, nxt, v);
+  }
+
+  /* Publish the new table once (only the CAS winner retires the old one) */
+  struct dep_set *expected = s;
+  if (__atomic_compare_exchange_n(owner, &expected, nxt, 0,
+                                  __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
+    struct dep_set *head = __atomic_load_n(&retired_dep_sets, __ATOMIC_RELAXED);
+    do {
+      s->retired_link = head;
+    } while (!__atomic_compare_exchange_n(&retired_dep_sets, &head, s, 1,
+                                          __ATOMIC_RELEASE, __ATOMIC_RELAXED));
+  }
+}
+
+/* Add 'seg2' to the set of 'seg1'. Returns 1 if this call added it. */
+static int dep_set_add(int32_t seg1, int32_t seg2) {
+  struct dep_set **owner = &region_array[seg1].dependency_list;
+  struct dep_set *s = dep_load(owner);
+  if (s == NULL) {
+    struct dep_set *cand = dep_set_alloc(DEP_INITIAL_CAP);
+    struct dep_set *expected = NULL;
+    if (__atomic_compare_exchange_n(owner, &expected, cand, 0,
+                                    __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
+      s = cand;
+    } else {
+      free(cand);
+      s = expected;
+    }
+  }
+  return dep_table_insert(owner, s, (uint32_t) seg2 + 1);
+}
+
+/* Number of entries (statistics; the last table of the chain) */
+static uint64_t dep_set_count(struct dep_set *s) {
+  if (s == NULL)
+    return 0;
+  while (dep_load(&s->next) != NULL)
+    s = dep_load(&s->next);
+  return __atomic_load_n(&s->count, __ATOMIC_RELAXED);
+}
+
+/* Call 'fn' for every region index in the set (all tables of the chain) */
+static void dep_set_for_each(struct dep_set *s, void (*fn)(uint64_t seg)) {
+  for (; s != NULL; s = dep_load(&s->next)) {
+    for (uint32_t i = 0; i < s->capacity; i++) {
+      const uint32_t v = __atomic_load_n(&s->slots[i], __ATOMIC_ACQUIRE);
+      if (v != DEP_EMPTY && v != DEP_FROZEN)
+        fn((uint64_t) v - 1);
+    }
+  }
+}
+
+/* At a safepoint: free the set of a region (its current table chain) */
+static void dep_set_free(struct dep_set *s) {
+  while (s != NULL) {
+    struct dep_set *nxt = s->next;
+    free(s);
+    s = nxt;
+  }
+}
+
+/* At a safepoint: free the tables replaced by growth */
+static void dep_free_retired(void) {
+  struct dep_set *s = retired_dep_sets;
+  retired_dep_sets = NULL;
+  while (s != NULL) {
+    struct dep_set *nxt = s->retired_link;
+    free(s);
+    s = nxt;
+  }
+}
+
+/*
  * region_cmp - Comparator for sll_contains(), sll_find() and sll_delete().
  *
  * Regions reside in a flat array (region_array) for their entire lifetime,
@@ -423,6 +665,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
  *
  * Follows the standard comparator convention: returns 0 when equal.
  */
+__attribute__((unused))   // only TRANSFER_BACK uses it now
 static int region_cmp(const void *a, const void *b) {
   return (a != b);
 }
@@ -438,29 +681,22 @@ static void add_referent(int32_t seg1, int32_t seg2) {
 }
 #endif
 
-static void add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
-  // Called under tera_heap_group_lock. Readers (is_in_the_same_group(),
-  // mark_live_dependent_regions()) do not take it, so a new list is
-  // published with a release store, after sll_create() initialized it.
-  SLinkedList *deps = __atomic_load_n(&region_array[seg1].dependency_list, __ATOMIC_ACQUIRE);
-
-  if (deps && sll_contains(deps, &region_array[seg2]))
-    return;
-
-  if (!deps) {
-    deps = sll_create(region_cmp);
-    __atomic_store_n(&region_array[seg1].dependency_list, deps, __ATOMIC_RELEASE);
-  }
-
-  sll_push_front(deps, &region_array[seg2]);
+// Returns 1 if this call added the dependency
+static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
+  // Lock-free; the successful CAS of the insert is a full fence, so the
+  // load of 'used' below cannot be ordered before the new entry is
+  // visible (see mark_used())
+  if (!dep_set_add(seg1, seg2))
+    return 0;
 
 #ifdef TRANSFER_BACK
   add_referent(seg1, seg2);
 #endif
 
-  if (region_array[seg1].used) {
+  if (__atomic_load_n(&region_array[seg1].used, __ATOMIC_SEQ_CST)) {
     mark_used(region_array[seg2].start_address);
   }
+  return 1;
 }
 
 /*
@@ -471,15 +707,19 @@ static void add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
  */
 
 void references(char *obj1, char *obj2) {
+  add_reference(obj1, obj2);
+}
+
+int add_reference(char *obj1, char *obj2) {
   int32_t seg1 = (obj1 - region_array_base) / ((uint64_t)REGION_SIZE);
   int32_t seg2 = (obj2 - region_array_base) / ((uint64_t)REGION_SIZE);
   if (seg1 >= region_array_size || seg2 >= region_array_size || seg1 < 0 || seg2 < 0)
-    return;
+    return 0;
 
   if (seg1 == seg2)
-    return;
+    return 0;
 
-  add_dependency_if_not_exist(seg1, seg2);
+  return add_dependency_if_not_exist(seg1, seg2);
 }
 
 /*
@@ -492,7 +732,7 @@ void print_groups() {
 
   for (i = 0; i < region_array_size; i++) {
     if (region_array[i % region_array_size].last_allocated_end != region_array[i % region_array_size].start_address ) {
-      size_t dep_size = region_array[i].dependency_list ? sll_size(region_array[i].dependency_list) : 0;
+      size_t dep_size = dep_set_count(region_array[i].dependency_list);
 #ifdef TRANSFER_BACK
       size_t ref_size = region_array[i].referent_list   ? sll_size(region_array[i].referent_list)   : 0;
       fprintf(stderr, "Region %d has %lu dependencies and %lu referents\n", i, dep_size, ref_size);
@@ -512,19 +752,12 @@ void reset_used() {
     region_array[i].used = 0;
 }
 
+static void mark_used_region_index(uint64_t seg) {
+  mark_used(region_array[seg].start_address);
+}
+
 void mark_live_dependent_regions(uint64_t seg) {
-  // Acquire pairs with the release in add_dependency_if_not_exist()
-  SLinkedList *deps = __atomic_load_n(&region_array[seg].dependency_list, __ATOMIC_ACQUIRE);
-  if (!deps)
-    return;
-
-  SLLIterator it;
-  sll_iter_init(deps, &it);
-
-  while (sll_iter_has_next(&it)) {
-    struct region *r = (struct region *)sll_iter_next(&it);
-    mark_used(r->start_address);
-  }
+  dep_set_for_each(dep_load(&region_array[seg].dependency_list), mark_used_region_index);
 }
 
 /*
@@ -537,10 +770,14 @@ void mark_used(char *obj) {
 
 	assertf(seg >= 0 && seg < region_array_size,
 			"Segment index is out of range %lu", seg);
-  if (region_array[seg].used == 1)
+  if (__atomic_load_n(&region_array[seg].used, __ATOMIC_RELAXED) == 1)
     return;
 
-  region_array[seg].used = 1;
+  __atomic_store_n(&region_array[seg].used, 1, __ATOMIC_RELAXED);
+  // Full fence between setting 'used' and walking the set, so that either
+  // this walk sees a dependency added concurrently, or the thread that
+  // added it sees 'used' and marks the target (add_dependency_if_not_exist())
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
   mark_live_dependent_regions(seg);
 }
 
@@ -581,9 +818,11 @@ struct region_list* free_regions() {
   int32_t i;
   struct region_list *head = NULL;
   reclaimed_regions_count = 0;
+  // At a safepoint: no thread reads the tables replaced by growth any more
+  dep_free_retired();
   for (i = 0; i < region_array_size; i++) {
     if (region_array[i].used == 0 && region_array[i].last_allocated_end != region_array[i].start_address) {
-      sll_destroy(region_array[i].dependency_list);
+      dep_set_free(region_array[i].dependency_list);
       region_array[i].dependency_list = NULL;
 
 #ifdef TRANSFER_BACK
@@ -818,9 +1057,7 @@ int is_in_the_same_group(char *obj1, char *obj2) {
 	if (seg1 == seg2)
 		return 1;
 
-  // Acquire pairs with the release in add_dependency_if_not_exist()
-  SLinkedList *deps = __atomic_load_n(&region_array[seg1].dependency_list, __ATOMIC_ACQUIRE);
-  return deps ? sll_contains(deps, &region_array[seg2]) : 0;
+  return dep_set_contains(dep_load(&region_array[seg1].dependency_list), (uint32_t) seg2 + 1);
 }
 
 /*                                                                              

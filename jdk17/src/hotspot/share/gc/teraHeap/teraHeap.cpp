@@ -179,9 +179,10 @@ HeapWord *TeraHeap::get_first_object_in_region(HeapWord *addr) {
 // Add a new entry to `obj1` region dependency list that reference
 // `obj2` region
 void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2) {
+  // Lock-free: the allocator's dependency sets take parallel inserts
+  // (lookups and inserts use CAS, see add_reference())
 	if (is_in_the_same_group((char *) obj1, (char *) obj2)) 
 		return;
-	MutexLocker x(tera_heap_group_lock);
   references((char*) obj1, (char*) obj2);
 }
 
@@ -443,7 +444,7 @@ void TeraHeap::check_for_cross_heap_cross_h2_region_ref(uint thread_id, HeapWord
 		return;
 
   if (is_in_h2(obj)) {
-    group_regions(h2_addr_arr[thread_id], obj); //this has a lock
+    group_regions(h2_addr_arr[thread_id], obj);
     return;
 	}
 

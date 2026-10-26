@@ -34,50 +34,50 @@ int main() {
   char *obj1, *obj2, *obj3, *obj4, *obj5, *obj6;
 
   // Init allocator
-  init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 1);
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 1);
 
   //obj1 should be in region 0
-  obj1 = allocate(1, 0, 0, 0);
+  obj1 = h2_allocate(1, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj1);
 
   //obj2 should be in region 1 
-  obj2 = allocate(200, 1, 0, 0);
+  obj2 = h2_allocate(200, 1, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj2);
 
   //obj3 should be in region 0
-  obj3 = allocate(SIZE_5MB, 0, 0, 0);
+  obj3 = h2_allocate(SIZE_5MB, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj3);
 
-  obj4 = allocate(SIZE_1MB, 2, 0, 0);
+  obj4 = h2_allocate(SIZE_1MB, 2, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj4);
 
-  obj5 = allocate(10, 2, 0, 0);
+  obj5 = h2_allocate(10, 2, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj5);
 
-  obj6 = allocate(10, 0, 0, 0);
+  obj6 = h2_allocate(10, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj6);
   
 
-  reset_used();
-  mark_used(obj3);
-  mark_used(obj4);
-  mark_used(obj6);
+  h2_reset_used();
+  h2_mark_used(obj3);
+  h2_mark_used(obj4);
+  h2_mark_used(obj6);
   
   //obj2 should be in region 1 
-  obj2 = allocate(64000, 10, 0, 0);
+  obj2 = h2_allocate(64000, 10, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj2);
 
-  free_regions();
+  h2_free_regions();
 
-  obj3 = allocate(SIZE_2MB, 4, 0, 0);
+  obj3 = h2_allocate(SIZE_2MB, 4, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj3);
   
-  free_regions();
+  h2_free_regions();
   
-  obj3 = allocate(SIZE_1MB, 4, 0, 0);
+  obj3 = h2_allocate(SIZE_1MB, 4, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj3);
 
-  //free_regions();
+  //h2_free_regions();
 
   return 0;
 }

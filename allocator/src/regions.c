@@ -115,7 +115,7 @@ void reset_per_thread_state() {
 }
 
 // Initialize allocator
-void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads) {
+void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads) {
   fd = -1;
   _MAX_PARTITIONS = partitions;
 
@@ -176,19 +176,19 @@ void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint6
 }
 
 // Return the start address of the memory allocation pool
-char* start_addr_mem_pool() {
+char* h2_start_addr_mem_pool() {
   assertf(th_mem_pool.start_address != NULL, "Start address is NULL");
   return th_mem_pool.start_address;
 }
 
 // Return the last address of the memory allocation pool
-char* stop_addr_mem_pool() {
+char* h2_stop_addr_mem_pool() {
   assertf(th_mem_pool.stop_address != NULL, "Stop address is NULL");
   return th_mem_pool.stop_address;
 }
 
 // Return the `size` of the memory allocation pool
-size_t mem_pool_size() {
+size_t h2_mem_pool_size() {
   assertf(th_mem_pool.start_address != NULL, "Start address is NULL");
 #if ANONYMOUS
   return V_SPACE;
@@ -197,7 +197,7 @@ size_t mem_pool_size() {
 #endif
 }
 
-char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id) {
+char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id) {
   assert(thread_id < n_gc_threads);
 
   char* alloc_ptr = NULL;
@@ -215,9 +215,9 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thr
     exit(EXIT_FAILURE);
   }
 
-  assertf(alloc_ptr >= start_addr_mem_pool() && alloc_ptr < stop_addr_mem_pool(),
+  assertf(alloc_ptr >= h2_start_addr_mem_pool() && alloc_ptr < h2_stop_addr_mem_pool(),
           "[ERROR] out of bounds allocation! %p !E [%p, %p)",
-          alloc_ptr, start_addr_mem_pool(), stop_addr_mem_pool());
+          alloc_ptr, h2_start_addr_mem_pool(), h2_stop_addr_mem_pool());
 
   // Back new SH space with shadow chunks during mixed GCs (shadow.h)
   shadow_ensure(alloc_ptr, size * HEAPWORD, thread_id);
@@ -266,7 +266,7 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thr
 }
 
 // Update global variables to avoid locking
-void update_allocator_global_state() {
+void h2_update_allocator_global_state() {
 #ifdef LOCKFREE_GLOBAL_UPDATE
   char *prev_allocation_ptr = th_mem_pool.cur_alloc_ptr;
   for (int i = 0; i < n_gc_threads; i++) {
@@ -297,7 +297,7 @@ void update_allocator_global_state() {
 
 // Return the current allocation pointer
 // NOTE: Does not require lock as it is not called during updates
-char* cur_alloc_ptr() {
+char* h2_cur_alloc_ptr() {
   assertf(th_mem_pool.cur_alloc_ptr >= th_mem_pool.start_address &&
           th_mem_pool.cur_alloc_ptr < th_mem_pool.stop_address,
           "Allocation pointer out-of-bound")
@@ -317,14 +317,14 @@ char* cur_alloc_ptr() {
 // Return 'true' if the allocator is empty, 'false' otherwise.
 // Invariant: Initialize allocator
 // NOTE: Does not require lock as it is not called during updates
-int r_is_empty() {
+int h2_is_empty() {
 	assertf(th_mem_pool.start_address != NULL, "Allocator should be initialized");
 
   return th_mem_pool.size == 0;
 }
 
 // Close allocator and unmap pages
-void r_shutdown(void) {
+void h2_shutdown(void) {
 	printf("CALL HERE");
   munmap(th_mem_pool.mmap_start, dev_size);
 }
@@ -332,19 +332,19 @@ void r_shutdown(void) {
 // Give advise to kernel to expect page references in sequential order.  (Hence,
 // pages in the given range can be aggressively read ahead, and may be freed
 // soon after they are accessed.)
-void r_enable_seq() {
+void h2_enable_seq() {
   madvise(th_mem_pool.mmap_start, dev_size, MADV_SEQUENTIAL);
 }
 
 // Give advise to kernel to expect page references in random order (Hence, read
 // ahead may be less useful than normally.)
-void r_enable_rand() {
+void h2_enable_rand() {
   madvise(th_mem_pool.mmap_start, dev_size, MADV_NORMAL);
 }
 
 // Explicit write 'data' with 'size' in certain 'offset' using system call
 // without memcpy.
-void r_write(char *data, char *offset, size_t size) {
+void h2_write(char *data, char *offset, size_t size) {
 #ifdef ASSERT
 	ssize_t s_check = 0;
 	uint64_t diff = offset - th_mem_pool.mmap_start;
@@ -366,26 +366,26 @@ static void awrite_bytes(char *data, char *offset, size_t bytes) {
   req_add(fd, data, bytes, offset - th_mem_pool.mmap_start);
 }
 
-void r_awrite(char *data, char *offset, size_t size) {
+void h2_awrite(char *data, char *offset, size_t size) {
   // Parts inside shadow chunks are copied into them: a write to the file
   // there would land behind the chunk and be lost (shadow.h)
   shadow_split_write(data, offset, size * HEAPWORD, awrite_bytes);
 }
 
-int r_shadow_init(size_t pool_bytes, int precopy_rounds) {
+int h2_shadow_init(size_t pool_bytes, int precopy_rounds) {
   return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
                      pool_bytes, precopy_rounds, n_gc_threads);
 }
 	
 // Check if all the asynchronous requestes have been completed
 // Return 1 on succesfull, and 0 otherwise
-int	r_areq_completed() {
+int	h2_areq_completed() {
 	return is_all_req_completed();
 }
 	
 // We need to ensure that all the writes will be flushed from buffer
 // cur_alloc_ptrcur_alloc_ptrhe and they will be written to the device.
-void r_fsync() {
+void h2_fsync() {
 #ifdef ASSERT
 	int check = fsync(fd);
 	assertf(check == 0, "Error in fsync");
@@ -396,18 +396,18 @@ void r_fsync() {
 
 // This function if for the FastMap hybrid version. Give advise to kernel to
 // serve all the pagefault using regular pages.
-void r_enable_regular_flts(void) {
+void h2_enable_regular_flts(void) {
   madvise(th_mem_pool.mmap_start, dev_size, MADV_NOHUGEPAGE);
 }
 
 // This function if for the FastMap hybrid version. Give advise to kernel to
 // serve all the pagefault using huge pages.
-void r_enable_huge_flts(void) {
+void h2_enable_huge_flts(void) {
   madvise(th_mem_pool.mmap_start, dev_size, MADV_HUGEPAGE);
 }
 
-int verify_top(void) {
-  return cur_alloc_ptr() >= top_in_last_region() &&
-         cur_alloc_ptr() >= start_addr_mem_pool() &&
-         cur_alloc_ptr() < stop_addr_mem_pool();
+int h2_verify_top(void) {
+  return h2_cur_alloc_ptr() >= top_in_last_region() &&
+         h2_cur_alloc_ptr() >= h2_start_addr_mem_pool() &&
+         h2_cur_alloc_ptr() < h2_stop_addr_mem_pool();
 }

@@ -9,8 +9,7 @@
 #include "gc/teraHeap/teraStatistics.hpp"
 
 // Allocator functions
-#include <regions.h>
-#include <shadow.h>
+#include <h2_allocator.h>
 
 class PSCardTable;
 
@@ -67,8 +66,8 @@ private:
   bool _shadow_on;
   bool _shadow_mixed;
   uint64_t _shadow_switch_skipped;           // READY chunks left by this pause's switch
-  struct shadow_stats _shadow_at_start;      // after this pause's switch
-  struct shadow_stats _shadow_at_last_end;   // at the previous pause end
+  struct h2_shadow_stats _shadow_at_start;      // after this pause's switch
+  struct h2_shadow_stats _shadow_at_last_end;   // at the previous pause end
   double _shadow_start_ms;                   // time of h2_shadow_pause_start() in this pause
   double _rand_faults_ms;                    // time of h2_enable_rand_faults() in the last pause
   double _alloc_state_ms;                    // time of update_allocator_state() in the last pause
@@ -95,11 +94,11 @@ public:
   ~TeraHeap();
 
   bool h2_verify_top() {
-    bool res = verify_top();
+    bool res = ::h2_verify_top();
 
     if (!res) {
       fprintf(stderr, "[ERROR] Allocator bounds [%p, %p), top: %p\n",
-              start_addr_mem_pool(), stop_addr_mem_pool(), cur_alloc_ptr());
+              ::h2_start_addr_mem_pool(), ::h2_stop_addr_mem_pool(), ::h2_cur_alloc_ptr());
     }
 
     return res; 
@@ -313,7 +312,7 @@ public:
 
   // TeraH2Shadow: true if H2 address `addr` is in a pool chunk (DRAM)
   bool h2_shadow_is_chunk(HeapWord* addr) const {
-    return _shadow_on && shadow_is_attached((char*) addr);
+    return _shadow_on && ::h2_shadow_is_attached((char*) addr);
   }
 
   // After the evacuation and update_allocator_state(): hand the filled

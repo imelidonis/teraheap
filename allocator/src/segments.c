@@ -135,7 +135,7 @@ void init_regions(uint64_t partitions) {
 #endif
 
   for (i = 0; i < region_array_size; i++) {
-    region_array[i].start_address             = (i == 0) ? start_addr_mem_pool() : (region_array[i - 1].start_address + (uint64_t) REGION_SIZE);
+    region_array[i].start_address             = (i == 0) ? h2_start_addr_mem_pool() : (region_array[i - 1].start_address + (uint64_t) REGION_SIZE);
     if (i == 0) {
       region_array_base = region_array[0].start_address;
     }
@@ -241,9 +241,9 @@ char* new_region(size_t size) {
 
   for (i = cur_region; i < cur_region + cont_regions; i++) {
     assertf(region_array[i].used == 0, "Error, write to an already used region");
-    mark_used(region_array[i].start_address);
-    references(region_array[cur_region].start_address, region_array[i].start_address);
-    // references(region_array[i].start_address, region_array[cur_region].start_address);
+    h2_mark_used(region_array[i].start_address);
+    h2_references(region_array[cur_region].start_address, region_array[i].start_address);
+    // h2_references(region_array[i].start_address, region_array[cur_region].start_address);
     region_array[i].last_allocated_start = region_array[cur_region].start_address;
     region_array[i].first_allocated_start = region_array[cur_region].start_address;
     region_array[i].last_allocated_end = region_array[cur_region].start_address + size;
@@ -374,7 +374,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
     return res;
   }
 
-  mark_used(mapped_region->start_address);
+  h2_mark_used(mapped_region->start_address);
   mapped_region->last_allocated_start =
       mapped_region->last_allocated_end;
   mapped_region->last_allocated_end =
@@ -428,12 +428,12 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
  * ---------------------------------------------------------------------------
  *
  * region_array[r].dependency_list holds the regions that region r
- * references. GC threads add entries in parallel (references()), look
- * them up (is_in_the_same_group()) and walk them (mark_used()), without
+ * references. GC threads add entries in parallel (h2_references()), look
+ * them up (h2_is_in_the_same_group()) and walk them (h2_mark_used()), without
  * a lock:
  *  - Open addressing, linear probing. A slot holds seg + 1 (DEP_EMPTY = 0
  *    is an empty slot). Entries are never removed one by one; a region's
- *    whole set is freed in free_regions(), at a safepoint.
+ *    whole set is freed in h2_free_regions(), at a safepoint.
  *  - Insert: CAS an empty slot from DEP_EMPTY to the key. No duplicates:
  *    with no deletes, the probe path of a key never has a hole before it.
  *  - Growth (above half full): the thread that starts it installs a table
@@ -442,9 +442,9 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
  *    more), copies every key to the new table, and publishes the new table
  *    in the region (CAS). A thread that meets a frozen slot continues in
  *    'next'. Old tables stay readable (and keep 'next') until
- *    free_regions() frees them.
+ *    h2_free_regions() frees them.
  *  - Liveness: an insert is a full fence (CAS) before it reads 'used' of the
- *    source region, and mark_used() fences between setting 'used' and
+ *    source region, and h2_mark_used() fences between setting 'used' and
  *    walking the set. So a new edge is either seen by the walk, or the
  *    inserter sees 'used' and marks the target itself.
  */
@@ -460,7 +460,7 @@ struct dep_set {
   uint32_t slots[];
 };
 
-/* Tables replaced by growth, freed in free_regions() (at a safepoint) */
+/* Tables replaced by growth, freed in h2_free_regions() (at a safepoint) */
 static struct dep_set *retired_dep_sets = NULL;
 
 static struct dep_set *dep_set_alloc(uint32_t capacity) {
@@ -688,7 +688,7 @@ static void add_referent(int32_t seg1, int32_t seg2) {
 static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
   // Lock-free; the successful CAS of the insert is a full fence, so the
   // load of 'used' below cannot be ordered before the new entry is
-  // visible (see mark_used())
+  // visible (see h2_mark_used())
   if (!dep_set_add(seg1, seg2))
     return 0;
 
@@ -697,7 +697,7 @@ static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
 #endif
 
   if (__atomic_load_n(&region_array[seg1].used, __ATOMIC_SEQ_CST)) {
-    mark_used(region_array[seg2].start_address);
+    h2_mark_used(region_array[seg2].start_address);
   }
   return 1;
 }
@@ -709,7 +709,7 @@ static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
  * - obj2 the object that is referenced
  */
 
-void references(char *obj1, char *obj2) {
+void h2_references(char *obj1, char *obj2) {
   add_reference(obj1, obj2);
 }
 
@@ -728,7 +728,7 @@ int add_reference(char *obj1, char *obj2) {
 /*
  * Print the size of the dependency list of each region (if they have)
  */
-void print_groups() {
+void h2_print_groups() {
   int32_t i;
 
   fprintf(stderr, "Groups:\n");
@@ -749,14 +749,14 @@ void print_groups() {
 /*
  * Resets the used field of all regions and groups
  */
-void reset_used() {
+void h2_reset_used() {
   int32_t i;
   for (i = 0 ; i < region_array_size ; i++)
     region_array[i].used = 0;
 }
 
 static void mark_used_region_index(uint64_t seg) {
-  mark_used(region_array[seg].start_address);
+  h2_mark_used(region_array[seg].start_address);
 }
 
 void mark_live_dependent_regions(uint64_t seg) {
@@ -768,7 +768,7 @@ void mark_live_dependent_regions(uint64_t seg) {
  * counter (if it belongs to a tera_group)
  * Arguments: obj: the object that is alive
  */
-void mark_used(char *obj) {
+void h2_mark_used(char *obj) {
   uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
 
 	assertf(seg >= 0 && seg < region_array_size,
@@ -826,7 +826,7 @@ int region_free_prot(char *addr) {
 /*
  * Frees all unused regions
  */
-struct region_list* free_regions() {
+struct region_list* h2_free_regions() {
 #if STATISTICS
   struct timeval t1,t2;
   gettimeofday(&t1, NULL);
@@ -917,7 +917,7 @@ void print_regions() {
 /*
  * Prints all the used regions
  */
-void print_used_regions() {
+void h2_print_used_regions() {
   int32_t i;
   fprintf(stderr, "Used Regions:\n");
 
@@ -930,7 +930,7 @@ void print_used_regions() {
 /*
  * Checks if obj is before last object of region
  */
-bool is_before_last_object(char *obj) {
+bool h2_is_before_last_object(char *obj) {
   uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
   assertf(seg >= 0 && seg < region_array_size,
           "Segment index is out of range %lu", seg);
@@ -941,7 +941,7 @@ bool is_before_last_object(char *obj) {
 /*
  * Returns last object of region
  */
-char* get_last_object(char *obj) {
+char* h2_get_last_object(char *obj) {
   uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
   assertf(seg >= 0 && seg < region_array_size,
           "Segment index is out of range %lu", seg);
@@ -950,7 +950,7 @@ char* get_last_object(char *obj) {
 }
 
 // Returns true if object is first of its region false otherwise
-bool is_region_start(char *obj) {
+bool h2_is_region_start(char *obj) {
   uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
   assertf(seg >= 0 && seg < region_array_size,
           "Segment index is out of range %lu", seg);
@@ -965,7 +965,7 @@ void print_objects_temporary_function(char *obj,const char *string) {
 /*
  * Start iteration over all active regions to print their object state.
  */
-void start_iterate_regions() {
+void h2_start_iterate_regions() {
 	_next_region = 0;
 }
 
@@ -973,7 +973,7 @@ void start_iterate_regions() {
  * Return the next active region or NULL if we reached the end of the region
  * array.
  */
-char* get_next_region() {
+char* h2_get_next_region() {
   char *region_start_addr;
 
   // Find the next active region
@@ -994,13 +994,13 @@ char* get_next_region() {
   return region_start_addr;
 }
 
-char *get_first_object(char *addr) {
+char *h2_get_first_object(char *addr) {
   uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
   assertf(seg >= 0 && seg < region_array_size, "Segment index is out of range %lu", seg);
   return region_array[seg].first_allocated_start;
 }
 
-int get_num_of_continuous_regions(char *addr) {
+int h2_get_num_of_continuous_regions(char *addr) {
   uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
 
   if (region_array[seg].last_allocated_end == region_array[seg].start_address)
@@ -1033,7 +1033,7 @@ char* get_region_start_addr(char *obj, uint64_t rdd_id, uint64_t part_id) {
  *
  * Return: the object rdd id
  */
-uint64_t get_obj_group_id(char *obj) {
+uint64_t h2_get_obj_group_id(char *obj) {
   uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
   assertf(seg >= 0 && seg < region_array_size,
           "Segment index is out of range %lu", seg);
@@ -1049,7 +1049,7 @@ uint64_t get_obj_group_id(char *obj) {
  *
  * returns: the object partition Id
  */
-uint64_t get_obj_part_id(char *obj) {
+uint64_t h2_get_obj_part_id(char *obj) {
   uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
   assertf(seg >= 0 && seg < region_array_size,
           "Segment index is out of range %lu", seg);
@@ -1065,7 +1065,7 @@ uint64_t get_obj_part_id(char *obj) {
  *
  * returns: 1 if objects are in the same tera_group, 0 otherwise
  */
-int is_in_the_same_group(char *obj1, char *obj2) {
+int h2_is_in_the_same_group(char *obj1, char *obj2) {
 	uint64_t seg1 = (obj1 - region_array_base) / ((uint64_t)REGION_SIZE);
 	uint64_t seg2 = (obj2 - region_array_base) / ((uint64_t)REGION_SIZE);
 
@@ -1126,17 +1126,17 @@ char* top_in_last_region() {
 
 void make_region_inaccessible(char *region_start, uint gc_number) {
   // Remove read/write permissions
-  fprintf(stderr, "[%u] Remove permissions for region: %lu\n", gc_number, region_containing_addr(region_start));
+  fprintf(stderr, "[%u] Remove permissions for region: %lu\n", gc_number, h2_region_containing_addr(region_start));
   if (mprotect(region_start, REGION_SIZE, PROT_NONE) != 0) {
     fprintf(stderr, "mprotect error\n");
   }
 }
 
-uint64_t region_containing_addr(char *addr) {
+uint64_t h2_region_containing_addr(char *addr) {
   return (addr - region_array_base) / ((uint64_t)REGION_SIZE);
 }
 
-int is_used(uint64_t region) {
+int h2_is_used(uint64_t region) {
   return region_array[region].used;
 }
 
@@ -1169,7 +1169,7 @@ void flush_buffer(uint64_t seg) {
 	assertf(buf->size <= PR_BUFFER_SIZE, "Sanity check");
 
 	// Write the buffer to TeraHeap
-	r_awrite(buf->buffer, buf->first_obj_addr, buf->size / HeapWordSize);
+	h2_awrite(buf->buffer, buf->first_obj_addr, buf->size / HeapWordSize);
 
 	buf->alloc_ptr = buf->buffer;
 	buf->first_obj_addr = NULL;
@@ -1185,7 +1185,7 @@ void flush_buffer(uint64_t seg) {
  *			be move to H2
  * size: Size of the object
  */
-void buffer_insert(char* obj, char* new_adr, size_t size) {
+void h2_buffer_insert(char* obj, char* new_adr, size_t size) {
 	uint64_t seg = (new_adr - region_array_base) / ((uint64_t)REGION_SIZE);
 	struct pr_buffer *buf = region_array[seg].pr_buffer;
 
@@ -1198,7 +1198,7 @@ void buffer_insert(char* obj, char* new_adr, size_t size) {
 	assertf(THRESHOLD < PR_BUFFER_SIZE, "Threshold should be less that promotion buffer size");
 
 	if ((size * HeapWordSize) > THRESHOLD) {
-    r_awrite(obj, new_adr, size);
+    h2_awrite(obj, new_adr, size);
     pthread_mutex_unlock(&buf->buffer_lock);
     return;
 	}
@@ -1257,7 +1257,7 @@ void buffer_insert(char* obj, char* new_adr, size_t size) {
  * Flush all active buffers and free each buffer memory. We need to free their
  * memory to limit waste space.
  */
-void free_all_buffers() {
+void h2_free_all_buffers() {
 	uint64_t i;
 	struct pr_buffer *buf;
 
@@ -1284,7 +1284,7 @@ void free_all_buffers() {
 }
 #endif
 
-bool object_starts_from_region(char *obj) {
+bool h2_object_starts_from_region(char *obj) {
   uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
   assertf(seg >= 0 && seg < region_array_size,
           "Segment index is out of range %lu", seg);
@@ -1293,10 +1293,10 @@ bool object_starts_from_region(char *obj) {
 
 /* Returns the number of regions that were reclaimed (i.e., released back
 to the free pool) during the most recent reclamation cycle. */
-uint num_reclaimed_regions(void) {
+uint h2_num_reclaimed_regions(void) {
   return reclaimed_regions_count;
 }
 
-void protect_h2_regions_on_free(int should_protect) {
+void h2_protect_regions_on_free(int should_protect) {
   protect_regions_on_free = should_protect;
 }

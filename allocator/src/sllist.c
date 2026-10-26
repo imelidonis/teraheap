@@ -34,7 +34,7 @@ int sll_push_front(SLinkedList *list, void *value) {
 
   n->next    = list->head;
   // Publish the node only after its fields are written: readers walk
-  // the list without the writers' lock (e.g. is_in_the_same_group()).
+  // the list without the writers' lock (e.g. h2_is_in_the_same_group()).
   // A plain store lets the compiler (at -O3) set the head first.
   __atomic_store_n(&list->head, n, __ATOMIC_RELEASE);
   list->size++;

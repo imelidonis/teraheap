@@ -38,7 +38,7 @@ int main() {
 	char *tmp, *tmp2, *tmp3, *tmp4;
 	
 	// Init allocator
-  init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 1);
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 1);
 
 	tmp = malloc(SIZE_80B * sizeof(char));
 	memset(tmp, '1', SIZE_80B);
@@ -56,19 +56,19 @@ int main() {
 	memset(tmp4, '4', SIZE_4M);
 	tmp4[SIZE_4M - 1] = '\0';
 	
-	obj1 = allocate(SIZE_TO_WORD(SIZE_80B), 0, 0, 0);
-	r_awrite(tmp, obj1, SIZE_TO_WORD(SIZE_80B));
+	obj1 = h2_allocate(SIZE_TO_WORD(SIZE_80B), 0, 0, 0);
+	h2_awrite(tmp, obj1, SIZE_TO_WORD(SIZE_80B));
 	
-	obj2 = allocate(SIZE_TO_WORD(SIZE_160B), 1, 0, 0);
-	r_awrite(tmp2, obj2, SIZE_TO_WORD(SIZE_160B));
+	obj2 = h2_allocate(SIZE_TO_WORD(SIZE_160B), 1, 0, 0);
+	h2_awrite(tmp2, obj2, SIZE_TO_WORD(SIZE_160B));
 	
-	obj3 = allocate(SIZE_TO_WORD(SIZE_1M), 0, 0, 0);
-	r_awrite(tmp3, obj3, SIZE_TO_WORD(SIZE_1M));
+	obj3 = h2_allocate(SIZE_TO_WORD(SIZE_1M), 0, 0, 0);
+	h2_awrite(tmp3, obj3, SIZE_TO_WORD(SIZE_1M));
 	
-	obj4 = allocate(SIZE_TO_WORD(SIZE_4M), 1, 0, 0);
-	r_awrite(tmp4, obj4, SIZE_TO_WORD(SIZE_4M));
+	obj4 = h2_allocate(SIZE_TO_WORD(SIZE_4M), 1, 0, 0);
+	h2_awrite(tmp4, obj4, SIZE_TO_WORD(SIZE_4M));
 
-	while (!r_areq_completed());
+	while (!h2_areq_completed());
 
 	assertf(strlen(obj1) == SIZE_80B - 1, "Error in size %lu", strlen(obj1));
 	assertf(strlen(obj2) == SIZE_160B - 1, "Error in size %lu", strlen(obj2));

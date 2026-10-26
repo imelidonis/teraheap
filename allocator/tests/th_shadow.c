@@ -8,10 +8,10 @@
 *   - between pauses: a mutator writes words of live objects (1/16 of them
 *     with read() from a pipe, i.e. kernel-mode writes) while the writer
 *     thread writes chunks back
-*   - each pause starts with shadow_switch() (mutator stopped)
+*   - each pause starts with h2_shadow_switch() (mutator stopped)
 *   - "Full GCs": objects written through the promotion buffers / r_awrite
 *     with the shadow inactive (redirect into OPEN chunks)
-*   - "remark": regions freed with free_regions() while their chunks are in
+*   - "remark": regions freed with h2_free_regions() while their chunks are in
 *     any state
 * At the end every word of every live object is checked in memory and, for
 * objects in switched chunks, through the file with pread().
@@ -93,7 +93,7 @@ static void *gc_thread(void *a) {
   uint64_t s = 0x1234567ULL * (g->t + 1) + g->gen;
   for (size_t done = 0; done < PER_PAUSE;) {
     size_t w = obj_words(&s);
-    char *p = allocate(w, g->t, rnd(&s) % NPARTS, g->t);
+    char *p = h2_allocate(w, g->t, rnd(&s) % NPARTS, g->t);
     uint64_t *q = (uint64_t *) p;
     for (size_t i = 0; i < w; i++) q[i] = pattern(p + i * 8, g->gen);
     add_obj(p, w, g->gen);
@@ -182,8 +182,8 @@ static long verify(int use_file, long *checked_file) {
     if (!use_file) continue;
     // Through the file, for objects entirely in file-backed chunks
     int in_file = 1;
-    for (size_t b = 0; b < o->words * 8; b += SHADOW_CHUNK / 2) if (shadow_is_attached(o->addr + b)) in_file = 0;
-    if (shadow_is_attached(o->addr + o->words * 8 - 1)) in_file = 0;
+    for (size_t b = 0; b < o->words * 8; b += SHADOW_CHUNK / 2) if (h2_shadow_is_attached(o->addr + b)) in_file = 0;
+    if (h2_shadow_is_attached(o->addr + o->words * 8 - 1)) in_file = 0;
     if (!in_file) continue;
     long off = file_offset(o->addr);
     if (off < 0 || pread(fd, buf, o->words * 8, off) != (ssize_t) (o->words * 8)) {
@@ -207,14 +207,14 @@ static void full_gc_writes(uint64_t gen) {
   for (int k = 0; k < 64; k++) {
     int t = rnd(&s) % NTHREADS;
     size_t w = 2 + rnd(&s) % 4096;
-    char *p = allocate(w, t, rnd(&s) % NPARTS, t);
+    char *p = h2_allocate(w, t, rnd(&s) % NPARTS, t);
     for (size_t i = 0; i < w; i++) src[i] = pattern(p + i * 8, gen);
-    buffer_insert((char *) src, p, w);   // copies src into the buffer
+    h2_buffer_insert((char *) src, p, w);   // copies src into the buffer
     add_obj(p, w, gen);
   }
-  free_all_buffers();
-  while (!r_areq_completed());
-  update_allocator_global_state();
+  h2_free_all_buffers();
+  while (!h2_areq_completed());
+  h2_update_allocator_global_state();
   free(src);
 }
 
@@ -226,12 +226,12 @@ static int free_one_region(uint64_t *s, int shadow_only) {
   char *victim = NULL;
   for (int tries = 0; tries < 1000 && !victim; tries++) {
     struct obj *o = &objs[rnd(s) % n];
-    if (o->live && (!shadow_only || shadow_is_attached(o->addr))) victim = o->addr;
+    if (o->live && (!shadow_only || h2_shadow_is_attached(o->addr))) victim = o->addr;
   }
   if (!victim) return 0;
-  char *rstart = start_addr_mem_pool() + ((victim - start_addr_mem_pool()) / REGION_SIZE) * REGION_SIZE;
+  char *rstart = h2_start_addr_mem_pool() + ((victim - h2_start_addr_mem_pool()) / REGION_SIZE) * REGION_SIZE;
   char *rend = rstart + REGION_SIZE;
-  reset_used();
+  h2_reset_used();
   int dropped = 0;
   for (long k = 0; k < n; k++) {
     struct obj *o = &objs[k];
@@ -239,10 +239,10 @@ static int free_one_region(uint64_t *s, int shadow_only) {
     // An object that starts in another region but reaches into the victim
     // keeps it (multi-region objects)
     if (o->addr >= rstart && o->addr < rend) { o->live = 0; dropped++; }
-    else if (o->addr < rstart && o->addr + o->words * 8 > rstart) { reset_used(); return 0; }
+    else if (o->addr < rstart && o->addr + o->words * 8 > rstart) { h2_reset_used(); return 0; }
   }
-  for (long k = 0; k < n; k++) if (objs[k].live) mark_used(objs[k].addr);
-  struct region_list *l = free_regions();
+  for (long k = 0; k < n; k++) if (objs[k].live) h2_mark_used(objs[k].addr);
+  struct region_list *l = h2_free_regions();
   int freed = 0;
   while (l) { struct region_list *nx = l->next; freed++; free(l); l = nx; }
   return freed ? dropped : 0;
@@ -253,8 +253,8 @@ int main(int argc, char **argv) {
   int cycles = argc > 2 ? atoi(argv[2]) : 40;
   objs = calloc(MAX_OBJS, sizeof *objs);
 
-  init(SHADOW_CHUNK, dir, 8 * GB, NPARTS, NTHREADS);
-  if (r_shadow_init(POOL, 3)) { fprintf(stderr, "FAIL: shadow_init\n"); return 1; }
+  h2_init(SHADOW_CHUNK, dir, 8 * GB, NPARTS, NTHREADS);
+  if (h2_shadow_init(POOL, 3)) { fprintf(stderr, "FAIL: shadow_init\n"); return 1; }
 
   pthread_t wt, mt;
   pthread_create(&wt, NULL, writer, NULL);
@@ -264,20 +264,20 @@ int main(int argc, char **argv) {
   double sw_ms = 0; long frees = 0, dropped = 0, fulls = 0, preattached = 0;
   for (int c = 0; c < cycles; c++) {
     stop_mutator();
-    uint32_t sw = shadow_switch(0, 512);
-    struct shadow_stats st; shadow_get_stats(&st);
+    uint32_t sw = h2_shadow_switch(0, 512);
+    struct h2_shadow_stats st; h2_shadow_get_stats(&st);
     sw_ms += st.last_switch_ms;
 
     if (c % 7 == 6) { full_gc_writes(1000 + c); fulls++; }      // Full GC
     if (c % 5 == 4) { int d = free_one_region(&s, 0); if (d) { frees++; dropped += d; } }   // remark
 
-    shadow_set_active(true);
+    h2_shadow_set_active(true);
     pthread_t th[NTHREADS]; struct gc_arg ga[NTHREADS];
     for (int t = 0; t < NTHREADS; t++) { ga[t] = (struct gc_arg){t, (uint64_t) c + 1}; pthread_create(&th[t], NULL, gc_thread, &ga[t]); }
     for (int t = 0; t < NTHREADS; t++) pthread_join(th[t], NULL);
-    update_allocator_global_state();
-    shadow_set_active(false);
-    shadow_pause_end();
+    h2_update_allocator_global_state();
+    h2_shadow_set_active(false);
+    h2_shadow_pause_end();
 
     // "remark" while the writer works on the new FULL chunks
     if (c % 3 == 2) { usleep((c % 4) * 1000); int d = free_one_region(&s, 1); if (d) { frees++; dropped += d; } }
@@ -285,12 +285,12 @@ int main(int argc, char **argv) {
     if (c % 2 == 1)
       for (int t = 0; t < NTHREADS; t++)
         for (long k = nobjs - 1; k >= 0; k--)
-          if (objs[k].live && objs[k].gen == (uint64_t) c + 1 && (objs[k].addr - start_addr_mem_pool()) / REGION_SIZE % NTHREADS == (uint64_t) t) {
+          if (objs[k].live && objs[k].gen == (uint64_t) c + 1 && (objs[k].addr - h2_start_addr_mem_pool()) / REGION_SIZE % NTHREADS == (uint64_t) t) {
             preattached += shadow_preattach(objs[k].addr + objs[k].words * 8, 4 * MB);
             break;
           }
 
-    shadow_get_stats(&st);
+    h2_shadow_get_stats(&st);
     printf("cycle %2d switched=%u (%.1f ms, delta %" PRIu64 ") open=%u full=%u writing=%u ready=%u dead=%u free=%u/%u objs=%ld\n",
            c, sw, st.last_switch_ms, st.last_delta_pages, st.n_open, st.n_full, st.n_writing, st.n_ready, st.n_dead,
            st.free_chunks, st.pool_chunks, nobjs);
@@ -300,50 +300,50 @@ int main(int argc, char **argv) {
 
   // Final: stop the mutator, let the writer finish, switch everything
   stop_mutator();
-  struct shadow_stats st;
+  struct h2_shadow_stats st;
 
   // A region retired with pre-attached chunks it never used: they must
   // return to the pool at pause end. Thread 0, partition 1.
-  long empty_before; shadow_get_stats(&st); empty_before = st.empty_detached;
-  while (shadow_switch(0, -1) == 0 && st.free_chunks < 8) { usleep(2000); shadow_get_stats(&st); }
+  long empty_before; h2_shadow_get_stats(&st); empty_before = st.empty_detached;
+  while (h2_shadow_switch(0, -1) == 0 && st.free_chunks < 8) { usleep(2000); h2_shadow_get_stats(&st); }
   {
-    char *p = allocate(2, 0, 1, 0);
+    char *p = h2_allocate(2, 0, 1, 0);
     ((uint64_t *) p)[0] = pattern(p, 7777); ((uint64_t *) p)[1] = pattern(p + 8, 7777);
     add_obj(p, 2, 7777);
     char *top = p + 16;
-    char *rend = start_addr_mem_pool() + ((top - start_addr_mem_pool()) / REGION_SIZE + 1) * REGION_SIZE;
+    char *rend = h2_start_addr_mem_pool() + ((top - h2_start_addr_mem_pool()) / REGION_SIZE + 1) * REGION_SIZE;
     int pre = shadow_preattach(top, 6 * MB);
     size_t w = (rend - top) / 8 + 1;   // does not fit: the region retires
-    char *q = allocate(w, 0, 1, 0);
+    char *q = h2_allocate(w, 0, 1, 0);
     for (size_t i = 0; i < w; i++) ((uint64_t *) q)[i] = pattern(q + i * 8, 7777);
     add_obj(q, w, 7777);
-    update_allocator_global_state();
-    shadow_pause_end();
-    shadow_get_stats(&st);
+    h2_update_allocator_global_state();
+    h2_shadow_pause_end();
+    h2_shadow_get_stats(&st);
     printf("retired-region check: preattached %d, returned %ld, new object in another region: %s\n",
-           pre, st.empty_detached - empty_before, (q - start_addr_mem_pool()) / REGION_SIZE != (top - start_addr_mem_pool()) / REGION_SIZE ? "yes" : "no");
+           pre, st.empty_detached - empty_before, (q - h2_start_addr_mem_pool()) / REGION_SIZE != (top - h2_start_addr_mem_pool()) / REGION_SIZE ? "yes" : "no");
     // Other retired regions may return chunks at the same pause end, so
     // check the pre-attached chunks themselves
     int still = 0;
     // (the chunk that holds top may be an OPEN chunk from a mixed GC: it
     // stays attached, now FULL)
-    char *first = start_addr_mem_pool() + ((top - start_addr_mem_pool() + SHADOW_CHUNK - 1) / SHADOW_CHUNK) * SHADOW_CHUNK;
-    for (char *c = first; c < top + 6 * MB && c < rend; c += SHADOW_CHUNK) if (shadow_is_attached(c)) still++;
+    char *first = h2_start_addr_mem_pool() + ((top - h2_start_addr_mem_pool() + SHADOW_CHUNK - 1) / SHADOW_CHUNK) * SHADOW_CHUNK;
+    for (char *c = first; c < top + 6 * MB && c < rend; c += SHADOW_CHUNK) if (h2_shadow_is_attached(c)) still++;
     if (pre == 0 || still || st.empty_detached - empty_before < pre) { fprintf(stderr, "FAIL: unused chunks of a retired region not returned (%d still attached)\n", still); return 1; }
   }
   double t0 = now_ms();
   for (;;) {
-    shadow_get_stats(&st);
+    h2_shadow_get_stats(&st);
     if (st.n_full == 0 && st.n_writing == 0 && st.n_dead == 0) break;
     if (now_ms() - t0 > 60000) { fprintf(stderr, "FAIL: writer did not finish\n"); return 1; }
     usleep(1000);
   }
-  shadow_switch(0, -1);
+  h2_shadow_switch(0, -1);
   mut_stop = 1; pthread_join(mt, NULL);
   stop_writer = 1; pthread_join(wt, NULL);
 
   long checked_file, bad = verify(1, &checked_file);
-  shadow_get_stats(&st);
+  h2_shadow_get_stats(&st);
   long live = 0; for (long k = 0; k < nobjs; k++) live += objs[k].live;
   printf("objects %ld (live %ld, %ld checked through the file), mutator writes %ld (kernel %ld)\n",
          nobjs, live, checked_file, mut_writes, mut_kwrites);

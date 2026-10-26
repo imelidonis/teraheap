@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "h2_allocator.h"
+
 // #define TRANSFER_BACK         // This is a work-in-progress
 #define ANONYMOUS 0
 #define PR_BUFFER 1
@@ -20,7 +22,7 @@
  * structured any more: region dependencies (dependency sets, liveness
  * marking, freeing), region allocation and the per-thread state are mixed
  * in segments.c/regions.c, and the API mixes object-level calls
- * (references(), add_reference(), is_in_the_same_group()) with region
+ * (h2_references(), add_reference(), h2_is_in_the_same_group()) with region
  * indices and raw region_array access. Split them into clear modules with
  * one documented API before adding more features.
  */
@@ -65,42 +67,11 @@ int new_group();
 void merge_groups(int group1, int group2);
 
 /*
- * Connects two regions in a tera_group
- * Arguments:
- * - obj1: the object that references the other
- * - obj2: the object that is referenced (order does not matter)
- */
-void references(char *obj1, char *obj2);
-
-/*
- * Same as references(), and returns 1 if this call added the dependency
+ * Same as h2_references(), and returns 1 if this call added the dependency
  * (0 if it existed, or both objects are in the same region). Lock-free:
  * GC threads may call it in parallel.
  */
 int add_reference(char *obj1, char *obj2);
-
-/*
- * Prints all the region groups that contain something
- */
-void print_groups();
-
-/*
- * Resets the used field of all regions, and groups
- */
-void reset_used();
-
-/*
- * Marks the region that contains this obj as used and increases tera_group
- * counter (if it belongs to a tera_group)
- * Arguments:
- * - obj: the object that is alive
- */
-void mark_used(char *obj);
-
-/*
- * Frees all unused regions
- */
-struct region_list* free_regions();
 
 /**
  * Get the total number of allocated regions
@@ -120,11 +91,6 @@ void print_regions();
 long total_used_regions();
 
 /*
- * Prints all the used regions
- */
-void print_used_regions();
-
-/*
  * For the shadow chunks (shadow.c): the allocation top of the region that
  * contains addr, and whether a (thread, partition) id still allocates in it.
  */
@@ -136,94 +102,15 @@ void region_info(char *addr, char **top, bool *active);
  */
 int region_free_prot(char *addr);
 
-/*
- * Checks if address of obj is before last object
- */
-bool is_before_last_object(char *obj);
-
-/*
- * Returns last object of region
- */
-char* get_last_object(char *obj);
-
-/*
- * Returns true if object is first of its region, false otherwise
- */
-bool is_region_start(char *obj);
-
 void print_objects_temporary_function(char *obj,const char *string);
-
-/*
- * Start iteration over all active regions to print their object state
- */
-void start_iterate_regions(void);
-
-/*
- * Get the next active region
- */
-char* get_next_region(void);
-
-char *get_first_object(char *addr);
 
 /*
  * Get objects 'obj' region start address
  */
 char* get_region_start_addr(char *obj, uint64_t rdd_id, uint64_t part_id);
 
-/*
- * Get object 'groupId' (RDD Id). Each object is allocated based on a tera_group Id
- * and the partition Id that locates in teraflag.
- *
- * @obj: address of the object
- *
- * Return: the object partition Id
- */
-uint64_t get_obj_group_id(char *obj);
-
-/*
- * Get object 'groupId'. Each object is allocated based on a tera_group Id
- * and the partition Id that locates in teraflag.
- *
- * obj: address of the object
- *
- * returns: the object partition Id
- */
-uint64_t get_obj_part_id(char *obj);
-
-/*
- * Check if these two objects belong to the same tera_group
- *
- * obj1: address of the object
- * obj2: address of the object
- *
- * returns: 1 if objects are in the same tera_group, 0 otherwise
- */
-int is_in_the_same_group(char *obj1, char *obj2);
-
-/*
- * Get number of continious regions in H2
- *
- * addr: address of the object
- */
-int get_num_of_continuous_regions(char *addr);
-
-/*
- * Check if the objects starts from existing region
- * 
- * obj: object address
- *
- * returns: true if starts and false, otherwise
- *
- */
-bool object_starts_from_region(char *obj);
-
-
 char* top_in_last_region();
 
-void make_region_inaccessible(char *region_start, uint gc_number);
-
-uint64_t region_containing_addr(char *addr);
-int is_used(uint64_t region);
 struct region *get_region(uint64_t region_index);
 
 // Returns the start_address of a region
@@ -231,31 +118,5 @@ char *region_get_start_address(struct region *region);
 
 // Returns the end address of last allocation of a region
 char *region_get_last_allocated_end(struct region *region);
-
-#if PR_BUFFER
-/*
- * Add an obect to the promotion buffer. We use promotion buffer to avoid write
- * system calls for small sized objects.
- *
- * obj: Object that will be writter in the promotion buffer
- * new_adr: Is used to know where the first object in the promotion buffer will
- *			be move to H2
- * size: Size of the object
- */
-void buffer_insert(char* obj, char* new_adr, size_t size);
-
-/*
- * Flush all active buffers and free each buffer memory. We need to free their
- * memory to limit waste space.
- */
-void free_all_buffers();
-
-#endif
-
-/* Returns the number of regions that were reclaimed (i.e., released back
-to the free pool) during the most recent reclamation cycle. */
-uint num_reclaimed_regions(void);
-
-void protect_h2_regions_on_free(int should_protect);
 
 #endif

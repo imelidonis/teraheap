@@ -54,7 +54,7 @@ static int s_nthreads;
 static uint64_t s_seq;
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
-static struct shadow_stats s_st;
+static struct h2_shadow_stats s_st;
 
 // Writer thread
 static pthread_t s_writer;
@@ -242,7 +242,7 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
 
 bool shadow_enabled(void) { return s_on; }
 
-void shadow_set_active(bool active) {
+void h2_shadow_set_active(bool active) {
   if (!s_on) return;
   if (active) for (int t = 0; t < s_nthreads; t++) s_skip[t] = -1;
   s_active = active;
@@ -283,7 +283,7 @@ int shadow_preattach(char *top, size_t bytes) {
   return n;
 }
 
-void shadow_pause_end(void) {
+void h2_shadow_pause_end(void) {
   if (!s_on) return;
   pthread_mutex_lock(&s_lock);
   for (uint32_t s = 0; s < s_pool_n; s++) {
@@ -385,7 +385,7 @@ static int cmp_idx(const void *x, const void *y) {
   return a < b ? -1 : a > b;
 }
 
-uint32_t shadow_switch(uint32_t max_chunks, long max_delta_pages) {
+uint32_t h2_shadow_switch(uint32_t max_chunks, long max_delta_pages) {
   if (!s_on) return 0;
   double t0 = now_ms();
   pthread_mutex_lock(&s_lock);
@@ -452,7 +452,7 @@ bool shadow_range_busy(char *start, size_t len) {
   return false;
 }
 
-bool shadow_is_attached(char *addr) {
+bool h2_shadow_is_attached(char *addr) {
   return s_on && addr >= s_h2_start && addr < s_h2_end && get_state(chunk_idx(addr)) != CS_FILE;
 }
 
@@ -464,7 +464,7 @@ void shadow_split_write(char *data, char *addr, size_t len,
     char *a = addr + done;
     size_t to_chunk_end = CHUNK - (size_t) ((uintptr_t) (a - s_h2_start) % CHUNK);
     size_t n = len - done < to_chunk_end ? len - done : to_chunk_end;
-    if (shadow_is_attached(a)) {
+    if (h2_shadow_is_attached(a)) {
       if (file_len) { write_file(data + file_from, addr + file_from, file_len); file_len = 0; }
       memcpy(a, data + done, n);
       __atomic_fetch_add(&s_st.redirected_bytes, n, __ATOMIC_RELAXED);
@@ -497,7 +497,7 @@ static void *writer_main(void *arg) {
   return NULL;
 }
 
-int shadow_start_writer(void) {
+int h2_shadow_start_writer(void) {
   if (!s_on) return -1;
   if (pthread_create(&s_writer, NULL, writer_main, NULL)) {
     fprintf(stderr, "[SHADOW] cannot start the writer thread\n");
@@ -506,12 +506,12 @@ int shadow_start_writer(void) {
   return 0;
 }
 
-void shadow_set_verify(bool on) {
+void h2_shadow_set_verify(bool on) {
   if (on && !s_verify_buf) s_verify_buf = malloc(CHUNK);
   s_verify = on && s_verify_buf;
 }
 
-void shadow_get_stats(struct shadow_stats *st) {
+void h2_shadow_get_stats(struct h2_shadow_stats *st) {
   pthread_mutex_lock(&s_lock);
   *st = s_st;
   st->pool_chunks = s_pool_n; st->free_chunks = s_nfree;

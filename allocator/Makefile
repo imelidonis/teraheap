@@ -67,8 +67,8 @@ install: $(LIBRARY)
 	@ln -sf $(INSTALL_PREFIX)/lib/lib$(LIBNAME).so /usr/lib/lib$(LIBNAME).so
 	@echo -e '[$(BYELLOW)LN$(RESET)]' /usr/lib64/lib$(LIBNAME).so
 	@ln -sf $(INSTALL_PREFIX)/lib/lib$(LIBNAME).so /usr/lib64/lib$(LIBNAME).so
-	@echo -e '[$(BGREEN)INSTALL$(RESET)]' $(INCLUDEDIR)/regions.h
-	@$(CP) $(INCLUDEDIR)/regions.h $(INSTALL_PREFIX)/include/
+	@echo -e '[$(BGREEN)INSTALL$(RESET)]' $(INCLUDEDIR)/h2_allocator.h
+	@$(CP) $(INCLUDEDIR)/h2_allocator.h $(INSTALL_PREFIX)/include/
 
 uninstall:
 	@echo -e '[$(BRED)UNINSTALL$(RESET)]' lib$(LIBNAME).so

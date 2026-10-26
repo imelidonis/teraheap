@@ -31,11 +31,11 @@ TeraHeap::TeraHeap() {
     ShouldNotReachHere();
   }
 
-  init(align, AllocateH2At, H2FileSize, H2MaxPartitions, ParallelGCThreads);
-  protect_h2_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
+  ::h2_init(align, AllocateH2At, H2FileSize, H2MaxPartitions, ParallelGCThreads);
+  ::h2_protect_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
 
-  _start_addr = start_addr_mem_pool();
-  _stop_addr = stop_addr_mem_pool();
+  _start_addr = ::h2_start_addr_mem_pool();
+  _stop_addr = ::h2_stop_addr_mem_pool();
 
   h1_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
   h2_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
@@ -75,12 +75,12 @@ void TeraHeap::h2_shadow_init() {
   warning("TeraH2Shadow needs the default H2 write path (memcpy); disabled");
   return;
 #else
-  if (r_shadow_init(TeraH2ShadowPoolSize, (int) TeraH2ShadowPrecopyRounds) != 0) {
+  if (::h2_shadow_init(TeraH2ShadowPoolSize, (int) TeraH2ShadowPrecopyRounds) != 0) {
     warning("TeraH2Shadow is not available (see the [SHADOW] message); disabled");
     return;
   }
-  shadow_set_verify(TeraH2ShadowVerify);
-  if (shadow_start_writer() != 0) {
+  ::h2_shadow_set_verify(TeraH2ShadowVerify);
+  if (::h2_shadow_start_writer() != 0) {
     warning("TeraH2Shadow: cannot start the writer thread; disabled");
     return;
   }
@@ -94,13 +94,13 @@ void TeraHeap::h2_shadow_pause_start(bool mixed) {
   if (!_shadow_on)
     return;
   const jlong t0 = os::javaTimeNanos();
-  struct shadow_stats before;
-  shadow_get_stats(&before);
-  shadow_switch((uint32_t) TeraH2ShadowSwitchMaxChunks, (long) TeraH2ShadowSwitchMaxPages);
-  shadow_get_stats(&_shadow_at_start);
+  struct h2_shadow_stats before;
+  ::h2_shadow_get_stats(&before);
+  ::h2_shadow_switch((uint32_t) TeraH2ShadowSwitchMaxChunks, (long) TeraH2ShadowSwitchMaxPages);
+  ::h2_shadow_get_stats(&_shadow_at_start);
   _shadow_switch_skipped = _shadow_at_start.switch_skipped - before.switch_skipped;
   _shadow_mixed = mixed;
-  shadow_set_active(mixed);
+  ::h2_shadow_set_active(mixed);
   _shadow_start_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 }
 
@@ -110,18 +110,18 @@ size_t TeraHeap::h2_shadow_budget_bytes() const {
   // Free chunks now (the switch at pause start and the initial evacuation
   // change them). Each allocating GC worker keeps one partly filled chunk
   // per region, so that many are held back.
-  struct shadow_stats now;
-  shadow_get_stats(&now);
+  struct h2_shadow_stats now;
+  ::h2_shadow_get_stats(&now);
   const uint free_chunks = now.free_chunks;
-  return free_chunks > ParallelGCThreads ? (size_t) (free_chunks - ParallelGCThreads) * SHADOW_CHUNK : 0;
+  return free_chunks > ParallelGCThreads ? (size_t) (free_chunks - ParallelGCThreads) * H2_SHADOW_CHUNK : 0;
 }
 
 void TeraHeap::h2_shadow_pause_end() {
   if (!_shadow_on)
     return;
   const jlong t0 = os::javaTimeNanos();
-  shadow_set_active(false);
-  shadow_pause_end();
+  ::h2_shadow_set_active(false);
+  ::h2_shadow_pause_end();
   const double end_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 
   if (!TeraHeapStatistics)
@@ -131,10 +131,10 @@ void TeraHeap::h2_shadow_pause_end() {
   // START_MS / END_MS: time of the two shadow calls; RAND_FAULTS_MS /
   // ALLOC_STATE_MS: time of h2_enable_rand_faults() and
   // update_allocator_state() in this pause.
-  struct shadow_stats now;
-  shadow_get_stats(&now);
-  const struct shadow_stats& b = _shadow_at_start;
-  const struct shadow_stats& e = _shadow_at_last_end;
+  struct h2_shadow_stats now;
+  ::h2_shadow_get_stats(&now);
+  const struct h2_shadow_stats& b = _shadow_at_start;
+  const struct h2_shadow_stats& e = _shadow_at_last_end;
   thlog_or_tty->print_cr("[H2_SHADOW] | MIXED %d | SWITCH_MS %.3f | SWITCHED %u | DELTA_PAGES " UINT64_FORMAT
                          " | SWITCH_SKIPPED " UINT64_FORMAT " | ATTACHED " UINT64_FORMAT " | ATTACH_FAILED " UINT64_FORMAT
                          " | REDIRECTED_KB " UINT64_FORMAT " | WRITTEN_MB " UINT64_FORMAT " | DEAD " UINT64_FORMAT
@@ -174,12 +174,12 @@ char* TeraHeap::h2_end_addr(void) {
 // end address of the last allocated object in the last region of
 // H2.
 char* TeraHeap::h2_top_addr(void) {
-	return cur_alloc_ptr();
+	return ::h2_cur_alloc_ptr();
 }
 
 // Check if the TeraHeap is empty. If yes, return 'true', 'false' otherwise
 bool TeraHeap::h2_is_empty() {
-	return r_is_empty();
+	return ::h2_is_empty();
 }
 
 // Check if a pointer belongs to the TeraHeap.
@@ -203,9 +203,9 @@ void TeraHeap::h2_clear_humongous_stack() {
 // Give advise to kernel to expect page references in sequential order
 void TeraHeap::h2_enable_seq_faults() {
 #if defined(FMAP_HYBRID)
-	r_enable_huge_flts();
+	::h2_enable_huge_flts();
 #elif defined(MADVISE_ON)
-	r_enable_seq();
+	::h2_enable_seq();
 #endif
 }
 
@@ -213,9 +213,9 @@ void TeraHeap::h2_enable_seq_faults() {
 void TeraHeap::h2_enable_rand_faults() {
   const jlong t0 = os::javaTimeNanos();
 #if defined(FMAP_HYBRID)
-	r_enable_regular_flts();
+	::h2_enable_regular_flts();
 #elif defined(MADVISE_ON)
-	r_enable_rand();
+	::h2_enable_rand();
 #endif
   _rand_faults_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 }
@@ -223,7 +223,7 @@ void TeraHeap::h2_enable_rand_faults() {
 // Check if the first object `obj` in the H2 region is valid. If not
 // that depicts that the region is empty
 bool TeraHeap::check_if_valid_object(HeapWord *obj) {
-  return is_before_last_object((char *)obj);
+  return ::h2_is_before_last_object((char *)obj);
 }
 
 // Traverses all objects in H2 to check if they are valid.
@@ -236,9 +236,9 @@ bool TeraHeap::check_if_valid_h2() {
 	HeapWord *obj_addr;
 	oop obj;
 
-	start_iterate_regions();
+	::h2_start_iterate_regions();
 
-	next_region = (HeapWord *) get_next_region();
+	next_region = (HeapWord *) ::h2_get_next_region();
 
 	while(next_region != NULL) {
 		obj_addr = next_region;
@@ -255,7 +255,7 @@ bool TeraHeap::check_if_valid_h2() {
 			obj_addr += obj->size();
 		}
 
-		next_region = (HeapWord *) get_next_region();
+		next_region = (HeapWord *) ::h2_get_next_region();
 	}
 
   return true;
@@ -264,17 +264,17 @@ bool TeraHeap::check_if_valid_h2() {
 // Returns the ending address of the last object in the region obj
 // belongs to
 HeapWord* TeraHeap::get_last_object_end(HeapWord *obj) {
-  return (HeapWord*) get_last_object((char *) obj);
+  return (HeapWord*) ::h2_get_last_object((char *) obj);
 }
 
 // Checks if the address of obj is the beginning of a region
 bool TeraHeap::is_start_of_region(HeapWord *obj) {
-  return is_region_start((char *) obj);
+  return ::h2_is_region_start((char *) obj);
 }
 
 // Retrurn the start address of the first object of the secific region
 HeapWord *TeraHeap::get_first_object_in_region(HeapWord *addr) {
-  return (HeapWord*) get_first_object((char*)addr);
+  return (HeapWord*) ::h2_get_first_object((char*)addr);
 }
 
 // Add a new entry to `obj1` region dependency list that reference
@@ -282,9 +282,9 @@ HeapWord *TeraHeap::get_first_object_in_region(HeapWord *addr) {
 void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2) {
   // Lock-free: the allocator's dependency sets take parallel inserts
   // (lookups and inserts use CAS, see add_reference())
-	if (is_in_the_same_group((char *) obj1, (char *) obj2)) 
+	if (::h2_is_in_the_same_group((char *) obj1, (char *) obj2)) 
 		return;
-  references((char*) obj1, (char*) obj2);
+  ::h2_references((char*) obj1, (char*) obj2);
 }
 
 // Update backward reference stacks that we use in marking and pointer
@@ -324,12 +324,12 @@ void TeraHeap::push_humongous_to_verify(HeapRegion *hr) {
 
 // Resets the used field of all regions in H2
 void TeraHeap::h2_reset_used_field(void) {
-  reset_used();
+  ::h2_reset_used();
 }
 
 // Prints all the region groups
 void TeraHeap::print_region_groups(void) {
-  print_groups();
+  ::h2_print_groups();
 }
 
 void TeraHeap::h2_print_objects_per_region() {
@@ -337,9 +337,9 @@ void TeraHeap::h2_print_objects_per_region() {
 	HeapWord *obj_addr;
 	oop obj;
 
-	start_iterate_regions();
+	::h2_start_iterate_regions();
 
-	next_region = (HeapWord *) get_next_region();
+	next_region = (HeapWord *) ::h2_get_next_region();
 
 	while(next_region != NULL) {
 		obj_addr = next_region;
@@ -356,7 +356,7 @@ void TeraHeap::h2_print_objects_per_region() {
 			obj_addr += obj->size();
 		}
 
-		next_region = (HeapWord *) get_next_region();
+		next_region = (HeapWord *) ::h2_get_next_region();
 	}
 }
 
@@ -364,7 +364,7 @@ void TeraHeap::h2_print_objects_per_region() {
 void TeraHeap::free_unused_regions(void) {
 	CardTable* const ct = th_card_table();
 
-  struct region_list *region = free_regions();
+  struct region_list *region = ::h2_free_regions();
   while (region != NULL) {
     region_list* const next = region->next;
 
@@ -379,14 +379,14 @@ void TeraHeap::free_unused_regions(void) {
     ct->th_clean_cards(region_start, last_alloc_end_excl - 1, true /* free regions */);
 
     if (ProtectH2RegionsOnFree)
-      make_region_inaccessible(region->region_start, GCId::current());
+      ::make_region_inaccessible(region->region_start, GCId::current());
 
     free(region);
     region = next;
   }
 
   if (TeraHeapStatistics)
-    tera_stats->set_reclaimed_region_count(num_reclaimed_regions());
+    tera_stats->set_reclaimed_region_count(::h2_num_reclaimed_regions());
 }
 
 // Pop the objects that are in `_th_stack` and mark them as live
@@ -398,7 +398,7 @@ oop* TeraHeap::h2_get_next_back_reference() {
 
 // Prints all active regions
 void TeraHeap::print_h2_active_regions(void) {
-  print_used_regions();
+  ::h2_print_used_regions();
 }
 
 // Get the next backward reference from the stack to adjust
@@ -441,37 +441,37 @@ void TeraHeap::thread_disable_groups(uint thread_id) {
 // used to know where the object will move to H2. We use promotion buffer to
 // reduce the number of system calls for small sized objects.
 void  TeraHeap::h2_promotion_buffer_insert(char* obj, char* new_adr, size_t size) {
-	buffer_insert(obj, new_adr, size);
+	::h2_buffer_insert(obj, new_adr, size);
 }
 
 // At the end of the major GC flush and free all the promotion buffers.
 void TeraHeap::h2_free_promotion_buffers() {
-	free_all_buffers();
+	::h2_free_all_buffers();
 }
 #endif
 
 // Explicit (using systemcall) write 'data' with 'size' to the specific
 // 'offset' in the file.
 void TeraHeap::h2_write(char *data, char *offset, size_t size) {
-	r_write(data, offset, size);
+	::h2_write(data, offset, size);
 }
 
 // Explicit (using systemcall) asynchronous write 'data' with 'size' to
 // the specific 'offset' in the file.
 void TeraHeap::h2_awrite(char *data, char *offset, size_t size) {
-	r_awrite(data, offset, size);
+	::h2_awrite(data, offset, size);
 }
 
 // We need to ensure that all the writes in TeraHeap using asynchronous
 // I/O have been completed succesfully.
 int TeraHeap::h2_areq_completed() {
-	return r_areq_completed();
+	return ::h2_areq_completed();
 }
 
 // Fsync writes in TeraHeap
 // We need to make an fsync when we use fastmap
 void TeraHeap::h2_fsync() {
-	r_fsync();
+	::h2_fsync();
 }
 
 // Check if backward adjust stack is empty
@@ -485,7 +485,7 @@ bool TeraHeap::h2_is_empty_back_ref_stacks() {
 // belongs to.
 uint64_t TeraHeap::h2_get_region_groupId(void* p) {
 	assert((char *) p != NULL, "Sanity check");
-	return get_obj_group_id((char *) p);
+	return ::h2_get_obj_group_id((char *) p);
 }
 
 // Get the partition Id of the objects that belongs to this region. We
@@ -494,11 +494,11 @@ uint64_t TeraHeap::h2_get_region_groupId(void* p) {
 // belongs to.
 uint64_t TeraHeap::h2_get_region_partId(void* p) {
 	assert((char *) p != NULL, "Sanity check");
-	return get_obj_part_id((char *) p);
+	return ::h2_get_obj_part_id((char *) p);
 }
 
 void TeraHeap::mark_used_region(HeapWord *obj) {
-    mark_used((char *) obj);
+    ::h2_mark_used((char *) obj);
 
   if (H2LivenessAnalysis)
     cast_to_oop(obj)->set_live();
@@ -513,7 +513,7 @@ char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
 
 	char *pos;			// Allocation position
 
-	pos = allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
+	pos = ::h2_allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
 	
 	assert((HeapWord *) pos + size * HeapWordSize < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 
@@ -593,11 +593,11 @@ bool TeraHeap::is_metadata(oop obj) {
 
 int TeraHeap::h2_continuous_regions(HeapWord *addr) {
   assert(is_in_h2(addr), "Error");
-  return get_num_of_continuous_regions((char *)addr);
+  return ::h2_get_num_of_continuous_regions((char *)addr);
 }
 
 bool TeraHeap::h2_object_starts_in_region(HeapWord *obj) {
-  return object_starts_from_region((char *)obj);
+  return ::h2_object_starts_from_region((char *)obj);
 }
 
 // Move object with size 'size' from source address 'src' to the h2
@@ -668,7 +668,7 @@ TeraStatistics* TeraHeap::get_tera_stats() {
 
 void TeraHeap::update_allocator_state() {
   const jlong t0 = os::javaTimeNanos();
-  update_allocator_global_state();
+  ::h2_update_allocator_global_state();
   _alloc_state_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 }
@@ -693,17 +693,16 @@ void TeraHeap::print_sigsegv_info(void *siginfo) {
   fprintf(stderr, "SIGSEGV at address %p (si_code=%d)\n", addr, ((siginfo_t *)siginfo)->si_code);
 
   if (is_in_h2(addr)) {
-    uint64_t region_idx = region_containing_addr((char *)addr);
-    struct region *region = get_region(region_idx);
-    fprintf(stderr, "L The address is in H2 in region %lu which is used=%d\n", region_idx, is_used(region_idx));
+    uint64_t region_idx = ::h2_region_containing_addr((char *)addr);
+    fprintf(stderr, "L The address is in H2 in region %lu which is used=%d\n", region_idx, ::h2_is_used(region_idx));
     fprintf(stderr, "L Region: {\n");
-    fprintf(stderr, "     - start:          %p\n", region_get_start_address(region));
-    fprintf(stderr, "     - last alloc end: %p\n", region_get_last_allocated_end(region));
+    fprintf(stderr, "     - first object:   %p\n", ::h2_get_first_object((char *)addr));
+    fprintf(stderr, "     - last alloc end: %p\n", ::h2_get_last_object((char *)addr));
     fprintf(stderr, "  }\n");
   }
 }
 
 bool TeraHeap::is_in_reclaimed_region(char *addr) {
-  uint64_t region_idx = region_containing_addr(addr);
-  return (!is_used(region_idx)); 
+  uint64_t region_idx = ::h2_region_containing_addr(addr);
+  return (!::h2_is_used(region_idx)); 
 }

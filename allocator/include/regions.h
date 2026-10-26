@@ -96,6 +96,10 @@ extern "C" {
 
   int       verify_top(void);
 
+  // Enable the SH shadow chunks (include/shadow.h) for the H2 file mapping.
+  // Returns 0, or -1 if not available (the allocator then works as before).
+  int       r_shadow_init(size_t pool_bytes, int precopy_rounds);
+
 #ifdef __cplusplus
 }
 #endif

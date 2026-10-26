@@ -125,6 +125,18 @@ long total_used_regions();
 void print_used_regions();
 
 /*
+ * For the shadow chunks (shadow.c): the allocation top of the region that
+ * contains addr, and whether a (thread, partition) id still allocates in it.
+ */
+void region_info(char *addr, char **top, bool *active);
+
+/*
+ * For the shadow chunks: the protection to map a chunk of a freed region with
+ * (PROT_NONE if regions are protected on free and the region is still free).
+ */
+int region_free_prot(char *addr);
+
+/*
  * Checks if address of obj is before last object
  */
 bool is_before_last_object(char *obj);

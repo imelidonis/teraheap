@@ -12,7 +12,7 @@ include ./Makefile_common.mk
 include ./makefile.colors
 
 #rules
-.PHONY: all lib th_allocate th_group th_free th_sync th_async clean distclean test depedencies
+.PHONY: all lib th_allocate th_group th_free th_sync th_async th_shadow clean distclean test depedencies
 
 all: th_allocate th_group th_free th_sync th_async th_multi_region
 
@@ -29,6 +29,12 @@ th_sync: $(TH_SYNC_EXE)
 th_async: $(TH_ASYNC_EXE)
 
 th_multi_region: $(TH_ALLOCATE_MULTI_REGION_EXE)
+
+th_shadow: $(TH_SHADOW_EXE)
+
+$(TH_SHADOW_EXE): $(TH_SHADOW_OBJ) $(REGIONSLIBRARY)
+	@echo -e '[$(BYELLOW)LNK$(RESET)]' $^
+	@$(CC) $< $(REGIONSLIBRARY) $(LDFLAGS) $(OFLAG) $@
 
 $(TH_ALLOCATE_MULTI_REGION_EXE): $(TH_ALLOCATE_MULTI_REGION) $(REGIONSLIBRARY)
 	@echo -e '[$(BYELLOW)LNK$(RESET)]' $^
@@ -88,11 +94,11 @@ uninstall:
 
 clean:
 	@echo -e '[$(BRED)RM$(RESET)]' $(TH_ALLOCATE_OBJ) $(TH_SYNC_OBJ) $(TH_ASYNC_OBJ) $(TH_GROUP_OBJ) $(TH_FREE_OBJ)
-	@$(RM) $(LIBREGIONSOBJS) $(TH_ALLOCATE_OBJ) $(TH_SYNC_OBJ) $(TH_ASYNC_OBJ) $(TH_GROUP_OBJ) $(TH_FREE_OBJ) $(TH_ALLOCATE_MULTI_REGION)
+	@$(RM) $(LIBREGIONSOBJS) $(TH_ALLOCATE_OBJ) $(TH_SYNC_OBJ) $(TH_ASYNC_OBJ) $(TH_GROUP_OBJ) $(TH_FREE_OBJ) $(TH_ALLOCATE_MULTI_REGION) $(TH_SHADOW_OBJ)
 
 distclean: clean
 	@echo -e '[$(BRED)RM$(RESET)]' $(TH_ALLOCATE_EXE) $(TH_SYNC_EXE) $(TH_ASYNC_EXE) $(TH_GROUP_EXE) $(TH_FREE_EXE)
-	@$(RM) $(TH_ALLOCATE_EXE) $(TH_SYNC_EXE) $(TH_ASYNC_EXE) $(TH_GROUP_EXE) $(TH_FREE_EXE) $(TH_ALLOCATE_MULTI_REGION_EXE)
+	@$(RM) $(TH_ALLOCATE_EXE) $(TH_SYNC_EXE) $(TH_ASYNC_EXE) $(TH_GROUP_EXE) $(TH_FREE_EXE) $(TH_ALLOCATE_MULTI_REGION_EXE) $(TH_SHADOW_EXE)
 	@echo -e '[$(BRED)RM$(RESET)]' $(REGIONSLIBRARY)
 	@$(RM) $(REGIONSLIBRARY)
 	@echo -e '[$(BRED)RM$(RESET)]' $(LIBDIR)

@@ -8,6 +8,8 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/os.hpp"
+#include "logging/log.hpp"
 
 
 char *TeraHeap::_start_addr = NULL;
@@ -52,6 +54,88 @@ TeraHeap::TeraHeap() {
   if (TeraHeapStatistics || h2_cost_timers()) {
     tera_stats = new TeraStatistics();
   }
+
+  _shadow_on = false;
+  _shadow_mixed = false;
+  _shadow_switch_skipped = 0;
+  memset(&_shadow_at_start, 0, sizeof(_shadow_at_start));
+  memset(&_shadow_at_last_end, 0, sizeof(_shadow_at_last_end));
+  _shadow_start_ms = 0.0;
+  _rand_faults_ms = 0.0;
+  _alloc_state_ms = 0.0;
+  h2_shadow_init();
+}
+
+void TeraHeap::h2_shadow_init() {
+  if (!TeraH2Shadow)
+    return;
+#if defined(SYNC) || defined(FMAP) || defined(ASYNC) || defined(FMAP_HYBRID)
+  // These builds write H2 with explicit I/O or change the huge page advice
+  // of the whole H2 range in young GCs
+  warning("TeraH2Shadow needs the default H2 write path (memcpy); disabled");
+  return;
+#else
+  if (r_shadow_init(TeraH2ShadowPoolSize, (int) TeraH2ShadowPrecopyRounds) != 0) {
+    warning("TeraH2Shadow is not available (see the [SHADOW] message); disabled");
+    return;
+  }
+  shadow_set_verify(TeraH2ShadowVerify);
+  if (shadow_start_writer() != 0) {
+    warning("TeraH2Shadow: cannot start the writer thread; disabled");
+    return;
+  }
+  _shadow_on = true;
+  log_info(gc, init)("TeraH2Shadow: pool " SIZE_FORMAT "M, %u pre-copy rounds",
+                     TeraH2ShadowPoolSize / M, (uint) TeraH2ShadowPrecopyRounds);
+#endif
+}
+
+void TeraHeap::h2_shadow_pause_start(bool mixed) {
+  if (!_shadow_on)
+    return;
+  const jlong t0 = os::javaTimeNanos();
+  struct shadow_stats before;
+  shadow_get_stats(&before);
+  shadow_switch((uint32_t) TeraH2ShadowSwitchMaxChunks, (long) TeraH2ShadowSwitchMaxPages);
+  shadow_get_stats(&_shadow_at_start);
+  _shadow_switch_skipped = _shadow_at_start.switch_skipped - before.switch_skipped;
+  _shadow_mixed = mixed;
+  shadow_set_active(mixed);
+  _shadow_start_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
+}
+
+void TeraHeap::h2_shadow_pause_end() {
+  if (!_shadow_on)
+    return;
+  const jlong t0 = os::javaTimeNanos();
+  shadow_set_active(false);
+  shadow_pause_end();
+  const double end_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
+
+  if (!TeraHeapStatistics)
+    return;
+  // ATTACHED / ATTACH_FAILED: in this pause; REDIRECTED_KB / WRITTEN_MB /
+  // DEAD: since the previous pause end (writer, Full GCs, remarks).
+  // START_MS / END_MS: time of the two shadow calls; RAND_FAULTS_MS /
+  // ALLOC_STATE_MS: time of h2_enable_rand_faults() and
+  // update_allocator_state() in this pause.
+  struct shadow_stats now;
+  shadow_get_stats(&now);
+  const struct shadow_stats& b = _shadow_at_start;
+  const struct shadow_stats& e = _shadow_at_last_end;
+  thlog_or_tty->print_cr("[H2_SHADOW] | MIXED %d | SWITCH_MS %.3f | SWITCHED %u | DELTA_PAGES " UINT64_FORMAT
+                         " | SWITCH_SKIPPED " UINT64_FORMAT " | ATTACHED " UINT64_FORMAT " | ATTACH_FAILED " UINT64_FORMAT
+                         " | REDIRECTED_KB " UINT64_FORMAT " | WRITTEN_MB " UINT64_FORMAT " | DEAD " UINT64_FORMAT
+                         " | OPEN %u | FULL %u | WRITING %u | READY %u | POOL_FREE %u | POOL %u"
+                         " | START_MS %.3f | END_MS %.3f | RAND_FAULTS_MS %.3f | ALLOC_STATE_MS %.3f",
+                         _shadow_mixed, b.last_switch_ms, b.last_switched, b.last_delta_pages,
+                         _shadow_switch_skipped,
+                         now.attached - b.attached, now.attach_failed - b.attach_failed,
+                         (now.redirected_bytes - e.redirected_bytes) / K,
+                         (now.written_bytes - e.written_bytes) / M, now.dead - e.dead,
+                         now.n_open, now.n_full, now.n_writing, now.n_ready, now.free_chunks, now.pool_chunks,
+                         _shadow_start_ms, end_ms, _rand_faults_ms, _alloc_state_ms);
+  _shadow_at_last_end = now;
 }
 
 // Destructor of TeraHeap
@@ -115,11 +199,13 @@ void TeraHeap::h2_enable_seq_faults() {
 
 // Give advise to kernel to expect page references in random order
 void TeraHeap::h2_enable_rand_faults() {
+  const jlong t0 = os::javaTimeNanos();
 #if defined(FMAP_HYBRID)
 	r_enable_regular_flts();
 #elif defined(MADVISE_ON)
 	r_enable_rand();
 #endif
+  _rand_faults_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 }
 
 // Check if the first object `obj` in the H2 region is valid. If not
@@ -569,7 +655,9 @@ TeraStatistics* TeraHeap::get_tera_stats() {
 }
 
 void TeraHeap::update_allocator_state() {
+  const jlong t0 = os::javaTimeNanos();
   update_allocator_global_state();
+  _alloc_state_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 }
 

@@ -10,6 +10,7 @@
 
 // Allocator functions
 #include <regions.h>
+#include <shadow.h>
 
 class PSCardTable;
 
@@ -60,6 +61,21 @@ private:
                           // to H1
 
   static CardTable* th_card_table(void);
+
+  // TeraH2Shadow (allocator shadow.h): enabled, and the counters at the
+  // start of the current pause for the [H2_SHADOW] line
+  bool _shadow_on;
+  bool _shadow_mixed;
+  uint64_t _shadow_switch_skipped;           // READY chunks left by this pause's switch
+  struct shadow_stats _shadow_at_start;      // after this pause's switch
+  struct shadow_stats _shadow_at_last_end;   // at the previous pause end
+  double _shadow_start_ms;                   // time of h2_shadow_pause_start() in this pause
+  double _rand_faults_ms;                    // time of h2_enable_rand_faults() in the last pause
+  double _alloc_state_ms;                    // time of update_allocator_state() in the last pause
+
+  // Start the shadow chunks if TeraH2Shadow is set and the build and the
+  // kernel support them
+  void h2_shadow_init();
 public:
   // True if the GC workers time their H2 (SH) evacuation work and count the
   // bytes they move to H2: for the statistics, or for the H2 copy cost
@@ -281,6 +297,23 @@ public:
   TeraStatistics* get_tera_stats();
 
   void update_allocator_state();
+
+  // TeraH2Shadow: true if mixed GCs copy objects to H2 into DRAM chunks
+  bool h2_shadow_enabled() const { return _shadow_on; }
+
+  // At the start of a young/mixed pause, before any H2 work (mutators are
+  // stopped and no JNI critical region is active): switch written-back
+  // chunks back to the H2 file. In a mixed GC new H2 space gets chunks.
+  void h2_shadow_pause_start(bool mixed);
+
+  // TeraH2Shadow: true if H2 address `addr` is in a pool chunk (DRAM)
+  bool h2_shadow_is_chunk(HeapWord* addr) const {
+    return _shadow_on && shadow_is_attached((char*) addr);
+  }
+
+  // After the evacuation and update_allocator_state(): hand the filled
+  // chunks to the writer thread; print [H2_SHADOW] (TeraHeapStatistics)
+  void h2_shadow_pause_end();
 
   // ------------------
   // Utility functions

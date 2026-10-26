@@ -664,12 +664,14 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*HeapWordSize );
   }
 
+  double h2_alloc_s = 0.0;   // for the per-destination time below
   if (TeraHeap::h2_cost_timers()) {
     Ticks start = Ticks::now();
 
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id);
 
     Tickspan time = Ticks::now() - start;
+    h2_alloc_s = time.seconds();
   #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
     Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time.seconds());
   #endif
@@ -725,6 +727,15 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
         TeraStatistics::h2_src_survivor : TeraStatistics::h2_src_eden;
     }
     Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2_src(_worker_id, src, word_sz * HeapWordSize);
+
+    // TeraH2Shadow: a pool chunk (DRAM) or the H2 file, by the object's
+    // first word; separate costs for G1 (allocation + copy time)
+    const TeraStatistics::h2_dest dest = Universe::teraHeap()->h2_shadow_is_chunk(h2_obj_addr) ?
+      TeraStatistics::h2_dest_chunk : TeraStatistics::h2_dest_file;
+  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    Universe::teraHeap()->get_tera_stats()->thr_add_time_h2_dest(_worker_id, dest, h2_alloc_s + time.seconds());
+  #endif
+    Universe::teraHeap()->get_tera_stats()->thr_add_bytes_h2_dest(_worker_id, dest, word_sz * HeapWordSize);
  
   } else {
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);

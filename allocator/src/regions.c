@@ -14,6 +14,7 @@
 #include "../include/sharedDefines.h"
 #include "../include/asyncIO.h"
 #include "../include/segments.h"
+#include "../include/shadow.h"
 
 #define HEAPWORD (8)      // In the JVM the heap is aligned to 8 words
 #define HEADER_SIZE (32)  // Header size of the Dummy object	
@@ -218,6 +219,9 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thr
           "[ERROR] out of bounds allocation! %p !E [%p, %p)",
           alloc_ptr, start_addr_mem_pool(), stop_addr_mem_pool());
 
+  // Back new SH space with shadow chunks during mixed GCs (shadow.h)
+  shadow_ensure(alloc_ptr, size * HEAPWORD, thread_id);
+
   char *cur_allocation_ptr = (char *) (((uint64_t) alloc_ptr) + size * HEAPWORD);
 
 #ifdef LOCKFREE_GLOBAL_UPDATE
@@ -358,10 +362,19 @@ void r_write(char *data, char *offset, size_t size) {
 // Explicit asynchronous write 'data' with 'size' in certain 'offset' using
 // system call without memcpy.
 // Do not use r_awrite with r_write
-void r_awrite(char *data, char *offset, size_t size) {
-  uint64_t diff = offset - th_mem_pool.mmap_start;
+static void awrite_bytes(char *data, char *offset, size_t bytes) {
+  req_add(fd, data, bytes, offset - th_mem_pool.mmap_start);
+}
 
-  req_add(fd, data, size * HEAPWORD, diff);
+void r_awrite(char *data, char *offset, size_t size) {
+  // Parts inside shadow chunks are copied into them: a write to the file
+  // there would land behind the chunk and be lost (shadow.h)
+  shadow_split_write(data, offset, size * HEAPWORD, awrite_bytes);
+}
+
+int r_shadow_init(size_t pool_bytes, int precopy_rounds) {
+  return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
+                     pool_bytes, precopy_rounds, n_gc_threads);
 }
 	
 // Check if all the asynchronous requestes have been completed

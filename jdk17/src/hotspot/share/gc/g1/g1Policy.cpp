@@ -809,8 +809,17 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
       }
 
       if (TeraHeapStatistics && G1GCPauseTypeHelper::is_mixed_pause(this_pause)) {
+        // Bytes and time per destination (TeraH2Shadow: pool chunk or H2
+        // file; without shadow every byte goes to the file)
+        const size_t chunk_bytes = ts->get_sum_thr_bytes_h2_dest(TeraStatistics::h2_dest_chunk);
+        const size_t file_bytes = ts->get_sum_thr_bytes_h2_dest(TeraStatistics::h2_dest_file);
+        const double chunk_ms = ts->get_average_time_ms_h2_dest(TeraStatistics::inital_evac_phase, TeraStatistics::h2_dest_chunk) +
+                                ts->get_average_time_ms_h2_dest(TeraStatistics::optional_evac_phase, TeraStatistics::h2_dest_chunk);
+        const double file_ms = ts->get_average_time_ms_h2_dest(TeraStatistics::inital_evac_phase, TeraStatistics::h2_dest_file) +
+                               ts->get_average_time_ms_h2_dest(TeraStatistics::optional_evac_phase, TeraStatistics::h2_dest_file);
         print_h2_cset_info(copied_bytes_h2, average_time_ms_h2,
-                           eden_h2_bytes, survivor_h2_bytes, old_h2_bytes);
+                           eden_h2_bytes, survivor_h2_bytes, old_h2_bytes,
+                           chunk_bytes, chunk_ms, file_bytes, file_ms);
       }
     }
   #endif
@@ -1105,7 +1114,9 @@ void G1Policy::add_h2_initial_region(size_t h2_bytes, bool h2_conservative, bool
 }
 
 void G1Policy::print_h2_cset_info(size_t h2_bytes, double h2_ms, size_t eden_h2_bytes,
-                                  size_t survivor_h2_bytes, size_t old_h2_bytes) const {
+                                  size_t survivor_h2_bytes, size_t old_h2_bytes,
+                                  size_t chunk_bytes, double chunk_ms,
+                                  size_t file_bytes, double file_ms) const {
   const H2CSetInfo& i = _h2_cset;
   thlog_or_tty->print_cr("[H2_CSET] | CONSERVATIVE %d | INITIAL_REGIONS %u | OPTIONAL_REGIONS %u"
                          " | PRED_INITIAL_H2_BYTES %zu | PRED_INITIAL_H2_MS %.3f | PRED_INITIAL_H2_AVG_MS %.3f"
@@ -1113,7 +1124,8 @@ void G1Policy::print_h2_cset_info(size_t h2_bytes, double h2_ms, size_t eden_h2_
                          " | PCTL_MS_PER_MB %.4f | P50_MS_PER_MB %.4f | AVG_MS_PER_MB %.4f | SAMPLES %u"
                          " | SURVIVOR_BYTES %zu | SURVIVOR_SHARE %.3f | PRED_SURVIVOR_H2_BYTES %zu | PRED_SURVIVOR_H2_MS %.3f"
                          " | EDEN_BYTES %zu | EDEN_SHARE %.3f | PRED_EDEN_H2_BYTES %zu | PRED_EDEN_H2_MS %.3f"
-                         " | EDEN_H2_BYTES %zu | SURVIVOR_H2_BYTES %zu | OLD_H2_BYTES %zu",
+                         " | EDEN_H2_BYTES %zu | SURVIVOR_H2_BYTES %zu | OLD_H2_BYTES %zu"
+                         " | CHUNK_MB %.1f | CHUNK_MS %.3f | FILE_MB %.1f | FILE_MS %.3f",
                          i.conservative, i.initial_regions, i.optional_regions,
                          i.initial_h2_bytes, i.initial_h2_ms, i.initial_h2_avg_ms,
                          i.optional_h2_bytes, h2_bytes, h2_ms,
@@ -1122,7 +1134,8 @@ void G1Policy::print_h2_cset_info(size_t h2_bytes, double h2_ms, size_t eden_h2_
                          _analytics->h2_cost_num_samples(),
                          i.survivor_bytes, i.survivor_share, i.survivor_h2_bytes, i.survivor_h2_ms,
                          i.eden_bytes, i.eden_share, i.eden_h2_bytes, i.eden_h2_ms,
-                         eden_h2_bytes, survivor_h2_bytes, old_h2_bytes);
+                         eden_h2_bytes, survivor_h2_bytes, old_h2_bytes,
+                         (double) chunk_bytes / M, chunk_ms, (double) file_bytes / M, file_ms);
 }
 #endif
 

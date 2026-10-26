@@ -156,9 +156,12 @@ private:
   void add_h2_initial_region(size_t h2_bytes, bool h2_conservative, bool cm);
 
   // Print the [H2_CSET] line of a mixed GC (TeraHeapStatistics), with the
-  // bytes moved to H2 from eden, survivor and old regions
+  // bytes moved to H2 from eden, survivor and old regions, and the bytes
+  // and time per destination (TeraH2Shadow pool chunk / H2 file)
   void print_h2_cset_info(size_t h2_bytes, double h2_ms, size_t eden_h2_bytes,
-                          size_t survivor_h2_bytes, size_t old_h2_bytes) const;
+                          size_t survivor_h2_bytes, size_t old_h2_bytes,
+                          size_t chunk_bytes, double chunk_ms,
+                          size_t file_bytes, double file_ms) const;
 #endif
 
   // These values are predictions of how much we think will survive in each

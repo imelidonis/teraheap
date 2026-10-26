@@ -42,6 +42,13 @@ public:
     h2_src_count
   };
 
+  // TeraH2Shadow: where the bytes a young/mixed GC copied to H2 landed
+  enum h2_dest {
+    h2_dest_file = 0,     // the H2 file mapping
+    h2_dest_chunk,        // a pool chunk (DRAM)
+    h2_dest_count
+  };
+
 private:
   long  total_objects_moved;               
   long  total_objects_size; 
@@ -62,6 +69,10 @@ private:
   // bytes copied to H2 from each thread per source region type,
   // indexed [thread_id * h2_src_count + source]
   size_t* thr_bytes_copy_h2_src;
+
+  // bytes copied to H2 from each thread per destination,
+  // indexed [thread_id * h2_dest_count + dest]
+  size_t* thr_bytes_h2_dest;
 
   // number of cocnurrent marking cycle
   size_t conc_cycle_id;
@@ -85,6 +96,10 @@ private:
 
   // Time spent from thread i in evac_phase p for copy
   double** thr_time_copy_h2;
+
+  // Allocation + copy time (s) of thread i per destination in the initial
+  // and the optional evacuation, indexed [(i * 2 + phase) * h2_dest_count + dest]
+  double* thr_time_h2_dest;
 
   // Flag for thread i in evac_phase p:
   //  0 stands for "do not count time for H2"
@@ -195,6 +210,14 @@ public:
   // Get the total bytes that were copied to H2 from regions of type `src`
   size_t get_sum_thr_bytes_copy_h2_src(enum h2_source src);
 
+  // Add the bytes of an object that a thread copied to H2 at `dest`
+  void thr_add_bytes_h2_dest(uint thread_id, enum h2_dest dest, size_t bytes) {
+    thr_bytes_h2_dest[thread_id * h2_dest_count + dest] += bytes;
+  }
+
+  // Get the total bytes that were copied to H2 at `dest`
+  size_t get_sum_thr_bytes_h2_dest(enum h2_dest dest);
+
   // Which number of concurrent marking cycle
   void record_cycle_no(size_t cocn_cycle_no) {
     conc_cycle_id = cocn_cycle_no;
@@ -231,6 +254,14 @@ public:
 
   // Add the time it took for a thread to make a copy to H2
   void thr_add_time_copy_h2(uint thread_id, double time);
+
+  // Add the allocation + copy time (s) of an object copied to H2 at `dest`
+  // (counted like thr_add_time_copy_h2())
+  void thr_add_time_h2_dest(uint thread_id, enum h2_dest dest, double time);
+
+  // The average time (ms) per contributing thread for the bytes copied to
+  // H2 at `dest` in evacuation phase `phase`
+  double get_average_time_ms_h2_dest(enum evac_phase phase, enum h2_dest dest);
 
   // Set the flag that indicates whether g1 is tracking time for obj copy phase in evacuation or not
   void set_during_h1_time_flag(uint worker_id, uint flag) {

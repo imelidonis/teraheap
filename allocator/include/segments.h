@@ -15,6 +15,16 @@
  * THRESHOLD should always be less than the PR_BUFFER_SIZE*/
 #define THRESHOLD (1*1024LU*1024)
 
+/*
+ * TODO: restructure the allocator. The code and the API are not well
+ * structured any more: region dependencies (dependency sets, liveness
+ * marking, freeing), region allocation and the per-thread state are mixed
+ * in segments.c/regions.c, and the API mixes object-level calls
+ * (references(), add_reference(), is_in_the_same_group()) with region
+ * indices and raw region_array access. Split them into clear modules with
+ * one documented API before adding more features.
+ */
+
 struct region;
 
 /*
@@ -61,6 +71,13 @@ void merge_groups(int group1, int group2);
  * - obj2: the object that is referenced (order does not matter)
  */
 void references(char *obj1, char *obj2);
+
+/*
+ * Same as references(), and returns 1 if this call added the dependency
+ * (0 if it existed, or both objects are in the same region). Lock-free:
+ * GC threads may call it in parallel.
+ */
+int add_reference(char *obj1, char *obj2);
 
 /*
  * Prints all the region groups that contain something

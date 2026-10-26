@@ -5,12 +5,22 @@
 #include <aio.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "../include/async_io.h"
-#include "../include/mem_pool.h"
-#include "../include/shadow.h"
+#include "async_io.h"
+#include "mem_pool.h"
+#include "shadow.h"
 
-struct ioRequest request[MAX_REQS];
-pthread_mutex_t request_lock;
+// Application-defined structure for tracking I/O requests
+struct ioRequest {    
+	int          state;	  // Status of request
+	char *		   buffer;  // Internal buffer
+	struct aiocb aiocbp;	// Asynchronous I/O control block
+#if !MALLOC_ON
+	size_t       size;
+#endif
+};
+
+static struct ioRequest request[MAX_REQS];
+static pthread_mutex_t request_lock;
 
 // Initialize the array of I/O requests for the asynchronous I/O
 void req_init() {
@@ -82,7 +92,7 @@ static int find_slot() {
 //	size   - Size of the data
 //	offset - Write the data to the specific offset in the file
 //	
-void req_add(int fd, char *data, size_t size, uint64_t offset) {
+static void req_add(int fd, char *data, size_t size, uint64_t offset) {
   pthread_mutex_lock(&request_lock);
   int slot;					// Find available slot for the request
 
@@ -130,7 +140,7 @@ void req_add(int fd, char *data, size_t size, uint64_t offset) {
 // check the state of the i/o request and update the state of each request.
 // Return 1 if all the requests are completed succesfully
 // Return 0, otherwise
-int is_all_req_completed() {
+static int is_all_req_completed(void) {
 	int i;
 
 	for (i = 0; i < MAX_REQS; i++) {

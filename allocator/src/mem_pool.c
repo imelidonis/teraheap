@@ -10,11 +10,11 @@
 #include <aio.h>
 #include <pthread.h>
 
-#include "../include/regions.h"
-#include "../include/mem_pool.h"
-#include "../include/async_io.h"
-#include "../include/sharedDefines.h"
-#include "../include/shadow.h"
+#include "regions.h"
+#include "mem_pool.h"
+#include "async_io.h"
+#include "sharedDefines.h"
+#include "shadow.h"
 
 #define align_size_up_(size, alignment) (((size) + ((alignment) - 1)) & ~((alignment) - 1))
 
@@ -28,16 +28,16 @@ uint64_t max_rdd_id = 0;
 
 // Global lock to prevent multiple threads
 // from updating global variables.
-pthread_mutex_t th_mem_pool_lock;
+static pthread_mutex_t th_mem_pool_lock;
 volatile struct _mem_pool th_mem_pool;
 int fd;
 
-int n_gc_threads = 0;
+static int n_gc_threads = 0;
 
 // Per-Thread state
 #ifdef LOCKFREE_GLOBAL_UPDATE
-size_t *per_thread_size;
-char **per_thread_alloc_ptr;
+static size_t *per_thread_size;
+static char **per_thread_alloc_ptr;
 
 // Each GC thread's entry of per_thread_size and per_thread_alloc_ptr is
 // on its own cache line (stride of 8 entries of 8 bytes), so threads that
@@ -46,15 +46,15 @@ char **per_thread_alloc_ptr;
 #define PER_THREAD_IDX(i) ((size_t) (i) * PER_THREAD_STRIDE)
 #endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 
-intptr_t align_size_up(intptr_t size, intptr_t alignment) {
+static intptr_t align_size_up(intptr_t size, intptr_t alignment) {
 	return align_size_up_(size, alignment);
 }
 
-void* align_ptr_up(void* ptr, size_t alignment) {
+static void* align_ptr_up(void* ptr, size_t alignment) {
 	return (void*)align_size_up((intptr_t)ptr, (intptr_t)alignment);
 }
 
-void create_file(const char *path, uint64_t size) {
+static void create_file(const char *path, uint64_t size) {
   if (path == NULL || size == 0) {
     fprintf(stderr, "Cannot create H2 file! Path is [%s], size is [%lu]\n", path, size);
     return;
@@ -94,7 +94,7 @@ void create_file(const char *path, uint64_t size) {
   }
 }
 
-void reset_per_thread_state() {
+static void reset_per_thread_state(void) {
 #ifdef LOCKFREE_GLOBAL_UPDATE
   for (int i = 0; i < n_gc_threads; i++) {
     per_thread_size[PER_THREAD_IDX(i)] = 0;

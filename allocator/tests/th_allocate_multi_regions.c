@@ -15,8 +15,10 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "../include/sharedDefines.h"
-#include "../include/regions.h"
+#include <stdlib.h>
+#include <string.h>
+#include "h2_allocator.h"
+#include "test_util.h"
 
 #define CARD_SIZE ((uint64_t) (1 << 9))
 #define PAGE_SIZE ((uint64_t) (1 << 12))

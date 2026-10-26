@@ -37,6 +37,10 @@ $(BINDIR)/%.bin: $(TESTDIR)/%.o $(LIBRARY) | $(BINDIR)
 	@echo -e '[$(BYELLOW)LNK$(RESET)]' $@
 	@$(CC) $< $(LIBRARY) -Wl,-rpath,$(LIBDIR) $(LDFLAGS) -o $@
 
+$(WHITEBOX_BINS): $(BINDIR)/%.bin: $(TESTDIR)/%.o $(LIBOBJS) | $(BINDIR)
+	@echo -e '[$(BYELLOW)LNK$(RESET)]' $@
+	@$(CC) $< $(LIBOBJS) $(LDFLAGS) -o $@
+
 %.o: %.c
 	@echo -e '[$(BGREEN)GCC$(RESET)]' $<
 	@$(CC) $(CFLAGS) $< -o $@
@@ -73,8 +77,8 @@ install: $(LIBRARY)
 uninstall:
 	@echo -e '[$(BRED)UNINSTALL$(RESET)]' lib$(LIBNAME).so
 	@$(RM) /usr/lib/lib$(LIBNAME).so /usr/lib64/lib$(LIBNAME).so $(INSTALL_PREFIX)/lib/lib$(LIBNAME).so
-	@echo -e '[$(BRED)UNINSTALL$(RESET)]' $(INSTALL_PREFIX)/include/regions.h
-	@$(RM) $(INSTALL_PREFIX)/include/regions.h
+	@echo -e '[$(BRED)UNINSTALL$(RESET)]' $(INSTALL_PREFIX)/include/h2_allocator.h
+	@$(RM) $(INSTALL_PREFIX)/include/h2_allocator.h
 
 clean:
 	@echo -e '[$(BRED)RM$(RESET)]' objects and dependency files

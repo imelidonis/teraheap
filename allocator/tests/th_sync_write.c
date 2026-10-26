@@ -16,8 +16,10 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "../include/sharedDefines.h"
-#include "../include/regions.h"
+#include <stdlib.h>
+#include <string.h>
+#include "h2_allocator.h"
+#include "test_util.h"
 
 #define CARD_SIZE ((uint64_t) (1 << 9))
 #define PAGE_SIZE ((uint64_t) (1 << 12))
@@ -58,19 +60,19 @@ int main() {
 	
 	obj1 = h2_allocate(SIZE_TO_WORD(SIZE_80B), 0, 0, 0);
 	h2_write(tmp, obj1, SIZE_TO_WORD(SIZE_80B));
-	assertf(strlen(obj1) == SIZE_80B - 1, "Error in size %lu", strlen(obj1));
+	CHECK(strlen(obj1) == SIZE_80B - 1, "Error in size %lu", strlen(obj1));
 	
 	obj2 = h2_allocate(SIZE_TO_WORD(SIZE_160B), 0, 0, 0);
 	h2_write(tmp2, obj2, SIZE_TO_WORD(SIZE_160B));
-	assertf(strlen(obj2) == SIZE_160B - 1, "Error in size");
+	CHECK(strlen(obj2) == SIZE_160B - 1, "Error in size");
 	
 	obj3 = h2_allocate(SIZE_TO_WORD(SIZE_1M), 0, 0, 0);
 	h2_write(tmp3, obj3, SIZE_TO_WORD(SIZE_1M));
-	assertf(strlen(obj3) == SIZE_1M - 1, "Error in size %lu", strlen(obj3));
+	CHECK(strlen(obj3) == SIZE_1M - 1, "Error in size %lu", strlen(obj3));
 
 	obj4 = h2_allocate(SIZE_TO_WORD(SIZE_4M), 1, 0, 0);
 	h2_write(tmp4, obj4, SIZE_TO_WORD(SIZE_4M));
-	assertf(strlen(obj4) == SIZE_4M - 1, "Error in size");
+	CHECK(strlen(obj4) == SIZE_4M - 1, "Error in size");
 	
 	printf("--------------------------------------\n");
 	printf("TH_Sync_Write:\t\t\t\033[1;32m[PASS]\033[0m\n");

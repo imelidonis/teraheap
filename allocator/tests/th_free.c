@@ -14,8 +14,11 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "../include/sharedDefines.h"
-#include "../include/regions.h"
+#include <stdlib.h>
+#include <string.h>
+#include "h2_allocator.h"
+#include "../src/regions.h"   // white-box: region counts
+#include "test_util.h"
 
 #define CARD_SIZE ((uint64_t) (1 << 9))
 #define PAGE_SIZE ((uint64_t) (1 << 12))
@@ -34,14 +37,16 @@ int main() {
   char *obj8;
   char *obj9;
   // Init allocator
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 1);
+  // One GC thread per group (thread_id = rdd_id): the regions are the same
+  // whether the allocator groups by GC thread or by rdd
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 4);
 
   //obj1 should be in region 0
   obj1 = h2_allocate(1, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj1);
 
   //obj2 should be in region 1 
-  obj2 = h2_allocate(200, 1, 0, 0);
+  obj2 = h2_allocate(200, 1, 0, 1);
   fprintf(stderr, "Allocate: %p\n", obj2);
 
   //obj3 should be in region 0
@@ -49,11 +54,11 @@ int main() {
   fprintf(stderr, "Allocate: %p\n", obj3);
 
   //obj4 should be in region 2 
-  obj4 = h2_allocate(262140, 2, 0, 0);
+  obj4 = h2_allocate(262140, 2, 0, 2);
   fprintf(stderr, "Allocate: %p\n", obj4);
 
   //obj5 should be in region 1
-  obj5 = h2_allocate(4, 1, 0, 0);
+  obj5 = h2_allocate(4, 1, 0, 1);
   fprintf(stderr, "Allocate: %p\n", obj5);
 
   //obj6 should be in region 0 
@@ -61,15 +66,15 @@ int main() {
   fprintf(stderr, "Allocate: %p\n", obj6);
 
   //obj7 should be in region 3 
-  obj7 = h2_allocate(262140, 1, 0, 0);
+  obj7 = h2_allocate(262140, 1, 0, 1);
   fprintf(stderr, "Allocate: %p\n", obj7);
 
   //obj8 should be in region 4 
-  obj8 = h2_allocate(500, 3, 0, 0);
+  obj8 = h2_allocate(500, 3, 0, 3);
   fprintf(stderr, "Allocate: %p\n", obj8);
 
   //obj9 should be in region 5 
-  obj9 = h2_allocate(500, 2, 0, 0);
+  obj9 = h2_allocate(500, 2, 0, 2);
   fprintf(stderr, "Allocate: %p\n", obj9);
 
   //region 0 and region 1 grouped
@@ -96,7 +101,7 @@ int main() {
 
   //nothing should be freed because all regions belong to the same tera_group 
   h2_free_regions(NULL, NULL);
-  assertf(total_allocated_regions() == 4, "Number of allocated regions is incorrect");
+  CHECK(total_allocated_regions() == 4, "Number of allocated regions is incorrect");
 
   print_regions();
   h2_print_groups();
@@ -104,20 +109,20 @@ int main() {
   h2_reset_used();
   h2_mark_used(obj1);
   h2_mark_used(obj6);
-  assertf(total_used_regions() == 3,
+  CHECK(total_used_regions() == 3,
           "Number of used regions is incorrect %lu", total_used_regions());
 
   h2_free_regions(NULL, NULL);
-  assertf(total_allocated_regions() == 3,
+  CHECK(total_allocated_regions() == 3,
           "Number of allocated regions is incorrect %lu", total_used_regions());
   print_regions();
   h2_print_groups();
 
   h2_reset_used();
-  assertf(total_used_regions() == 0, "Number of used regions is incorrect");
+  CHECK(total_used_regions() == 0, "Number of used regions is incorrect");
   //all regions should be freed
   h2_free_regions(NULL, NULL);
-  assertf(total_allocated_regions() == 0,
+  CHECK(total_allocated_regions() == 0,
           "Number of allocated regions is incorrect");
   print_regions();
   h2_print_groups();

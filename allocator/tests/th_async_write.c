@@ -15,8 +15,10 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "../include/sharedDefines.h"
-#include "../include/regions.h"
+#include <stdlib.h>
+#include <string.h>
+#include "h2_allocator.h"
+#include "test_util.h"
 
 #define CARD_SIZE ((uint64_t) (1 << 9))
 #define PAGE_SIZE ((uint64_t) (1 << 12))
@@ -69,10 +71,10 @@ int main() {
 
 	while (!h2_areq_completed());
 
-	assertf(strlen(obj1) == SIZE_80B - 1, "Error in size %lu", strlen(obj1));
-	assertf(strlen(obj2) == SIZE_160B - 1, "Error in size %lu", strlen(obj2));
-	assertf(strlen(obj3) == SIZE_1M - 1, "Error in size %lu", strlen(obj3));
-	assertf(strlen(obj4) == SIZE_4M - 1, "Error in size %lu", strlen(obj4));
+	CHECK(strlen(obj1) == SIZE_80B - 1, "Error in size %lu", strlen(obj1));
+	CHECK(strlen(obj2) == SIZE_160B - 1, "Error in size %lu", strlen(obj2));
+	CHECK(strlen(obj3) == SIZE_1M - 1, "Error in size %lu", strlen(obj3));
+	CHECK(strlen(obj4) == SIZE_4M - 1, "Error in size %lu", strlen(obj4));
 	
 	printf("--------------------------------------\n");
 	printf("TH_Async_Write:\t\t\t\033[1;32m[PASS]\033[0m\n");

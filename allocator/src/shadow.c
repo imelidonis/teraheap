@@ -14,9 +14,9 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "../include/shadow.h"
-#include "../include/sharedDefines.h"
-#include "../include/h2_config.h"
+#include "shadow.h"
+#include "sharedDefines.h"
+#include "h2_config.h"
 
 #define CHUNK SHADOW_CHUNK
 #define PAGE 4096UL

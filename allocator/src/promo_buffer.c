@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include "../include/regions.h"
-#include "../include/region_types.h"
-#include "../include/sharedDefines.h"
+#include "regions.h"
+#include "region_types.h"
+#include "sharedDefines.h"
 
 #if PR_BUFFER
 

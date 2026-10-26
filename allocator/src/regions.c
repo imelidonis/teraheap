@@ -8,10 +8,10 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <pthread.h>
-#include "../include/regions.h"
-#include "../include/region_types.h"
-#include "../include/sharedDefines.h"
-#include "../include/shadow.h"
+#include "regions.h"
+#include "region_types.h"
+#include "sharedDefines.h"
+#include "shadow.h"
 
 uint64_t _MAX_PARTITIONS;
 
@@ -106,7 +106,7 @@ void init_regions(uint64_t partitions) {
 /*
  * Returns the start of cont_regions empty regions
  */
-int32_t get_cont_regions(int32_t cont_regions) {
+static int32_t get_cont_regions(int32_t cont_regions) {
   static int32_t i = 0;
   int32_t j, index, end_index = i;
 
@@ -145,7 +145,7 @@ int32_t get_cont_regions(int32_t cont_regions) {
    precompaction phase
       new address
  */
-char* new_region(size_t size) {
+static char* new_region(size_t size) {
   int32_t i;
   int32_t cont_regions = (size % REGION_SIZE != 0) ? (size / REGION_SIZE) + 1 : (size / REGION_SIZE);
   int32_t cur_region = get_cont_regions(cont_regions);

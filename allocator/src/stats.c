@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "../include/regions.h"
-#include "../include/region_types.h"
+#include "regions.h"
+#include "region_types.h"
 
 #if STATISTICS
 double		  alloc_elapsedtime = 0.0;

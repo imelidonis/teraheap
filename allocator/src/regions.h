@@ -41,14 +41,6 @@ struct dep_set;
 void init_regions(uint64_t partitions);
 
 /*
- * Finds an empty regions and returns its starting address
- * Arguments:
- * - size: the size of the object we want to allocate in
- *         Bytes
- */
-char* new_region(size_t size);
-
-/*
  * Returns the address of the allocated object
  * Arguments:
  * - size: the size of the object in Bytes
@@ -91,13 +83,6 @@ char *region_get_start_address(struct region *region);
 char *region_get_last_allocated_end(struct region *region);
 
 /* ---- region_deps.c ---- */
-
-/*
- * Same as h2_references(), and returns 1 if this call added the dependency
- * (0 if it existed, or both objects are in the same region). Lock-free:
- * GC threads may call it in parallel.
- */
-int add_reference(char *obj1, char *obj2);
 
 /* At a safepoint (h2_free_regions()): free the set of a region */
 void dep_set_free(struct dep_set *s);

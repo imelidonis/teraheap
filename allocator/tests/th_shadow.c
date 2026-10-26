@@ -26,9 +26,10 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "../include/sharedDefines.h"
-#include "../include/regions.h"
-#include "../include/shadow.h"
+#include "h2_allocator.h"
+#include "../src/h2_config.h" // white-box: REGION_SIZE
+#include "../src/shadow.h"    // white-box: writer step, pre-attach
+#include "test_util.h"
 
 #define MB (1024LU * 1024)
 #define GB (1024LU * MB)

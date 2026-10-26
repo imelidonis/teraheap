@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/mman.h>
-#include "../include/regions.h"
-#include "../include/region_types.h"
-#include "../include/sharedDefines.h"
-#include "../include/shadow.h"
+#include "regions.h"
+#include "region_types.h"
+#include "sharedDefines.h"
+#include "shadow.h"
 
 static uint reclaimed_regions_count;
 int         protect_regions_on_free = 0;

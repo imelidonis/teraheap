@@ -30,6 +30,9 @@ LIBOBJS = $(SRCDIR)/mem_pool.o $(SRCDIR)/sync_io.o $(SRCDIR)/async_io.o $(SRCDIR
 TEST_SRCS = $(wildcard $(TESTDIR)/th_*.c)
 TEST_OBJS = $(TEST_SRCS:.c=.o)
 TEST_BINS = $(patsubst $(TESTDIR)/%.c,$(BINDIR)/%.bin,$(TEST_SRCS))
+## White-box tests call internal (hidden) functions: they link the objects
+## instead of the library
+WHITEBOX_BINS = $(BINDIR)/th_free.bin $(BINDIR)/th_shadow.bin
 
 ## Directory where the tests create the H2 file (passed as the first argument)
 TEST_H2_DIR ?= /mnt/fmap/
@@ -49,7 +52,9 @@ OPTIMIZEFLAG = -g -O0 -DASSERT
 endif
 
 LDFLAGS = $(AIOFLAG)
-CFLAGS = -c -fPIC -I$(INCLUDEDIR) $(DEPFLAGS) $(WALLFLAG) $(OPTIMIZEFLAG)
+# Hidden by default: the library exports only the H2_API functions of
+# h2_allocator.h
+CFLAGS = -c -fPIC -fvisibility=hidden -I$(INCLUDEDIR) $(DEPFLAGS) $(WALLFLAG) $(OPTIMIZEFLAG)
 
 ## Commands
 RM = rm -fr

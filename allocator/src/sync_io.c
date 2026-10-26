@@ -7,8 +7,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include "../include/sharedDefines.h"
-#include "../include/mem_pool.h"
+#include "h2_allocator.h"
+#include "sharedDefines.h"
+#include "mem_pool.h"
 
 // Explicit write 'data' with 'size' in certain 'offset' using system call
 // without memcpy.

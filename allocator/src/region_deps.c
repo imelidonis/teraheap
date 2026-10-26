@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../include/regions.h"
-#include "../include/region_types.h"
-#include "../include/sharedDefines.h"
+#include "regions.h"
+#include "region_types.h"
+#include "sharedDefines.h"
 
 /*
  * ---------------------------------------------------------------------------
@@ -260,17 +260,11 @@ static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
 }
 
 /*
- * function that connects two regions in a tera_group
- * arguments:
- * - obj1: the object that references the other
- * - obj2 the object that is referenced
+ * Same as h2_references(), and returns 1 if this call added the dependency
+ * (0 if it existed, or both objects are in the same region). Lock-free:
+ * GC threads may call it in parallel.
  */
-
-void h2_references(char *obj1, char *obj2) {
-  add_reference(obj1, obj2);
-}
-
-int add_reference(char *obj1, char *obj2) {
+static int add_reference(char *obj1, char *obj2) {
   int32_t seg1 = (obj1 - region_array_base) / ((uint64_t)REGION_SIZE);
   int32_t seg2 = (obj2 - region_array_base) / ((uint64_t)REGION_SIZE);
   if (seg1 >= region_array_size || seg2 >= region_array_size || seg1 < 0 || seg2 < 0)
@@ -280,6 +274,16 @@ int add_reference(char *obj1, char *obj2) {
     return 0;
 
   return add_dependency_if_not_exist(seg1, seg2);
+}
+
+/*
+ * function that connects two regions in a tera_group
+ * arguments:
+ * - obj1: the object that references the other
+ * - obj2 the object that is referenced
+ */
+void h2_references(char *obj1, char *obj2) {
+  add_reference(obj1, obj2);
 }
 
 /*

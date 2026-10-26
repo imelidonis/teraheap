@@ -13,8 +13,6 @@
 
 // #define ASSERT                     //< Enable assertf() (make DEBUG=1 sets it)
 
-// #define TRANSFER_BACK              //< Work in progress
-
 #define ANONYMOUS  0                  //< 1: anonymous small mmaps instead of the H2 file
 
 #define MALLOC_ON  1                  //< Allocate async I/O buffers dynamically

@@ -11,7 +11,6 @@
 #include "../include/segments.h"
 #include "../include/regions.h"
 #include "../include/sharedDefines.h"
-#include "../include/sllist.h"
 #include "../include/shadow.h"
 
 static uint64_t _MAX_PARTITIONS;
@@ -47,13 +46,8 @@ struct region {
     char *last_allocated_start;
     char *first_allocated_start;
     // The regions this region references: a lock-free hash set (struct
-    // dep_set, below), not an SLinkedList any more
-    struct dep_set *dependency_list;
-#ifdef TRANSFER_BACK
-    SLinkedList *referent_list;
-    bool underTransfer;
-    char *destination_address;
-#endif
+    // dep_set, below)
+    struct dep_set *deps;
 
 #if ANONYMOUS
   struct offset *offset_list;
@@ -143,12 +137,7 @@ void init_regions(uint64_t partitions) {
     region_array[i].last_allocated_end        = region_array[i].start_address;
     region_array[i].last_allocated_start      = NULL;
     region_array[i].first_allocated_start     = NULL;
-    region_array[i].dependency_list           = NULL;
-#ifdef TRANSFER_BACK
-    region_array[i].referent_list             = NULL;
-    region_array[i].underTransfer             = false;
-    region_array[i].destination_address       = NULL;
-#endif
+    region_array[i].deps           = NULL;
 #if ANONYMOUS
     region_array[i].size_mapped               = 0;
     region_array[i].offset_list               = NULL;
@@ -427,7 +416,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
  * Dependency sets: lock-free hash sets of region indices
  * ---------------------------------------------------------------------------
  *
- * region_array[r].dependency_list holds the regions that region r
+ * region_array[r].deps holds the regions that region r
  * references. GC threads add entries in parallel (h2_references()), look
  * them up (h2_is_in_the_same_group()) and walk them (h2_mark_used()), without
  * a lock:
@@ -603,7 +592,7 @@ static void dep_set_grow(struct dep_set **owner, struct dep_set *s) {
 
 /* Add 'seg2' to the set of 'seg1'. Returns 1 if this call added it. */
 static int dep_set_add(int32_t seg1, int32_t seg2) {
-  struct dep_set **owner = &region_array[seg1].dependency_list;
+  struct dep_set **owner = &region_array[seg1].deps;
   struct dep_set *s = dep_load(owner);
   if (s == NULL) {
     struct dep_set *cand = dep_set_alloc(DEP_INITIAL_CAP);
@@ -659,31 +648,6 @@ static void dep_free_retired(void) {
   }
 }
 
-/*
- * region_cmp - Comparator for sll_contains(), sll_find() and sll_delete().
- *
- * Regions reside in a flat array (region_array) for their entire lifetime,
- * so pointer identity is logical identity: two pointers refer to the same
- * region if and only if they hold the same address.
- *
- * Follows the standard comparator convention: returns 0 when equal.
- */
-__attribute__((unused))   // only TRANSFER_BACK uses it now
-static int region_cmp(const void *a, const void *b) {
-  return (a != b);
-}
-
-#ifdef TRANSFER_BACK
-static void add_referent(int32_t seg1, int32_t seg2) {
-  if (!region_array[seg2].referent_list) {
-    region_array[seg2].referent_list = sll_create(region_cmp);
-  }
-
-  assert(!sll_contains(region_array[seg2].referent_list, &region_array[seg1]));
-  sll_push_front(region_array[seg2].referent_list, &region_array[seg1]);
-}
-#endif
-
 // Returns 1 if this call added the dependency
 static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
   // Lock-free; the successful CAS of the insert is a full fence, so the
@@ -691,10 +655,6 @@ static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
   // visible (see h2_mark_used())
   if (!dep_set_add(seg1, seg2))
     return 0;
-
-#ifdef TRANSFER_BACK
-  add_referent(seg1, seg2);
-#endif
 
   if (__atomic_load_n(&region_array[seg1].used, __ATOMIC_SEQ_CST)) {
     h2_mark_used(region_array[seg2].start_address);
@@ -735,13 +695,8 @@ void h2_print_groups() {
 
   for (i = 0; i < region_array_size; i++) {
     if (region_array[i % region_array_size].last_allocated_end != region_array[i % region_array_size].start_address ) {
-      size_t dep_size = dep_set_count(region_array[i].dependency_list);
-#ifdef TRANSFER_BACK
-      size_t ref_size = region_array[i].referent_list   ? sll_size(region_array[i].referent_list)   : 0;
-      fprintf(stderr, "Region %d has %lu dependencies and %lu referents\n", i, dep_size, ref_size);
-#else 
+      size_t dep_size = dep_set_count(region_array[i].deps);
       fprintf(stderr, "Region %d has %lu dependencies.\n", i, dep_size);
-#endif
     }
   }
 }
@@ -760,7 +715,7 @@ static void mark_used_region_index(uint64_t seg) {
 }
 
 void mark_live_dependent_regions(uint64_t seg) {
-  dep_set_for_each(dep_load(&region_array[seg].dependency_list), mark_used_region_index);
+  dep_set_for_each(dep_load(&region_array[seg].deps), mark_used_region_index);
 }
 
 /*
@@ -845,15 +800,8 @@ void h2_free_regions(h2_region_free_cb cb, void *ctx) {
   dep_free_retired();
   for (i = 0; i < region_array_size; i++) {
     if (region_array[i].used == 0 && region_array[i].last_allocated_end != region_array[i].start_address) {
-      dep_set_free(region_array[i].dependency_list);
-      region_array[i].dependency_list = NULL;
-
-#ifdef TRANSFER_BACK
-      sll_destroy(region_array[i].referent_list);
-      region_array[i].referent_list = NULL;
-      region_array[i].underTransfer = false;
-      region_array[i].destination_address = NULL;
-#endif
+      dep_set_free(region_array[i].deps);
+      region_array[i].deps = NULL;
 
       // Report regions that held objects, after they are fully freed
       char *const last_start = region_array[i].last_allocated_start;
@@ -1084,7 +1032,7 @@ int h2_is_in_the_same_group(char *obj1, char *obj2) {
 	if (seg1 == seg2)
 		return 1;
 
-  return dep_set_contains(dep_load(&region_array[seg1].dependency_list), (uint32_t) seg2 + 1);
+  return dep_set_contains(dep_load(&region_array[seg1].deps), (uint32_t) seg2 + 1);
 }
 
 /*                                                                              

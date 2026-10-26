@@ -201,10 +201,6 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
                 size_t pool_bytes, int precopy_rounds, int n_threads,
                 void (*region_info)(char *addr, char **top, bool *active),
                 int (*region_free_prot)(char *addr)) {
-#if ANONYMOUS
-  fprintf(stderr, "[SHADOW] not supported with ANONYMOUS mappings\n");
-  return -1;
-#endif
   if (s_on) return 0;
   if (((uintptr_t) h2_start % CHUNK) != 0 || pool_bytes < CHUNK || n_threads <= 0) {
     fprintf(stderr, "[SHADOW] bad arguments (H2 start %p must be 2 MB aligned)\n", h2_start);
@@ -247,7 +243,6 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
   return 0;
 }
 
-bool shadow_enabled(void) { return s_on; }
 
 void h2_shadow_set_active(bool active) {
   if (!s_on) return;

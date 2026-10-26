@@ -9,8 +9,6 @@
 #include "region_types.h"
 #include "sharedDefines.h"
 
-#if PR_BUFFER
-
 /*
  * Flush the promotion buffer of a certain region
  *
@@ -139,4 +137,3 @@ void h2_free_all_buffers() {
     pthread_mutex_unlock(&buf->buffer_lock);
 	}
 }
-#endif

@@ -13,12 +13,6 @@
 
 #include "h2_config.h"
 
-struct offset {
-  uint64_t offset;
-  struct offset *next;
-};
-
-#if PR_BUFFER
 /* We use promotion buffer in each region to reduce the number of system calls
  * for small sized objects.
  */
@@ -29,7 +23,6 @@ struct pr_buffer {
   char *alloc_ptr;              /* Allocation pointer for the buffer */
   size_t size;					/* Current size of the buffer */
 };
-#endif
 
 /*
  * The struct for regions
@@ -47,13 +40,7 @@ struct region {
     // dep_set, region_deps.c)
     struct dep_set *deps;
 
-#if ANONYMOUS
-  struct offset *offset_list;
-  size_t size_mapped;
-#endif
-#if PR_BUFFER
     struct pr_buffer *pr_buffer;
-#endif
     int8_t used;
     uint32_t rdd_id;
     uint32_t part_id;
@@ -79,7 +66,6 @@ extern struct region *region_array;
 // allocation fields, which are written on every allocation.
 extern char *region_array_base;
 extern struct id_to_reg_mapping *id_mapping_array;
-extern struct offset *offset_list;
 
 /* Defined in reclaim.c */
 extern int protect_regions_on_free;

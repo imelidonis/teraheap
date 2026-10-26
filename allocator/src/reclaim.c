@@ -47,19 +47,6 @@ void h2_free_regions(h2_region_free_cb cb, void *ctx) {
       region_array[i].last_allocated_start = NULL;
       region_array[i].first_allocated_start = NULL;
 
-#if ANONYMOUS 
-      region_array[i].size_mapped = 0;
-      struct offset *offset_ptr = region_array[i].offset_list;
-      struct offset *temp = offset_ptr;
-
-      while (offset_ptr != NULL) {
-        temp = offset_ptr->next;
-        offset_ptr->next = offset_list;
-        offset_list = offset_ptr;
-        offset_ptr = temp;
-      }
-      region_array[i].offset_list = NULL;
-#endif
       if (id_mapping_array[get_id(region_array[i].rdd_id,
                                   region_array[i].part_id)].mapped_region ==
           &region_array[i]) {

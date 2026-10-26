@@ -19,13 +19,6 @@
 extern "C" {
 #endif
 
-#if defined (__ia64__) || defined (__x86_64__)
-#define INT_PTR unsigned long
-
-#else
-#define INT_PTR unsigned int
-#endif
-
 /* Defined in mem_pool.c */
 extern uint64_t region_array_size;
 extern uint64_t max_rdd_id; //< Total different rdds
@@ -65,22 +58,7 @@ void region_info(char *addr, char **top, bool *active);
  */
 int region_free_prot(char *addr);
 
-void print_objects_temporary_function(char *obj,const char *string);
-
-/*
- * Get objects 'obj' region start address
- */
-char* get_region_start_addr(char *obj, uint64_t rdd_id, uint64_t part_id);
-
 char* top_in_last_region();
-
-struct region *get_region(uint64_t region_index);
-
-// Returns the start_address of a region
-char *region_get_start_address(struct region *region);
-
-// Returns the end address of last allocation of a region
-char *region_get_last_allocated_end(struct region *region);
 
 /* ---- region_deps.c ---- */
 

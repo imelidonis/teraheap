@@ -35,9 +35,8 @@
  *  - If the pool has no free chunk, allocation goes to the file mapping as
  *    before; both use the same addresses.
  *
- * Requires Linux >= 6.7 (UFFD_FEATURE_WP_ASYNC, PAGEMAP_SCAN) and the file
- * mapping mode (ANONYMOUS == 0). shadow_init() fails otherwise and the
- * allocator works as before.
+ * Requires Linux >= 6.7 (UFFD_FEATURE_WP_ASYNC, PAGEMAP_SCAN). shadow_init()
+ * fails otherwise and the allocator works as before.
  */
 
 #include <stdbool.h>
@@ -66,9 +65,6 @@ int  shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
                  size_t pool_bytes, int precopy_rounds, int n_threads,
                  void (*region_info)(char *addr, char **top, bool *active),
                  int (*region_free_prot)(char *addr));
-
-// True after a successful shadow_init()
-bool shadow_enabled(void);
 
 // Called by h2_allocate() for the object [pos, pos + bytes) of GC thread
 // `thread_id`: attaches the empty chunks it covers. Cheap when nothing to do.

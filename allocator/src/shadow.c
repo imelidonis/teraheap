@@ -16,7 +16,7 @@
 
 #include "../include/shadow.h"
 #include "../include/sharedDefines.h"
-#include "../include/segments.h"
+#include "../include/h2_config.h"
 
 #define CHUNK SHADOW_CHUNK
 #define PAGE 4096UL
@@ -64,6 +64,10 @@ static bool s_wake_pending;
 
 static bool s_verify;
 static char *s_verify_buf;
+
+// Region queries (see shadow_init())
+static void (*s_region_info)(char *addr, char **top, bool *active);
+static int (*s_region_free_prot)(char *addr);
 
 static double now_ms(void) {
   struct timespec t;
@@ -164,7 +168,7 @@ static void map_file(uint64_t i, uint64_t n, int prot) {
 static void detach_unused_locked(uint32_t s) {
   uint64_t i = s_recs[s].idx;
   detach_pages_locked(s);
-  map_file(i, 1, region_free_prot(chunk_addr(i)));
+  map_file(i, 1, s_region_free_prot(chunk_addr(i)));
 }
 
 // ---- write tracking ----
@@ -194,7 +198,9 @@ static long rewrite_written(char *a, int rearm, long max_pages, bool *written) {
 // ---- API ----
 
 int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
-                size_t pool_bytes, int precopy_rounds, int n_threads) {
+                size_t pool_bytes, int precopy_rounds, int n_threads,
+                void (*region_info)(char *addr, char **top, bool *active),
+                int (*region_free_prot)(char *addr)) {
 #if ANONYMOUS
   fprintf(stderr, "[SHADOW] not supported with ANONYMOUS mappings\n");
   return -1;
@@ -216,6 +222,7 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
   if (pm < 0) { fprintf(stderr, "[SHADOW] /proc/self/pagemap: %s\n", strerror(errno)); close(uffd); return -1; }
 
   s_fd = fd; s_uffd = uffd; s_pagemap = pm;
+  s_region_info = region_info; s_region_free_prot = region_free_prot;
   s_map_start = map_start; s_h2_start = h2_start;
   s_h2_end = h2_start + ((map_start + map_size - h2_start) / CHUNK) * CHUNK;
   s_nchunks = (s_h2_end - s_h2_start) / CHUNK;
@@ -290,7 +297,7 @@ void h2_shadow_pause_end(void) {
     struct rec *r = &s_recs[s];
     if (!r->used || get_state(r->idx) != CS_OPEN) continue;
     char *c = chunk_addr(r->idx), *top; bool active;
-    region_info(c, &top, &active);
+    s_region_info(c, &top, &active);
     if (top >= c + CHUNK) {
       set_state(r->idx, CS_FULL); r->seq = ++s_seq;
     } else if (!active) {   // retired region: no more allocation will come

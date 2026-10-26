@@ -57,8 +57,15 @@ extern "C" {
 // = address - map_start). h2_start is the 2 MB aligned start of the regions.
 // precopy_rounds: max pre-copy rounds per chunk. Returns 0, or -1 with a
 // message on stderr (the allocator then works as before).
+// The region queries come from the region code (regions.c):
+//  - region_info(addr, &top, &active): the allocation top of the region that
+//    contains addr, and whether a (thread, partition) id still allocates in it;
+//  - region_free_prot(addr): the protection to map a chunk of a freed region
+//    with.
 int  shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
-                 size_t pool_bytes, int precopy_rounds, int n_threads);
+                 size_t pool_bytes, int precopy_rounds, int n_threads,
+                 void (*region_info)(char *addr, char **top, bool *active),
+                 int (*region_free_prot)(char *addr));
 
 // True after a successful shadow_init()
 bool shadow_enabled(void);

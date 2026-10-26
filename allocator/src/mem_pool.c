@@ -14,7 +14,6 @@
 #include "../include/mem_pool.h"
 #include "../include/async_io.h"
 #include "../include/sharedDefines.h"
-#include "../include/segments.h"
 #include "../include/shadow.h"
 
 #define align_size_up_(size, alignment) (((size) + ((alignment) - 1)) & ~((alignment) - 1))
@@ -320,7 +319,8 @@ void h2_shutdown(void) {
 
 int h2_shadow_init(size_t pool_bytes, int precopy_rounds) {
   return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
-                     pool_bytes, precopy_rounds, n_gc_threads);
+                     pool_bytes, precopy_rounds, n_gc_threads,
+                     region_info, region_free_prot);
 }
 	
 int h2_verify_top(void) {

@@ -16,7 +16,6 @@
 #include <stdio.h>
 #include "../include/sharedDefines.h"
 #include "../include/regions.h"
-#include "../include/segments.h"
 
 #define CARD_SIZE ((uint64_t) (1 << 9))
 #define PAGE_SIZE ((uint64_t) (1 << 12))

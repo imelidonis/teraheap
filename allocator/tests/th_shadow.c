@@ -28,7 +28,6 @@
 #include <unistd.h>
 #include "../include/sharedDefines.h"
 #include "../include/regions.h"
-#include "../include/segments.h"
 #include "../include/shadow.h"
 
 #define MB (1024LU * 1024)

@@ -24,7 +24,7 @@ INCLUDEDIR = $(PREFIX)/include
 ## Library
 LIBNAME = h2allocator
 LIBRARY = $(LIBDIR)/lib$(LIBNAME).so
-LIBOBJS = $(SRCDIR)/mem_pool.o $(SRCDIR)/sync_io.o $(SRCDIR)/async_io.o $(SRCDIR)/segments.o $(SRCDIR)/shadow.o
+LIBOBJS = $(SRCDIR)/mem_pool.o $(SRCDIR)/sync_io.o $(SRCDIR)/async_io.o $(SRCDIR)/regions.o $(SRCDIR)/region_deps.o $(SRCDIR)/reclaim.o $(SRCDIR)/promo_buffer.o $(SRCDIR)/stats.o $(SRCDIR)/shadow.o
 
 ## Tests: every tests/th_*.c becomes bin/th_*.bin
 TEST_SRCS = $(wildcard $(TESTDIR)/th_*.c)

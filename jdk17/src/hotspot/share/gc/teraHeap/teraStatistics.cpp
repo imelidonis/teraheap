@@ -64,6 +64,7 @@ TeraStatistics::TeraStatistics() {
 #endif
 
   thr_bytes_copy_h2 = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads, mtGC);
+  thr_bytes_copy_h2_src = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads * h2_src_count, mtGC);
   h1_copied_bytes = 0;
   h2_copied_bytes = 0;
   conc_cycle_id = 0;
@@ -123,6 +124,7 @@ void TeraStatistics::reset_counters(void) {
   which_phase = dummy;
 #endif
   memset(thr_bytes_copy_h2, 0, ParallelGCThreads * sizeof(size_t));
+  memset(thr_bytes_copy_h2_src, 0, ParallelGCThreads * h2_src_count * sizeof(size_t));
   memset(thr_fgc_regions_scanned, 0, ParallelGCThreads * sizeof(int));
   memset(thr_fgc_regions_skipped, 0, ParallelGCThreads * sizeof(int));
 }
@@ -219,6 +221,14 @@ void TeraStatistics::print_gc_stats() {
 
 void TeraStatistics::thr_add_bytes_copy_h2(uint thread_id, size_t bytes) {
   thr_bytes_copy_h2[thread_id] += bytes;
+}
+
+size_t TeraStatistics::get_sum_thr_bytes_copy_h2_src(enum h2_source src) {
+  size_t sum_bytes = 0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    sum_bytes += thr_bytes_copy_h2_src[i * h2_src_count + src];
+  }
+  return sum_bytes;
 }
 
 size_t TeraStatistics::get_sum_thr_bytes_copy_h2() {

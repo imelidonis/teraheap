@@ -644,6 +644,11 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
 
   bool update_stats = should_update_gc_stats();
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  // After an evacuation failure the next mixed GC reclaims with the average H2 cost
+  _h2_cset.last_evac_failed = _g1h->evacuation_failed();
+#endif
+
   if (G1GCPauseTypeHelper::is_concurrent_start_pause(this_pause)) {
     record_concurrent_mark_init_end();
   } else {
@@ -755,7 +760,7 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
     size_t copied_bytes = p->sum_thread_work_items(G1GCPhaseTimes::MergePSS, G1GCPhaseTimes::MergePSSCopiedBytes);
     size_t copied_bytes_h2 = 0;
 
-    if (EnableTeraHeap && TeraHeapStatistics) {
+    if (TeraHeap::h2_cost_timers()) {
       Universe::teraHeap()->get_tera_stats()->record_h1_copied_bytes(copied_bytes);
       copied_bytes_h2 = Universe::teraHeap()->get_tera_stats()->get_sum_thr_bytes_copy_h2();
       Universe::teraHeap()->get_tera_stats()->record_h2_copied_bytes(copied_bytes_h2);
@@ -764,7 +769,7 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
     if (copied_bytes > 0) {
       double cost_per_byte_ms;
       #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-        if (EnableTeraHeap && TeraHeapStatistics) {
+        if (TeraHeap::h2_cost_timers()) {
           cost_per_byte_ms = (average_time_without_h2_ms(G1GCPhaseTimes::ObjCopy, TeraStatistics::inital_evac_phase) + average_time_without_h2_ms(G1GCPhaseTimes::OptObjCopy, TeraStatistics::optional_evac_phase)) / copied_bytes;
         } else {
           cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
@@ -776,11 +781,36 @@ void G1Policy::record_collection_pause_end(double pause_time_ms, bool concurrent
     }
  
   #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    if (EnableTeraHeap && TeraHeapStatistics) {
+    if (TeraHeap::h2_cost_timers()) {
       double average_time_ms_h2 = Universe::teraHeap()->get_tera_stats()->get_average_time_ms_h2(TeraStatistics::inital_evac_phase) + Universe::teraHeap()->get_tera_stats()->get_average_time_ms_h2(TeraStatistics::optional_evac_phase);
       if (copied_bytes_h2 > 0) {
         double cost_h2_per_byte_ms = average_time_ms_h2 / copied_bytes_h2;
         _analytics->report_h2_cost_per_byte_ms(cost_h2_per_byte_ms, collector_state()->mark_or_rebuild_in_progress());
+
+        // Recent costs for TeraH2CostPercentile: only mixed GCs that moved
+        // enough bytes to H2 for a stable cost
+        if (G1GCPauseTypeHelper::is_mixed_pause(this_pause) && copied_bytes_h2 >= 32 * M) {
+          _analytics->report_h2_cost_sample(cost_h2_per_byte_ms);
+        }
+      }
+
+      // Bytes moved to H2 per source region type
+      TeraStatistics* ts = Universe::teraHeap()->get_tera_stats();
+      const size_t eden_h2_bytes = ts->get_sum_thr_bytes_copy_h2_src(TeraStatistics::h2_src_eden);
+      const size_t survivor_h2_bytes = ts->get_sum_thr_bytes_copy_h2_src(TeraStatistics::h2_src_survivor);
+      const size_t old_h2_bytes = ts->get_sum_thr_bytes_copy_h2_src(TeraStatistics::h2_src_old);
+
+      // Share of the survivor and eden bytes that moved to H2
+      if (G1GCPauseTypeHelper::is_mixed_pause(this_pause) && _h2_cset.survivor_bytes >= 8 * M) {
+        _analytics->report_h2_survivor_share((double) survivor_h2_bytes / _h2_cset.survivor_bytes);
+      }
+      if (G1GCPauseTypeHelper::is_mixed_pause(this_pause) && _h2_cset.eden_bytes >= 8 * M) {
+        _analytics->report_h2_eden_share((double) eden_h2_bytes / _h2_cset.eden_bytes);
+      }
+
+      if (TeraHeapStatistics && G1GCPauseTypeHelper::is_mixed_pause(this_pause)) {
+        print_h2_cset_info(copied_bytes_h2, average_time_ms_h2,
+                           eden_h2_bytes, survivor_h2_bytes, old_h2_bytes);
       }
     }
   #endif
@@ -995,11 +1025,15 @@ double G1Policy::predict_eden_copy_time_ms(uint count, size_t* bytes_to_copy) co
   return _analytics->predict_object_copy_time_ms(expected_bytes, collector_state()->mark_or_rebuild_in_progress());
 }
 
-double G1Policy::predict_region_copy_time_ms(HeapRegion* hr) const {
+double G1Policy::predict_region_copy_time_ms(HeapRegion* hr, bool h2_conservative) const {
   size_t const bytes_to_copy = predict_bytes_to_copy(hr);
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   size_t const h2_bytes_to_copy = predict_h2_bytes_to_copy(hr);
-  return _analytics->predict_object_copy_time_ms(bytes_to_copy, collector_state()->mark_or_rebuild_in_progress()) + _analytics->predict_h2_object_copy_time_ms(h2_bytes_to_copy, collector_state()->mark_or_rebuild_in_progress());
+  const bool cm = collector_state()->mark_or_rebuild_in_progress();
+  const double h2_ms = h2_conservative ?
+    _analytics->predict_h2_object_copy_time_ms_conservative(h2_bytes_to_copy, cm) :
+    _analytics->predict_h2_object_copy_time_ms(h2_bytes_to_copy, cm);
+  return _analytics->predict_object_copy_time_ms(bytes_to_copy, cm) + h2_ms;
 #else 
   return _analytics->predict_object_copy_time_ms(bytes_to_copy, collector_state()->mark_or_rebuild_in_progress());
 #endif
@@ -1025,9 +1059,72 @@ double G1Policy::predict_region_non_copy_time_ms(HeapRegion* hr,
   return region_elapsed_time_ms;
 }
 
-double G1Policy::predict_region_total_time_ms(HeapRegion* hr, bool for_young_gc) const {
-  return predict_region_non_copy_time_ms(hr, for_young_gc) + predict_region_copy_time_ms(hr);
+double G1Policy::predict_region_total_time_ms(HeapRegion* hr, bool for_young_gc, bool h2_conservative) const {
+  return predict_region_non_copy_time_ms(hr, for_young_gc) + predict_region_copy_time_ms(hr, h2_conservative);
 }
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+double G1Policy::predict_young_h2_copy_time_ms(size_t survivor_bytes, size_t eden_bytes) {
+  _h2_cset.reset();
+  _h2_cset.survivor_bytes = survivor_bytes;
+  _h2_cset.eden_bytes = eden_bytes;
+  if (!EnableTeraHeap || !collector_state()->in_mixed_phase()) {
+    return 0.0;
+  }
+  const bool cm = collector_state()->mark_or_rebuild_in_progress();
+  const bool conservative = use_conservative_h2_cost();
+
+  _h2_cset.survivor_share = _analytics->h2_survivor_share();
+  _h2_cset.survivor_h2_bytes = (size_t) (survivor_bytes * _h2_cset.survivor_share);
+  _h2_cset.survivor_h2_ms = conservative ?
+    _analytics->predict_h2_object_copy_time_ms_conservative(_h2_cset.survivor_h2_bytes, cm) :
+    _analytics->predict_h2_object_copy_time_ms(_h2_cset.survivor_h2_bytes, cm);
+
+  _h2_cset.eden_share = _analytics->h2_eden_share();
+  _h2_cset.eden_h2_bytes = (size_t) (eden_bytes * _h2_cset.eden_share);
+  _h2_cset.eden_h2_ms = conservative ?
+    _analytics->predict_h2_object_copy_time_ms_conservative(_h2_cset.eden_h2_bytes, cm) :
+    _analytics->predict_h2_object_copy_time_ms(_h2_cset.eden_h2_bytes, cm);
+
+  return _h2_cset.survivor_h2_ms + _h2_cset.eden_h2_ms;
+}
+
+bool G1Policy::use_conservative_h2_cost() const {
+  return EnableTeraHeap &&
+         TeraH2CostPercentile > 0 &&
+         !_h2_cset.last_evac_failed &&
+         _free_regions_at_end_of_collection > _reserve_regions;
+}
+
+void G1Policy::add_h2_initial_region(size_t h2_bytes, bool h2_conservative, bool cm) {
+  const double avg_ms = _analytics->predict_h2_object_copy_time_ms(h2_bytes, cm);
+  _h2_cset.initial_h2_bytes += h2_bytes;
+  _h2_cset.initial_h2_avg_ms += avg_ms;
+  _h2_cset.initial_h2_ms += h2_conservative ?
+    _analytics->predict_h2_object_copy_time_ms_conservative(h2_bytes, cm) : avg_ms;
+}
+
+void G1Policy::print_h2_cset_info(size_t h2_bytes, double h2_ms, size_t eden_h2_bytes,
+                                  size_t survivor_h2_bytes, size_t old_h2_bytes) const {
+  const H2CSetInfo& i = _h2_cset;
+  thlog_or_tty->print_cr("[H2_CSET] | CONSERVATIVE %d | INITIAL_REGIONS %u | OPTIONAL_REGIONS %u"
+                         " | PRED_INITIAL_H2_BYTES %zu | PRED_INITIAL_H2_MS %.3f | PRED_INITIAL_H2_AVG_MS %.3f"
+                         " | PRED_OPTIONAL_H2_BYTES %zu | H2_BYTES %zu | H2_MS %.3f | H2_MS_PER_MB %.4f"
+                         " | PCTL_MS_PER_MB %.4f | P50_MS_PER_MB %.4f | AVG_MS_PER_MB %.4f | SAMPLES %u"
+                         " | SURVIVOR_BYTES %zu | SURVIVOR_SHARE %.3f | PRED_SURVIVOR_H2_BYTES %zu | PRED_SURVIVOR_H2_MS %.3f"
+                         " | EDEN_BYTES %zu | EDEN_SHARE %.3f | PRED_EDEN_H2_BYTES %zu | PRED_EDEN_H2_MS %.3f"
+                         " | EDEN_H2_BYTES %zu | SURVIVOR_H2_BYTES %zu | OLD_H2_BYTES %zu",
+                         i.conservative, i.initial_regions, i.optional_regions,
+                         i.initial_h2_bytes, i.initial_h2_ms, i.initial_h2_avg_ms,
+                         i.optional_h2_bytes, h2_bytes, h2_ms,
+                         h2_bytes > 0 ? h2_ms * M / h2_bytes : 0.0,
+                         i.percentile_ms_per_byte * M, i.median_ms_per_byte * M, i.avg_ms_per_byte * M,
+                         _analytics->h2_cost_num_samples(),
+                         i.survivor_bytes, i.survivor_share, i.survivor_h2_bytes, i.survivor_h2_ms,
+                         i.eden_bytes, i.eden_share, i.eden_h2_bytes, i.eden_h2_ms,
+                         eden_h2_bytes, survivor_h2_bytes, old_h2_bytes);
+}
+#endif
 
 bool G1Policy::should_allocate_mutator_region() const {
   uint young_list_length = _g1h->young_regions_count();
@@ -1394,6 +1491,20 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
                             "time remaining %1.2fms, optional threshold %1.2fms",
                             min_old_cset_length, max_old_cset_length, time_remaining_ms, optional_threshold_ms);
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  // The initial regions are evacuated whatever their time: predict their H2
+  // copy pessimistically. The optional regions are evacuated only if the
+  // measured time leaves room, so they use the average H2 cost later.
+  const bool h2_conservative = use_conservative_h2_cost();
+  const bool cm = collector_state()->mark_or_rebuild_in_progress();
+  _h2_cset.conservative = h2_conservative;
+  _h2_cset.percentile_ms_per_byte = _analytics->h2_cost_percentile_per_byte_ms();
+  _h2_cset.median_ms_per_byte = _analytics->h2_cost_median_per_byte_ms();
+  _h2_cset.avg_ms_per_byte = _analytics->predict_h2_object_copy_time_ms(M, cm) / M;
+#else
+  const bool h2_conservative = false;
+#endif
+
   HeapRegion* hr = candidates->at(candidate_idx);
   while (hr != NULL) {
     if (num_initial_regions + num_optional_regions >= max_old_cset_length) {
@@ -1404,12 +1515,20 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
       break;
     }
 
-    double predicted_time_ms = predict_region_total_time_ms(hr, false);
+    double predicted_time_ms = predict_region_total_time_ms(hr, false, h2_conservative);
     time_remaining_ms = MAX2(time_remaining_ms - predicted_time_ms, 0.0);
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    const size_t h2_bytes = predict_h2_bytes_to_copy(hr);
+#endif
+
     // Add regions to old set until we reach the minimum amount
     if (num_initial_regions < min_old_cset_length) {
       predicted_old_time_ms += predicted_time_ms;
       num_initial_regions++;
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+      add_h2_initial_region(h2_bytes, h2_conservative, cm);
+#endif
       // Record the number of regions added with no time remaining
       if (time_remaining_ms == 0.0) {
         num_expensive_regions++;
@@ -1426,6 +1545,9 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
 
         predicted_old_time_ms += predicted_time_ms;
         num_initial_regions++;
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+        add_h2_initial_region(h2_bytes, h2_conservative, cm);
+#endif
       } else if (time_remaining_ms > 0) {
 
 
@@ -1450,6 +1572,11 @@ void G1Policy::calculate_old_collection_set_regions(G1CollectionSetCandidates* c
     log_debug(gc, ergo, cset)("Added %u initial old regions to collection set although the predicted time was too high.",
                               num_expensive_regions);
   }
+
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  _h2_cset.initial_regions = num_initial_regions;
+  _h2_cset.optional_regions = num_optional_regions;
+#endif
 
   log_debug(gc, ergo, cset)("Finish choosing collection set old regions. Initial: %u, optional: %u, "
                             "predicted old time: %1.2fms, predicted optional time: %1.2fms, time remaining: %1.2f",
@@ -1480,6 +1607,9 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionSetCandidat
     }
     // This region will be included in the next optional evacuation.
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    _h2_cset.optional_h2_bytes += predict_h2_bytes_to_copy(r);
+#endif
     time_remaining_ms -= prediction_ms;
     num_optional_regions++;
     r = candidates->at(++candidate_idx);

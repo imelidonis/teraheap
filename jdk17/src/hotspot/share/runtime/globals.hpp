@@ -941,6 +941,19 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, TeraHeapStatistics, false,                                  \
           "Print TeraHeap statistics")                                      \
                                                                             \
+  product(uintx, TeraH2CostPercentile, 90,                                  \
+          "Percentile of the recent H2 (SH) copy costs per byte that G1 "  \
+          "uses to choose the initial old regions of a mixed GC, so that " \
+          "the pause stays within the target also when the SH copy is "    \
+          "slow. Optional regions still use the average cost. 0 uses the " \
+          "average cost for all regions")                                   \
+          range(0, 100)                                                     \
+                                                                            \
+  product(uintx, TeraH2CostSamples, 32,                                     \
+          "Number of recent mixed GCs whose H2 copy cost per byte "        \
+          "TeraH2CostPercentile is computed from")                          \
+          range(8, 256)                                                     \
+                                                                            \
   product(bool, TeraHeapAllocatorStatistics, false,                         \
           "Print TeraHeap allocator statistics")                            \
                                                                             \

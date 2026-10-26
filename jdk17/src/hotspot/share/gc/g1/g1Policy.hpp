@@ -98,6 +98,69 @@ class G1Policy: public CHeapObj<mtGC> {
 
   uint _free_regions_at_end_of_collection;
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  // H2 (SH) predictions of the old regions chosen for the current mixed
+  // GC, for the [H2_CSET] statistics line, and the state that decides
+  // whether the next mixed GC predicts the H2 cost pessimistically
+  struct H2CSetInfo {
+    bool   conservative;            // Initial regions used the pessimistic H2 cost
+    uint   initial_regions;
+    uint   optional_regions;        // Prepared by the old region selection
+    size_t initial_h2_bytes;        // Predicted bytes to H2 of the initial regions
+    double initial_h2_ms;           // Their H2 time with the cost used
+    double initial_h2_avg_ms;       // Their H2 time with the average cost
+    size_t optional_h2_bytes;       // Predicted bytes to H2 of optional regions evacuated
+    double percentile_ms_per_byte;  // Recent H2 costs at the selection
+    double median_ms_per_byte;
+    double avg_ms_per_byte;
+    size_t survivor_bytes;          // Survivor bytes in the collection set
+    double survivor_share;          // Learned share of them that goes to H2
+    size_t survivor_h2_bytes;       // Predicted bytes to H2 of the survivors
+    double survivor_h2_ms;          // Their H2 time, taken from the old regions' time
+    size_t eden_bytes;              // Eden bytes in the collection set
+    double eden_share;              // Learned share of them that goes to H2
+    size_t eden_h2_bytes;           // Predicted bytes to H2 of the eden regions
+    double eden_h2_ms;              // Their H2 time, taken from the old regions' time
+    bool   last_evac_failed;        // The last pause had an evacuation failure
+
+    H2CSetInfo() : last_evac_failed(false) { reset(); }
+    void reset() {
+      conservative = false;
+      initial_regions = 0; optional_regions = 0;
+      initial_h2_bytes = 0; initial_h2_ms = 0.0; initial_h2_avg_ms = 0.0;
+      optional_h2_bytes = 0;
+      percentile_ms_per_byte = 0.0; median_ms_per_byte = 0.0; avg_ms_per_byte = 0.0;
+      survivor_bytes = 0; survivor_share = 0.0; survivor_h2_bytes = 0; survivor_h2_ms = 0.0;
+      eden_bytes = 0; eden_share = 0.0; eden_h2_bytes = 0; eden_h2_ms = 0.0;
+    }
+  };
+  H2CSetInfo _h2_cset;
+
+  // True if the initial old regions of the next mixed GC should use the
+  // pessimistic H2 cost: TeraH2CostPercentile is on, the last pause had
+  // no evacuation failure, and the last pause left more free regions than
+  // the reserve. Otherwise G1 reclaims space with the average H2 cost.
+  bool use_conservative_h2_cost() const;
+
+public:
+  // Predicted H2 copy time (ms) of the young regions of a mixed GC, with
+  // `survivor_bytes` survivor and `eden_bytes` eden bytes in the collection
+  // set; 0 outside the mixed phase. The collection set takes it from the
+  // time left for the old regions. Labeled objects in young regions move
+  // to H2 in mixed GCs, but no h2_marked_bytes counts them. Call it once
+  // per pause.
+  double predict_young_h2_copy_time_ms(size_t survivor_bytes, size_t eden_bytes);
+
+private:
+  // Count an initial old region in _h2_cset
+  void add_h2_initial_region(size_t h2_bytes, bool h2_conservative, bool cm);
+
+  // Print the [H2_CSET] line of a mixed GC (TeraHeapStatistics), with the
+  // bytes moved to H2 from eden, survivor and old regions
+  void print_h2_cset_info(size_t h2_bytes, double h2_ms, size_t eden_h2_bytes,
+                          size_t survivor_h2_bytes, size_t old_h2_bytes) const;
+#endif
+
   // These values are predictions of how much we think will survive in each
   // section of the heap.
   size_t _predicted_surviving_bytes_from_survivor;
@@ -134,6 +197,13 @@ public:
     hr->install_surv_rate_group(_survivor_surv_rate_group);
   }
 
+  // True if the young region `hr` was a survivor region before this pause.
+  // At the start of the pause convert_to_eden() relabels the survivors as
+  // eden, but they keep the survivor rate group until the pause frees them.
+  bool was_survivor_region(const HeapRegion* hr) const {
+    return hr->surv_rate_group() == _survivor_surv_rate_group;
+  }
+
   void record_rs_length(size_t rs_length) {
     _rs_length = rs_length;
   }
@@ -143,13 +213,14 @@ public:
 private:
   double predict_base_elapsed_time_ms(size_t num_pending_cards, size_t rs_length) const;
 
-  double predict_region_copy_time_ms(HeapRegion* hr) const;
+  // With h2_conservative, the H2 part uses the pessimistic H2 cost
+  double predict_region_copy_time_ms(HeapRegion* hr, bool h2_conservative = false) const;
 
 public:
 
   double predict_eden_copy_time_ms(uint count, size_t* bytes_to_copy = NULL) const;
   double predict_region_non_copy_time_ms(HeapRegion* hr, bool for_young_gc) const;
-  double predict_region_total_time_ms(HeapRegion* hr, bool for_young_gc) const;
+  double predict_region_total_time_ms(HeapRegion* hr, bool for_young_gc, bool h2_conservative = false) const;
 
   void cset_regions_freed() {
     bool update = should_update_surv_rate_group_predictors();

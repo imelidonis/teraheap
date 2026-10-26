@@ -32,6 +32,16 @@ public:
   };
 #endif
 
+  // Where an object moved to H2 by a young/mixed GC came from. Survivor
+  // regions are relabeled as eden at the start of the pause, so the
+  // source is taken from the region's survival rate group.
+  enum h2_source {
+    h2_src_eden = 0,
+    h2_src_survivor,
+    h2_src_old,
+    h2_src_count
+  };
+
 private:
   long  total_objects_moved;               
   long  total_objects_size; 
@@ -48,6 +58,10 @@ private:
 
   // bytes copied to H2 from each thread
   size_t* thr_bytes_copy_h2;
+
+  // bytes copied to H2 from each thread per source region type,
+  // indexed [thread_id * h2_src_count + source]
+  size_t* thr_bytes_copy_h2_src;
 
   // number of cocnurrent marking cycle
   size_t conc_cycle_id;
@@ -171,6 +185,15 @@ public:
 
   // Get the total bytes that were copied TO h2
   size_t get_sum_thr_bytes_copy_h2();
+
+  // Add the bytes of an object that a thread copied to H2 from a region
+  // of type `src`
+  void thr_add_bytes_copy_h2_src(uint thread_id, enum h2_source src, size_t bytes) {
+    thr_bytes_copy_h2_src[thread_id * h2_src_count + src] += bytes;
+  }
+
+  // Get the total bytes that were copied to H2 from regions of type `src`
+  size_t get_sum_thr_bytes_copy_h2_src(enum h2_source src);
 
   // Which number of concurrent marking cycle
   void record_cycle_no(size_t cocn_cycle_no) {

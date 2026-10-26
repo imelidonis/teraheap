@@ -662,7 +662,9 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
 
   if (TeraHeapStatistics) {
     Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*HeapWordSize );
+  }
 
+  if (TeraHeap::h2_cost_timers()) {
     Ticks start = Ticks::now();
 
     h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id);
@@ -705,7 +707,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   // Copy object to H2
   // ----------------------------------
 
-  if (TeraHeapStatistics) {
+  if (TeraHeap::h2_cost_timers()) {
     Ticks start = Ticks::now();
 
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);
@@ -716,6 +718,13 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   #endif
   
     Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2(_worker_id, word_sz * HeapWordSize);
+
+    TeraStatistics::h2_source src = TeraStatistics::h2_src_old;
+    if (region_attr.is_young()) {
+      src = _g1h->policy()->was_survivor_region(_g1h->heap_region_containing(obj)) ?
+        TeraStatistics::h2_src_survivor : TeraStatistics::h2_src_eden;
+    }
+    Universe::teraHeap()->get_tera_stats()->thr_add_bytes_copy_h2_src(_worker_id, src, word_sz * HeapWordSize);
  
   } else {
     Universe::teraHeap()->h2_move_obj(cast_from_oop<HeapWord*>(obj), h2_obj_addr, word_sz);

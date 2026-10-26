@@ -561,6 +561,9 @@ public:
 
   bool has_surv_rate_group() const;
 
+  // The survival rate group of this young region, NULL if none
+  const G1SurvRateGroup* surv_rate_group() const { return _surv_rate_group; }
+
   double surv_rate_prediction(G1Predictions const& predictor) const;
 
   void install_surv_rate_group(G1SurvRateGroup* surv_rate_group);

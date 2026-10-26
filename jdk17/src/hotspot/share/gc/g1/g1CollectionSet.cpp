@@ -432,6 +432,14 @@ double G1CollectionSet::finalize_young_part(double target_pause_time_ms, G1Survi
   uint survivor_region_length = survivors->length();
   init_region_lengths(eden_region_length, survivor_region_length);
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+  // Before convert_to_eden() clears the survivor bytes
+  const double young_h2_time_ms =
+    _policy->predict_young_h2_copy_time_ms(survivors->used_bytes(), _g1h->eden_regions_used_bytes());
+#else
+  const double young_h2_time_ms = 0.0;
+#endif
+
   verify_young_cset_indices();
 
   // Clear the fields that point to the survivor list - they are all young now.
@@ -445,7 +453,7 @@ double G1CollectionSet::finalize_young_part(double target_pause_time_ms, G1Survi
 
   double predicted_base_time_ms = _policy->predict_base_elapsed_time_ms(pending_cards);
   double predicted_eden_time = _inc_predicted_non_copy_time_ms + _policy->predict_eden_copy_time_ms(eden_region_length);
-  double remaining_time_ms = MAX2(target_pause_time_ms - (predicted_base_time_ms + predicted_eden_time), 0.0);
+  double remaining_time_ms = MAX2(target_pause_time_ms - (predicted_base_time_ms + predicted_eden_time + young_h2_time_ms), 0.0);
 
   log_trace(gc, ergo, cset)("Added young regions to CSet. Eden: %u regions, Survivors: %u regions, "
                             "predicted eden time: %1.2fms, predicted base time: %1.2fms, target pause time: %1.2fms, remaining time: %1.2fms",

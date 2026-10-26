@@ -46,7 +46,10 @@ TeraHeap::TeraHeap() {
   obj_h1_addr = NULL;
   obj_h2_addr = NULL;
 
-  if (TeraHeapStatistics) {
+  // G1 learns the H2 copy cost from the per-worker H2 times and bytes,
+  // also without the statistics
+  tera_stats = NULL;
+  if (TeraHeapStatistics || h2_cost_timers()) {
     tera_stats = new TeraStatistics();
   }
 }
@@ -561,7 +564,7 @@ bool TeraHeap::is_h2_group_enabled() {
 // Tera statistics for objects that we move to H2, forward references,
 // and backward references.
 TeraStatistics* TeraHeap::get_tera_stats() {
-  assert(TeraHeapStatistics, "TeraHeapStatistics not enabled!");
+  assert(tera_stats != NULL, "TeraHeapStatistics and TeraH2CostPercentile not enabled!");
   return tera_stats;
 }
 

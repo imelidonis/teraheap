@@ -99,6 +99,9 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
     _cost_per_byte_ms_during_cm_seq(new TruncatedSeq(TruncatedSeqLength)),
   #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
     _h2_cost_per_byte_ms_during_cm_seq(new TruncatedSeq(TruncatedSeqLength)),
+    _h2_cost_samples(new G1H2Samples((uint) TeraH2CostSamples)),
+    _h2_survivor_share_samples(new G1H2Samples((uint) TeraH2CostSamples)),
+    _h2_eden_share_samples(new G1H2Samples((uint) TeraH2CostSamples)),
   #endif
     _recent_prev_end_times_for_all_gcs_sec(new TruncatedSeq(NumPrevPausesForHeuristics)),
     _long_term_pause_time_ratio(0.0),
@@ -222,6 +225,62 @@ void G1Analytics::report_h2_cost_per_byte_ms(double h2_cost_per_byte_ms, bool ma
     _h2_copy_cost_per_byte_ms_seq->add(h2_cost_per_byte_ms);
   }
 }
+
+// Value at percentile `pct` of the `n` sorted samples
+static double sorted_percentile(const double* sorted, uint n, uintx pct) {
+  uint idx = (uint) ceil(pct * n / 100.0);
+  idx = MIN2(MAX2(idx, 1u), n);
+  return sorted[idx - 1];
+}
+
+G1H2Samples::G1H2Samples(uint capacity) :
+  _samples(NEW_C_HEAP_ARRAY(double, capacity, mtGC)),
+  _capacity(capacity),
+  _num(0),
+  _next(0),
+  _percentile(0.0),
+  _median(0.0) {
+  assert(capacity >= 1 && capacity <= 256, "TeraH2CostSamples range");
+}
+
+void G1H2Samples::add(double v, uintx percentile) {
+  _samples[_next] = v;
+  _next = (_next + 1) % _capacity;
+  _num = MIN2(_num + 1, _capacity);
+
+  // Sort a copy (at most 256 values, once per mixed GC)
+  double sorted[256];
+  for (uint i = 0; i < _num; i++) {
+    double x = _samples[i];
+    uint j = i;
+    while (j > 0 && sorted[j - 1] > x) {
+      sorted[j] = sorted[j - 1];
+      j--;
+    }
+    sorted[j] = x;
+  }
+
+  // Too few samples for a percentile: be pessimistic
+  if (_num < 8) {
+    _percentile = sorted[_num - 1];
+    _median = sorted[_num - 1];
+  } else {
+    _percentile = sorted_percentile(sorted, _num, percentile);
+    _median = sorted_percentile(sorted, _num, 50);
+  }
+}
+
+void G1Analytics::report_h2_cost_sample(double h2_cost_per_byte_ms) {
+  _h2_cost_samples->add(h2_cost_per_byte_ms, TeraH2CostPercentile);
+}
+
+void G1Analytics::report_h2_survivor_share(double share) {
+  _h2_survivor_share_samples->add(MIN2(MAX2(share, 0.0), 1.0), 50);
+}
+
+void G1Analytics::report_h2_eden_share(double share) {
+  _h2_eden_share_samples->add(MIN2(MAX2(share, 0.0), 1.0), 50);
+}
 #endif
 
 void G1Analytics::report_young_other_cost_per_region_ms(double other_cost_per_region_ms) {
@@ -317,6 +376,14 @@ double G1Analytics::predict_h2_object_copy_time_ms(size_t h2_bytes_to_copy, bool
   } else {
     return h2_bytes_to_copy * predict_zero_bounded(_h2_copy_cost_per_byte_ms_seq);
   }
+}
+
+double G1Analytics::predict_h2_object_copy_time_ms_conservative(size_t h2_bytes_to_copy, bool during_concurrent_mark) const {
+  const double avg_ms = predict_h2_object_copy_time_ms(h2_bytes_to_copy, during_concurrent_mark);
+  if (TeraH2CostPercentile == 0 || _h2_cost_samples->num() == 0) {
+    return avg_ms;
+  }
+  return MAX2(avg_ms, h2_bytes_to_copy * _h2_cost_samples->percentile());
 }
 #endif
 

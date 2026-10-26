@@ -981,7 +981,7 @@ public:
 
     //do not measure the time for h2 consumed during rem sets, beacuse g1 doesnot too
     #ifdef TWO_FACTOR_COST_MODEL_IN_CSET 
-      if (EnableTeraHeap && TeraHeapStatistics) {
+      if (TeraHeap::h2_cost_timers()) {
         Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id,2);
       }
     #endif
@@ -996,7 +996,7 @@ public:
 
  //init the flag, so for strong code roots phase, the h2 time will be taken into consideration, since g1 does too. 
     #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-      if (EnableTeraHeap && TeraHeapStatistics) {
+      if (TeraHeap::h2_cost_timers()) {
         Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(_worker_id, 0);
       }
     #endif

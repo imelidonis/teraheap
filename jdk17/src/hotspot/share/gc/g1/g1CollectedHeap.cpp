@@ -3073,7 +3073,13 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
     Universe::teraHeap()->get_tera_stats()->print_gc_stats();
 
   } else {
-    do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
+    do_collection_pause_at_safepoint_helper(target_pause_time_ms);
+
+    // Without the statistics nothing prints the counters, which also
+    // resets them: reset the per-pause H2 times and bytes here
+    if (TeraHeap::h2_cost_timers()) {
+      Universe::teraHeap()->get_tera_stats()->reset_counters();
+    }
   }
 
   return true;
@@ -3249,7 +3255,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         }
 #endif
         #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-          if (EnableTeraHeap && TeraHeapStatistics) {
+          if (TeraHeap::h2_cost_timers()) {
             Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::inital_evac_phase);
           }
         #endif
@@ -3259,7 +3265,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
 
         if (may_do_optional_evacuation) { 
         #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-          if (EnableTeraHeap && TeraHeapStatistics) {
+          if (TeraHeap::h2_cost_timers()) {
             Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::optional_evac_phase);
           }
         #endif
@@ -3267,7 +3273,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         }
 
         #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-          if (EnableTeraHeap && TeraHeapStatistics) {
+          if (TeraHeap::h2_cost_timers()) {
             Universe::teraHeap()->get_tera_stats()->set_which_phase(TeraStatistics::dummy);
           }
         #endif
@@ -3855,7 +3861,7 @@ protected:
     Ticks start = Ticks::now();
     
   #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    if (EnableTeraHeap && TeraHeapStatistics) {
+    if (TeraHeap::h2_cost_timers()) {
       Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(worker_id, 1);
     }
   #endif
@@ -3866,7 +3872,7 @@ protected:
     assert(pss->queue_is_empty(), "should be empty");
 
   #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    if (EnableTeraHeap && TeraHeapStatistics) {
+    if (TeraHeap::h2_cost_timers()) {
       Universe::teraHeap()->get_tera_stats()->set_during_h1_time_flag(worker_id, 0);
     }
   #endif

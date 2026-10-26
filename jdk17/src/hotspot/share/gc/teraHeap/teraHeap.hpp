@@ -61,6 +61,17 @@ private:
 
   static CardTable* th_card_table(void);
 public:
+  // True if the GC workers time their H2 (SH) evacuation work and count the
+  // bytes they move to H2: for the statistics, or for the H2 copy cost
+  // that G1 learns and uses to choose the collection set
+  static bool h2_cost_timers() {
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    return EnableTeraHeap && (TeraHeapStatistics || TeraH2CostPercentile > 0);
+#else
+    return false;
+#endif
+  }
+
   // Constructor
   TeraHeap();
 

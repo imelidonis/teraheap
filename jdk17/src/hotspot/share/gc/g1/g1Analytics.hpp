@@ -31,6 +31,27 @@
 class TruncatedSeq;
 class G1Predictions;
 
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+// The last `capacity` samples of a TeraHeap quantity, in a ring buffer,
+// with their median and a percentile updated on each add. With fewer than
+// 8 samples both are the maximum sample (pessimistic).
+class G1H2Samples : public CHeapObj<mtGC> {
+  double* _samples;
+  uint _capacity;
+  uint _num;
+  uint _next;
+  double _percentile;
+  double _median;
+
+public:
+  G1H2Samples(uint capacity);
+  void add(double v, uintx percentile);
+  uint num() const { return _num; }
+  double percentile() const { return _percentile; }
+  double median() const { return _median; }
+};
+#endif
+
 class G1Analytics: public CHeapObj<mtGC> {
   const static int TruncatedSeqLength = 10;
   const static int NumPrevPausesForHeuristics = 10;
@@ -76,6 +97,19 @@ class G1Analytics: public CHeapObj<mtGC> {
   TruncatedSeq* _cost_per_byte_ms_during_cm_seq;
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   TruncatedSeq* _h2_cost_per_byte_ms_during_cm_seq;
+
+  // The H2 copy cost per byte (ms) of the last TeraH2CostSamples mixed GCs
+  // that moved enough bytes to H2 (TeraH2CostPercentile and median)
+  G1H2Samples* _h2_cost_samples;
+
+  // Share of the survivor bytes in the collection set that mixed GCs move
+  // to H2: objects labeled for H2 after marking, which the marking did not
+  // count in any region's h2_marked_bytes (median)
+  G1H2Samples* _h2_survivor_share_samples;
+
+  // Share of the eden bytes in the collection set that mixed GCs move to
+  // H2: objects that are already labeled for H2 in eden (median)
+  G1H2Samples* _h2_eden_share_samples;
 #endif
 
   // Statistics kept per GC stoppage, pause or full.
@@ -136,6 +170,25 @@ public:
   void report_cost_per_byte_ms(double cost_per_byte_ms, bool mark_or_rebuild_in_progress);
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   void report_h2_cost_per_byte_ms(double h2_cost_per_byte_ms, bool mark_or_rebuild_in_progress);
+
+  // Add the H2 copy cost per byte of a mixed GC to the recent samples
+  void report_h2_cost_sample(double h2_cost_per_byte_ms);
+
+  uint h2_cost_num_samples() const { return _h2_cost_samples->num(); }
+  // The TeraH2CostPercentile and the median of the recent H2 costs per
+  // byte (ms). With fewer than 8 samples both are the maximum sample.
+  double h2_cost_percentile_per_byte_ms() const { return _h2_cost_samples->percentile(); }
+  double h2_cost_median_per_byte_ms() const { return _h2_cost_samples->median(); }
+
+  // Add the share of the survivor bytes that a mixed GC moved to H2
+  void report_h2_survivor_share(double share);
+  // The median recent share (0 before the first sample)
+  double h2_survivor_share() const { return _h2_survivor_share_samples->median(); }
+
+  // Add the share of the eden bytes that a mixed GC moved to H2
+  void report_h2_eden_share(double share);
+  // The median recent share (0 before the first sample)
+  double h2_eden_share() const { return _h2_eden_share_samples->median(); }
 #endif
   void report_young_other_cost_per_region_ms(double other_cost_per_region_ms);
   void report_non_young_other_cost_per_region_ms(double other_cost_per_region_ms);
@@ -165,6 +218,10 @@ public:
   double predict_object_copy_time_ms(size_t bytes_to_copy, bool during_concurrent_mark) const;
 #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
   double predict_h2_object_copy_time_ms(size_t h2_bytes_to_copy, bool during_concurrent_mark) const;
+
+  // Pessimistic H2 copy time: with the TeraH2CostPercentile of the recent
+  // H2 costs, and never lower than predict_h2_object_copy_time_ms()
+  double predict_h2_object_copy_time_ms_conservative(size_t h2_bytes_to_copy, bool during_concurrent_mark) const;
 #endif
 
   double predict_constant_other_time_ms() const;

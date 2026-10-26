@@ -482,6 +482,14 @@ void PSCardTable::h2_scavenge_contents_parallel(
           else 
           {
             last_object_in_dirty_region = start_array->th_object_start(addr_for(current_card)-1);
+
+            if (cast_to_oop(last_object_in_dirty_region)->is_objArray()) {
+              // Object arrays are scanned only inside the cards of the
+              // run (h2_scan_card_range), so the run does not need to
+              // cover the rest of the array.
+              break;
+            }
+
             size_of_last_object = cast_to_oop(last_object_in_dirty_region)->size();
             end_of_last_object = last_object_in_dirty_region + size_of_last_object;
           }
@@ -500,78 +508,15 @@ void PSCardTable::h2_scavenge_contents_parallel(
       // This is the next clean card, after a series of dirty cards
 			CardValue* following_clean_card = current_card;
       if (first_unclean_card < worker_end_card && Universe::teraHeap()->check_if_valid_object(addr_for(first_unclean_card))) {
-        oop* p = NULL;
-        if (Universe::teraHeap()->is_start_of_region(addr_for(first_unclean_card))){
-          p = (oop*) addr_for(first_unclean_card); // p= the obj is at the beggining of the card 
-        } else {
-          p = (oop*) start_array->th_object_start(addr_for(first_unclean_card)); // p= the obj overlaps over 2 cards. we scroll back from the start of he card, to find he begining of he obj 
-        }
-        assert((HeapWord*)p <= addr_for(first_unclean_card), "checking");
-
-				// "p" should always be >= "last_scanned" because newly GC
-				// dirtied cards are no longer scanned again (see comments at
-				// end of loop on the increment of "current_card"). Test that
-				// hypothesis before removing this code.
-				// If this code is removed, deal with the first time through the
-				// loop when the last_scanned is the object starting in the
-				// previous slices.
-				assert((p >= last_scanned) ||
-			    			(last_scanned == first_object_within_slice),
-						"Should no longer be possible");
-				if (p < last_scanned) {
-					// Avoid scanning more than once; this can happen because
-					// newgen cards set by GC may a different set than the
-					// originally dirty set
-					p = last_scanned;
-				}
-
-				oop* to = (oop*)addr_for(following_clean_card);
-        
-        if (to > sp_top) {
-          to = sp_top;
-        }
-                
         assert(first_unclean_card >= worker_start_card, 
                 "first unclean card is less than worker start card");
         assert(following_clean_card <= worker_end_card,
                "Following clean card: %p must be less than worker end card %p",
                following_clean_card, worker_end_card);
 
-        
-       
-        //clear all the dirty cards in the sequence we found
-        //dirty cards are the non-clean cards found for the corresponding collection
-        //Later on they become old/young or stay clean
-				while (first_unclean_card < following_clean_card) {
-					*first_unclean_card++ = clean_card;
-				}
-
-       
-        // p : the first obj in the dirty card sequence
-        // to: the following-obj after the top-obj
-        // traverse all the objects in between and find all the back ptrs
-				while (p < to) {          
-					oop m = cast_to_oop(p);
-
-          assert(!Universe::teraHeap()->is_metadata(m), "its metadata");
-
-					assert(oopDesc::is_oop_or_null(m), "check for header");
-         
-          //if its typeArray then it doesnt have refs in it. No need to scan it
-          if(!m->klass()->is_typeArray_klass()){ 
-            m->oop_iterate_backwards(cl);
-            // cl->th_trim_queue_partially();           
-          }
-
-          if (!Universe::teraHeap()->check_if_valid_object((HeapWord *)p + m->size()))
-            break;
-          
-					p += m->size();
-
-				}
-
-				last_scanned = p;
-			}
+        last_scanned = h2_scan_card_range(cl, first_unclean_card, following_clean_card,
+                                          last_scanned, first_object_within_slice, sp_top);
+      }
 			// "current_card" is still the "following_clean_card" or
 			// the current_card is >= the worker_end_card so the
 			// loop will not execute again.
@@ -587,6 +532,108 @@ void PSCardTable::h2_scavenge_contents_parallel(
 		}
 	} 
   
+}
+
+// Scan the H2 cards [first, last) as roots: clean them, then visit
+// every reference slot located on them with 'cl'. 'cl' re-tags each
+// card it finds a backward reference on (young/old), so after this call
+// a card is clean only if it holds no H2->H1 reference.
+//
+// Which part of each object overlapping the cards is visited:
+//  - object arrays: only the elements inside the cards. Every barrier
+//    path marks array stores on the card of the element itself
+//    (interpreter, C1, C2, array-copy stubs), so the other cards of the
+//    array are scanned when they are themselves non-clean.
+//  - other objects: the whole object. C1 and C2 mark an instance-field
+//    store on the card of the object header, so a dirty card may stand
+//    for a field located on a later card.
+//  - type arrays: nothing (no references).
+//
+// 'last_scanned' is where the previous run of the same worker stopped:
+// objects before it were already scanned whole and are skipped. Pass
+// NULL when the run is scanned on its own. Returns the position for the
+// next run: the end of the last object scanned whole, or the start of
+// an object array that continues after 'last' (so that the next run
+// scans its own part of the array).
+oop* PSCardTable::h2_scan_card_range(H2ToH1Closure* cl,
+                                     CardValue* first,
+                                     CardValue* last,
+                                     oop* last_scanned,
+                                     oop* first_object_within_slice,
+                                     oop* sp_top) {
+  ObjectStartArray* start_array = Universe::teraHeap()->h2_start_array();
+  HeapWord* const run_start = addr_for(first);
+
+  // First object that overlaps the run
+  oop* p = NULL;
+  if (Universe::teraHeap()->is_start_of_region(run_start)) {
+    p = (oop*) run_start;                             // object starts at the card
+  } else {
+    p = (oop*) start_array->th_object_start(run_start); // object starts in an earlier card
+  }
+  assert((HeapWord*)p <= run_start, "checking");
+
+  // "p" should always be >= "last_scanned" because newly GC
+  // dirtied cards are no longer scanned again (see comments at
+  // end of loop on the increment of "current_card"). Test that
+  // hypothesis before removing this code.
+  // If this code is removed, deal with the first time through the
+  // loop when the last_scanned is the object starting in the
+  // previous slices.
+  assert(last_scanned == NULL || (p >= last_scanned) ||
+         (last_scanned == first_object_within_slice),
+         "Should no longer be possible");
+  if (last_scanned != NULL && p < last_scanned) {
+    // Avoid scanning more than once; this can happen because
+    // newgen cards set by GC may a different set than the
+    // originally dirty set
+    p = last_scanned;
+  }
+
+  oop* to = (oop*) addr_for(last);
+  if (to > sp_top) {
+    to = sp_top;
+  }
+
+  // The part of H2 this run covers. Object arrays are clipped to it.
+  const MemRegion mr(run_start, (HeapWord*) to);
+
+  // Clean the cards of the run. They become old/young again if 'cl'
+  // finds a backward reference on them, or stay clean.
+  for (CardValue* c = first; c < last; c++) {
+    *c = clean_card;
+  }
+
+  // p : the first obj in the dirty card sequence
+  // to: the end of the run
+  // traverse all the objects in between and find all the back ptrs
+  while (p < to) {
+    oop m = cast_to_oop(p);
+
+    assert(!Universe::teraHeap()->is_metadata(m), "its metadata");
+    assert(oopDesc::is_oop_or_null(m), "check for header");
+
+    if (m->is_objArray()) {
+      // Only the elements on the cards of this run
+      m->oop_iterate(cl, mr);
+
+      if ((oop*) ((HeapWord*) p + m->size()) > to) {
+        // The array continues after this run. Return its start, so the
+        // next run of this worker scans its own part of the array.
+        return p;
+      }
+    } else if (!m->klass()->is_typeArray_klass()) {
+      // Whole object (imprecise card marks, see above)
+      m->oop_iterate_backwards(cl);
+    }
+
+    if (!Universe::teraHeap()->check_if_valid_object((HeapWord *)p + m->size()))
+      break;
+
+    p += m->size();
+  }
+
+  return p;
 }
 #endif
 

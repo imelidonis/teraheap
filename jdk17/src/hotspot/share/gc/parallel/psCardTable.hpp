@@ -90,6 +90,16 @@ class PSCardTable: public CardTable {
                                   bool scan_old
                                   // ,G1ParScanThreadState* pss
                                   );
+
+  // Scan the H2 cards [first, last) as roots: clean them, then visit the
+  // reference slots on them with 'cl' (object arrays only inside the
+  // cards, other objects whole). See psCardTable.cpp for details.
+  oop* h2_scan_card_range(H2ToH1Closure* cl,
+                          CardValue* first,
+                          CardValue* last,
+                          oop* last_scanned,
+                          oop* first_object_within_slice,
+                          oop* sp_top);
 #endif //TERA_CARDS
 
   bool addr_is_marked_imprecise(void *addr);

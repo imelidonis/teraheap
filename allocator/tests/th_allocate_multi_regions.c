@@ -34,7 +34,7 @@ int main() {
   char *obj1, *obj2, *obj3, *obj4, *obj5, *obj6;
 
   // Init allocator
-  init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4);
+  init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 1);
 
   //obj1 should be in region 0
   obj1 = allocate(1, 0, 0, 0);

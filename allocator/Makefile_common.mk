@@ -4,7 +4,7 @@
 # file: Makefile_common.mk
 #
 # @Author:   Iacovos G. Kolokasis
-# @Version:  09-03-2021 
+# @Version:  09-03-2021
 # @email:    kolokasis@ics.forth.gr
 #
 ###################################################
@@ -18,44 +18,40 @@ INSTALL_PREFIX := /usr/local
 SRCDIR = $(PREFIX)/src
 TESTDIR = $(PREFIX)/tests
 LIBDIR = $(PREFIX)/lib
+BINDIR = $(PREFIX)/bin
 INCLUDEDIR = $(PREFIX)/include
 
-## Depended files
-LIBHEADERS =  $(INCLUDEDIR)/regions.h $(INCLUDEDIR)/asyncIO.h $(INCLUDEDIR)/segments.h $(INCLUDEDIR)/sllist.h $(INCLUDEDIR)/shadow.h
-LIBREGIONSOBJS = $(SRCDIR)/regions.o $(SRCDIR)/asyncIO.o $(SRCDIR)/segments.o $(SRCDIR)/sllist.o $(SRCDIR)/shadow.o
-REGIONSLIBRARY = $(LIBDIR)/libregions.so
+## Library
+LIBNAME = regions
+LIBRARY = $(LIBDIR)/lib$(LIBNAME).so
+LIBOBJS = $(SRCDIR)/regions.o $(SRCDIR)/asyncIO.o $(SRCDIR)/segments.o $(SRCDIR)/sllist.o $(SRCDIR)/shadow.o
 
-TH_ALLOCATE_OBJ = $(TESTDIR)/th_allocate.o
-TH_GROUP_OBJ = $(TESTDIR)/th_group.o
-TH_FREE_OBJ = $(TESTDIR)/th_free.o
-TH_SYNC_OBJ = $(TESTDIR)/th_sync_write.o
-TH_ASYNC_OBJ = $(TESTDIR)/th_async_write.o
-TH_ALLOCATE_MULTI_REGION = $(TESTDIR)/th_allocate_multi_regions.o
-TH_SHADOW_OBJ = $(TESTDIR)/th_shadow.o
+## Tests: every tests/th_*.c becomes bin/th_*.bin
+TEST_SRCS = $(wildcard $(TESTDIR)/th_*.c)
+TEST_OBJS = $(TEST_SRCS:.c=.o)
+TEST_BINS = $(patsubst $(TESTDIR)/%.c,$(BINDIR)/%.bin,$(TEST_SRCS))
 
-TH_ALLOCATE_EXE = th_allocate.bin
-TH_GROUP_EXE = th_group.bin
-TH_FREE_EXE = th_free.bin
-TH_SYNC_EXE = th_sync_write.bin
-TH_ASYNC_EXE = th_async_write.bin
-TH_ALLOCATE_MULTI_REGION_EXE = th_allocate_multi_regions.bin
-TH_SHADOW_EXE = th_shadow.bin
+## Directory where the tests create the H2 file (passed as the first argument)
+TEST_H2_DIR ?= /mnt/fmap/
 
 CC = gcc
 
 ## Flags
-BINFLAG = -c
-DEBUGFLAG = -g
-OFLAG = -o
 WALLFLAG = -Wall -Werror -pedantic
 OPTIMIZEFLAG = -O3
+# Write a .d file next to each object so that a header change rebuilds it
+DEPFLAGS = -MMD -MP
 AIOFLAG = -lrt -pthread
 
+# DEBUG=1 (build.sh -d, make debug): debug symbols, no optimization, asserts on
+ifeq ($(DEBUG),1)
+OPTIMIZEFLAG = -g -O0 -DASSERT
+endif
+
 LDFLAGS = $(AIOFLAG)
-CFLAGS = $(BINFLAG) $(WALLFLAG) $(OPTIMIZEFLAG)
+CFLAGS = -c -fPIC -I$(INCLUDEDIR) $(DEPFLAGS) $(WALLFLAG) $(OPTIMIZEFLAG)
 
 ## Commands
 RM = rm -fr
-AR = ar -r
 CP = cp
 MKDIR = mkdir -p

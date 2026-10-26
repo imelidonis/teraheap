@@ -360,30 +360,26 @@ void TeraHeap::h2_print_objects_per_region() {
 	}
 }
 
-// Frees all unused regions
+// h2_free_regions() callback: clear the start array and the cards of a freed
+// region. `last_alloc_end` is an exclusive end (one past the last valid heap
+// word).
+void TeraHeap::h2_region_freed(char *region_start, char *last_alloc_start,
+                               char *last_alloc_end, void *ctx) {
+  TeraHeap* const th = static_cast<TeraHeap*>(ctx);
+  HeapWord* const start               = reinterpret_cast<HeapWord*>(region_start);
+  HeapWord* const last_start          = reinterpret_cast<HeapWord*>(last_alloc_start);
+  HeapWord* const last_alloc_end_excl = reinterpret_cast<HeapWord*>(last_alloc_end);
+
+  th->_start_array.th_region_reset(start, last_start);
+
+  // Convert the exclusive end to an inclusive end by subtracting one heap word.
+  th_card_table()->th_clean_cards(start, last_alloc_end_excl - 1, true /* free regions */);
+}
+
+// Frees all unused regions. The allocator protects the freed regions itself
+// when ProtectH2RegionsOnFree is set.
 void TeraHeap::free_unused_regions(void) {
-	CardTable* const ct = th_card_table();
-
-  struct region_list *region = ::h2_free_regions();
-  while (region != NULL) {
-    region_list* const next = region->next;
-
-    HeapWord* const region_start        = reinterpret_cast<HeapWord*>(region->region_start);
-    HeapWord* const last_alloc_start    = reinterpret_cast<HeapWord*>(region->last_allocated_start);
-    HeapWord* const last_alloc_end_excl = reinterpret_cast<HeapWord*>(region->last_allocated_end);
-
-    _start_array.th_region_reset(region_start, last_alloc_start);
-
-    // `last_alloc_end_excl` is an exclusive end (one past the last valid heap
-    // word). Convert to an inclusive end by subtracting one heap word.
-    ct->th_clean_cards(region_start, last_alloc_end_excl - 1, true /* free regions */);
-
-    if (ProtectH2RegionsOnFree)
-      ::make_region_inaccessible(region->region_start, GCId::current());
-
-    free(region);
-    region = next;
-  }
+  ::h2_free_regions(&TeraHeap::h2_region_freed, this);
 
   if (TeraHeapStatistics)
     tera_stats->set_reclaimed_region_count(::h2_num_reclaimed_regions());

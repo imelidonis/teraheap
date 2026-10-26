@@ -96,7 +96,7 @@ int main() {
   h2_mark_used(obj8);
 
   //nothing should be freed because all regions belong to the same tera_group 
-  h2_free_regions();
+  h2_free_regions(NULL, NULL);
   assertf(total_allocated_regions() == 4, "Number of allocated regions is incorrect");
 
   print_regions();
@@ -108,7 +108,7 @@ int main() {
   assertf(total_used_regions() == 3,
           "Number of used regions is incorrect %lu", total_used_regions());
 
-  h2_free_regions();
+  h2_free_regions(NULL, NULL);
   assertf(total_allocated_regions() == 3,
           "Number of allocated regions is incorrect %lu", total_used_regions());
   print_regions();
@@ -117,7 +117,7 @@ int main() {
   h2_reset_used();
   assertf(total_used_regions() == 0, "Number of used regions is incorrect");
   //all regions should be freed
-  h2_free_regions();
+  h2_free_regions(NULL, NULL);
   assertf(total_allocated_regions() == 0,
           "Number of allocated regions is incorrect");
   print_regions();

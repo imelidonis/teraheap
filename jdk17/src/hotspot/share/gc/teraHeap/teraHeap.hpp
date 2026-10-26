@@ -61,6 +61,11 @@ private:
 
   static CardTable* th_card_table(void);
 
+  // h2_free_regions() callback (ctx: the TeraHeap): clears the start array
+  // and the cards of a freed region
+  static void h2_region_freed(char *region_start, char *last_alloc_start,
+                              char *last_alloc_end, void *ctx);
+
   // TeraH2Shadow (allocator shadow.h): enabled, and the counters at the
   // start of the current pause for the [H2_SHADOW] line
   bool _shadow_on;

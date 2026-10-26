@@ -147,6 +147,12 @@ static void stop_mutator(void) {   // "safepoint"
 }
 
 // ---- checks ----
+// h2_free_regions() callback: count the freed regions
+static void count_freed(char *start, char *last_start, char *last_end, void *ctx) {
+  (void) start; (void) last_start; (void) last_end;
+  (*(int *) ctx)++;
+}
+
 static uint64_t expected(struct obj *o, size_t i) {
   return (o->mutated && i == o->words / 2) ? o->mut_val : pattern(o->addr + i * 8, o->gen);
 }
@@ -242,9 +248,8 @@ static int free_one_region(uint64_t *s, int shadow_only) {
     else if (o->addr < rstart && o->addr + o->words * 8 > rstart) { h2_reset_used(); return 0; }
   }
   for (long k = 0; k < n; k++) if (objs[k].live) h2_mark_used(objs[k].addr);
-  struct region_list *l = h2_free_regions();
   int freed = 0;
-  while (l) { struct region_list *nx = l->next; freed++; free(l); l = nx; }
+  h2_free_regions(count_freed, &freed);
   return freed ? dropped : 0;
 }
 

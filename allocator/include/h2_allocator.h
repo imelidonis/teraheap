@@ -92,27 +92,27 @@ int h2_is_used(uint64_t region);
 /* Reclamation                                                         */
 /* ------------------------------------------------------------------ */
 
-/* A region freed by h2_free_regions() */
-struct region_list {
-  char *region_start;
-  char *last_allocated_start;
-  char *last_allocated_end;
-  struct region_list *next;
-};
+/*
+ * Called by h2_free_regions() for each freed region that held objects:
+ * region_start, the start of its last allocated object, and the end of its
+ * last allocated object (exclusive). The region is already free (dependencies,
+ * allocation pointers and shadow chunks released); it is protected after the
+ * callback returns if h2_protect_regions_on_free(1) was set. The callback runs
+ * at a safepoint on one thread and must not call the allocator.
+ */
+typedef void (*h2_region_free_cb)(char *region_start, char *last_allocated_start,
+                                  char *last_allocated_end, void *ctx);
 
 /*
- * Free every allocated region that is not marked used. Returns a list of the
- * freed regions that held objects; the caller frees each node with free().
+ * Free every allocated region that is not marked used, and call cb(..., ctx)
+ * for each one that held objects (cb may be NULL).
  */
-struct region_list *h2_free_regions(void);
+void h2_free_regions(h2_region_free_cb cb, void *ctx);
 
 /* Number of regions freed by the last h2_free_regions() */
 unsigned int h2_num_reclaimed_regions(void);
 
-/* Remove all access to the region at region_start (debugging stale pointers) */
-void make_region_inaccessible(char *region_start, unsigned int gc_number);
-
-/* 1: freed regions are protected; their protection is removed on reuse */
+/* 1: freed regions are protected (PROT_NONE); their protection is removed on reuse */
 void h2_protect_regions_on_free(int should_protect);
 
 /* ------------------------------------------------------------------ */

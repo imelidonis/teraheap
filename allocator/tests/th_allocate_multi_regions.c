@@ -67,17 +67,17 @@ int main() {
   obj2 = h2_allocate(64000, 10, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj2);
 
-  h2_free_regions();
+  h2_free_regions(NULL, NULL);
 
   obj3 = h2_allocate(SIZE_2MB, 4, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj3);
   
-  h2_free_regions();
+  h2_free_regions(NULL, NULL);
   
   obj3 = h2_allocate(SIZE_1MB, 4, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj3);
 
-  //h2_free_regions();
+  //h2_free_regions(NULL, NULL);
 
   return 0;
 }

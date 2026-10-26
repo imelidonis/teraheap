@@ -823,16 +823,23 @@ int region_free_prot(char *addr) {
   return (protect_regions_on_free && is_free) ? PROT_NONE : (PROT_READ | PROT_WRITE);
 }
 
+/* Remove all access to a freed region (h2_protect_regions_on_free()) */
+static void make_region_inaccessible(char *region_start) {
+  fprintf(stderr, "Remove permissions for region: %lu\n", h2_region_containing_addr(region_start));
+  if (mprotect(region_start, REGION_SIZE, PROT_NONE) != 0) {
+    fprintf(stderr, "mprotect error\n");
+  }
+}
+
 /*
  * Frees all unused regions
  */
-struct region_list* h2_free_regions() {
+void h2_free_regions(h2_region_free_cb cb, void *ctx) {
 #if STATISTICS
   struct timeval t1,t2;
   gettimeofday(&t1, NULL);
 #endif
   int32_t i;
-  struct region_list *head = NULL;
   reclaimed_regions_count = 0;
   // At a safepoint: no thread reads the tables replaced by growth any more
   dep_free_retired();
@@ -848,14 +855,10 @@ struct region_list* h2_free_regions() {
       region_array[i].destination_address = NULL;
 #endif
 
-      if (region_array[i].last_allocated_start >= region_array[i].start_address) {
-        struct region_list *new_node = malloc(sizeof(struct region_list));
-        new_node->region_start = region_array[i].start_address;
-        new_node->last_allocated_start = region_array[i].last_allocated_start;
-        new_node->last_allocated_end = region_array[i].last_allocated_end;
-        new_node->next = head;
-        head = new_node;
-      }
+      // Report regions that held objects, after they are fully freed
+      char *const last_start = region_array[i].last_allocated_start;
+      char *const last_end = region_array[i].last_allocated_end;
+      const bool report = last_start >= region_array[i].start_address;
 
       region_array[i].last_allocated_end = region_array[i].start_address;
       region_array[i].last_allocated_start = NULL;
@@ -887,6 +890,13 @@ struct region_list* h2_free_regions() {
       // Its shadow chunks are dead: detach them without writing
       shadow_free_range(region_array[i].start_address, REGION_SIZE);
 
+      if (report) {
+        if (cb != NULL)
+          cb(region_array[i].start_address, last_start, last_end, ctx);
+        if (protect_regions_on_free)
+          make_region_inaccessible(region_array[i].start_address);
+      }
+
       reclaimed_regions_count++;
     }
   }
@@ -897,8 +907,6 @@ struct region_list* h2_free_regions() {
   free_elapsedtime += (t2.tv_sec - t1.tv_sec) * 1000.0;
   free_elapsedtime += (t2.tv_usec - t1.tv_usec) / 1000.0;
 #endif
-
-  return head;
 }
 
 /*
@@ -1122,14 +1130,6 @@ char* top_in_last_region() {
   }
 
   return top_reg.last_allocated_end;
-}
-
-void make_region_inaccessible(char *region_start, uint gc_number) {
-  // Remove read/write permissions
-  fprintf(stderr, "[%u] Remove permissions for region: %lu\n", gc_number, h2_region_containing_addr(region_start));
-  if (mprotect(region_start, REGION_SIZE, PROT_NONE) != 0) {
-    fprintf(stderr, "mprotect error\n");
-  }
 }
 
 uint64_t h2_region_containing_addr(char *addr) {

@@ -981,6 +981,13 @@ const intx ObjectAlignmentInBytes = 8;
           "Debug: compare every TeraH2Shadow chunk with the H2 file before "\
           "switching it")                                                   \
                                                                             \
+  product(double, TeraH2FileCostFactor, 1.0,                                \
+          "With TeraH2Shadow: factor on the learned H2 copy cost of the "   \
+          "bytes a mixed GC is predicted to write to the H2 file (beyond " \
+          "the free shadow chunks), so that G1 chooses fewer such bytes "  \
+          "while the pool is empty. 1 uses the learned cost")               \
+          range(1.0, 1000.0)                                                \
+                                                                            \
   product(bool, TeraHeapAllocatorStatistics, false,                         \
           "Print TeraHeap allocator statistics")                            \
                                                                             \

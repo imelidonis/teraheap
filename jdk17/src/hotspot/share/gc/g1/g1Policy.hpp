@@ -121,6 +121,14 @@ class G1Policy: public CHeapObj<mtGC> {
     double eden_share;              // Learned share of them that goes to H2
     size_t eden_h2_bytes;           // Predicted bytes to H2 of the eden regions
     double eden_h2_ms;              // Their H2 time, taken from the old regions' time
+    // TeraH2Shadow: predicted H2 bytes that land in free pool chunks (DRAM)
+    // cost the chunk price, the rest the file price
+    size_t budget_bytes;            // Free pool bytes at the selection
+    size_t budget_left;             // Not yet given to predicted bytes (0 outside the selection)
+    size_t pred_chunk_bytes;        // Predicted H2 bytes of the evacuated regions in chunks
+    size_t pred_file_bytes;         // ... in the H2 file
+    double chunk_ms_per_byte;       // Prices used at the selection
+    double file_ms_per_byte;
     bool   last_evac_failed;        // The last pause had an evacuation failure
 
     H2CSetInfo() : last_evac_failed(false) { reset(); }
@@ -132,6 +140,8 @@ class G1Policy: public CHeapObj<mtGC> {
       percentile_ms_per_byte = 0.0; median_ms_per_byte = 0.0; avg_ms_per_byte = 0.0;
       survivor_bytes = 0; survivor_share = 0.0; survivor_h2_bytes = 0; survivor_h2_ms = 0.0;
       eden_bytes = 0; eden_share = 0.0; eden_h2_bytes = 0; eden_h2_ms = 0.0;
+      budget_bytes = 0; budget_left = 0; pred_chunk_bytes = 0; pred_file_bytes = 0;
+      chunk_ms_per_byte = 0.0; file_ms_per_byte = 0.0;
     }
   };
   H2CSetInfo _h2_cset;
@@ -153,11 +163,23 @@ public:
 
 private:
   // Count an initial old region in _h2_cset
-  void add_h2_initial_region(size_t h2_bytes, bool h2_conservative, bool cm);
+  void add_h2_initial_region(size_t h2_bytes, bool h2_conservative);
+
+  // Predicted H2 copy time (ms) of `h2_bytes` bytes: the part that fits in
+  // the TeraH2Shadow budget left at the chunk price, the rest at the file
+  // price. Without shadow (budget 0) all bytes cost the file price.
+  double predict_h2_copy_time_ms(size_t h2_bytes, bool h2_conservative) const;
+
+  // TeraH2FileCostFactor with TeraH2Shadow, else 1
+  double h2_file_cost_factor() const;
+
+  // Give `h2_bytes` predicted bytes the budget they use; with `count` they
+  // are counted in the predicted chunk / file bytes of this pause
+  void use_h2_budget(size_t h2_bytes, bool count);
 
   // Print the [H2_CSET] line of a mixed GC (TeraHeapStatistics), with the
   // bytes moved to H2 from eden, survivor and old regions, and the bytes
-  // and time per destination (TeraH2Shadow pool chunk / H2 file)
+  // and time per destination (pool chunk / H2 file)
   void print_h2_cset_info(size_t h2_bytes, double h2_ms, size_t eden_h2_bytes,
                           size_t survivor_h2_bytes, size_t old_h2_bytes,
                           size_t chunk_bytes, double chunk_ms,

@@ -306,6 +306,11 @@ public:
   // chunks back to the H2 file. In a mixed GC new H2 space gets chunks.
   void h2_shadow_pause_start(bool mixed);
 
+  // TeraH2Shadow, in a mixed GC after h2_shadow_pause_start(): the bytes
+  // that can still be copied to H2 into free pool chunks (DRAM); the rest
+  // goes to the H2 file. 0 if shadow is off or the pause is not a mixed GC.
+  size_t h2_shadow_budget_bytes() const;
+
   // TeraH2Shadow: true if H2 address `addr` is in a pool chunk (DRAM)
   bool h2_shadow_is_chunk(HeapWord* addr) const {
     return _shadow_on && shadow_is_attached((char*) addr);

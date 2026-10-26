@@ -33,7 +33,10 @@ int sll_push_front(SLinkedList *list, void *value) {
     return -1;
 
   n->next    = list->head;
-  list->head = n;
+  // Publish the node only after its fields are written: readers walk
+  // the list without the writers' lock (e.g. is_in_the_same_group()).
+  // A plain store lets the compiler (at -O3) set the head first.
+  __atomic_store_n(&list->head, n, __ATOMIC_RELEASE);
   list->size++;
   return 0;
 }
@@ -66,7 +69,8 @@ int sll_delete(SLinkedList *list, const void *value) {
 void *sll_find(const SLinkedList *list, const void *value) {
   assert(list != NULL);
 
-  for (SLLNode *curr = list->head; curr; curr = curr->next) {
+  // Acquire pairs with the release in sll_push_front()
+  for (SLLNode *curr = __atomic_load_n(&list->head, __ATOMIC_ACQUIRE); curr; curr = curr->next) {
     if (list->cmp(curr->value, value) == 0)
       return curr->value;
   }
@@ -76,7 +80,8 @@ void *sll_find(const SLinkedList *list, const void *value) {
 int sll_contains(const SLinkedList *list, const void *value) {
   assert(list != NULL);
 
-  for (SLLNode *curr = list->head; curr; curr = curr->next) {
+  // Acquire pairs with the release in sll_push_front()
+  for (SLLNode *curr = __atomic_load_n(&list->head, __ATOMIC_ACQUIRE); curr; curr = curr->next) {
     if (list->cmp(curr->value, value) == 0)
       return 1;
   }
@@ -105,7 +110,8 @@ void sll_destroy(SLinkedList *list) {
 void sll_iter_init(const SLinkedList *list, SLLIterator *it) {
     assert(list != NULL);
     assert(it   != NULL);
-    it->current = list->head;
+    // Acquire pairs with the release in sll_push_front()
+    it->current = __atomic_load_n(&list->head, __ATOMIC_ACQUIRE);
 }
 
 int sll_iter_has_next(const SLLIterator *it) {

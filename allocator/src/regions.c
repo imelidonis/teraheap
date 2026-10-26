@@ -48,6 +48,12 @@ int n_gc_threads = 0;
 #ifdef LOCKFREE_GLOBAL_UPDATE
 size_t *per_thread_size;
 char **per_thread_alloc_ptr;
+
+// Each GC thread's entry of per_thread_size and per_thread_alloc_ptr is
+// on its own cache line (stride of 8 entries of 8 bytes), so threads that
+// allocate at the same time do not invalidate each other's line.
+#define PER_THREAD_STRIDE 8
+#define PER_THREAD_IDX(i) ((size_t) (i) * PER_THREAD_STRIDE)
 #endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 
 intptr_t align_size_up(intptr_t size, intptr_t alignment) {
@@ -73,7 +79,9 @@ void create_file(const char *path, uint64_t size) {
     return;
   }
 
-  strncpy(dev, path, path_size + 1);
+  // Copy the path and its terminating '\0' (path_size + 1 bytes). memcpy
+  // instead of strncpy: same result, and no -Wstringop-truncation at -O3.
+  memcpy(dev, path, path_size + 1);
 
   if (dev[path_size + 1] != '\0') {
     perror("[ERROR] - strncpy failed!");
@@ -99,8 +107,8 @@ void create_file(const char *path, uint64_t size) {
 void reset_per_thread_state() {
 #ifdef LOCKFREE_GLOBAL_UPDATE
   for (int i = 0; i < n_gc_threads; i++) {
-    per_thread_size[i] = 0;
-    per_thread_alloc_ptr[i] = th_mem_pool.cur_alloc_ptr;
+    per_thread_size[PER_THREAD_IDX(i)] = 0;
+    per_thread_alloc_ptr[PER_THREAD_IDX(i)] = th_mem_pool.cur_alloc_ptr;
   }
 #endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 }
@@ -156,8 +164,8 @@ void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint6
 
 #ifdef LOCKFREE_GLOBAL_UPDATE
   fprintf(stderr, "[INFO] Lockfree enabled\n");
-  per_thread_size = malloc(n_gc_threads * sizeof(size_t));
-  per_thread_alloc_ptr = malloc(n_gc_threads * sizeof(char *));
+  per_thread_size = aligned_alloc(64, PER_THREAD_IDX(n_gc_threads) * sizeof(size_t));
+  per_thread_alloc_ptr = aligned_alloc(64, PER_THREAD_IDX(n_gc_threads) * sizeof(char *));
 
   reset_per_thread_state();
 #endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
@@ -213,10 +221,10 @@ char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thr
   char *cur_allocation_ptr = (char *) (((uint64_t) alloc_ptr) + size * HEAPWORD);
 
 #ifdef LOCKFREE_GLOBAL_UPDATE
-  per_thread_size[thread_id] += size;
+  per_thread_size[PER_THREAD_IDX(thread_id)] += size;
 
-  if (cur_allocation_ptr > per_thread_alloc_ptr[thread_id]) {
-    per_thread_alloc_ptr[thread_id] = cur_allocation_ptr;
+  if (cur_allocation_ptr > per_thread_alloc_ptr[PER_THREAD_IDX(thread_id)]) {
+    per_thread_alloc_ptr[PER_THREAD_IDX(thread_id)] = cur_allocation_ptr;
   }
 #else
   pthread_mutex_lock(&th_mem_pool_lock);
@@ -259,10 +267,10 @@ void update_allocator_global_state() {
   char *prev_allocation_ptr = th_mem_pool.cur_alloc_ptr;
   for (int i = 0; i < n_gc_threads; i++) {
     // update_size
-    th_mem_pool.size += per_thread_size[i];
+    th_mem_pool.size += per_thread_size[PER_THREAD_IDX(i)];
     // update_top
-    if (per_thread_alloc_ptr[i] > th_mem_pool.cur_alloc_ptr) {
-      th_mem_pool.cur_alloc_ptr = per_thread_alloc_ptr[i];
+    if (per_thread_alloc_ptr[PER_THREAD_IDX(i)] > th_mem_pool.cur_alloc_ptr) {
+      th_mem_pool.cur_alloc_ptr = per_thread_alloc_ptr[PER_THREAD_IDX(i)];
     }
   }
 
@@ -292,8 +300,8 @@ char* cur_alloc_ptr() {
 
 #ifdef LOCKFREE_GLOBAL_UPDATE
   for (int i = 0; i < n_gc_threads; i++) {
-    if (per_thread_alloc_ptr[i] != th_mem_pool.cur_alloc_ptr) {
-      fprintf(stderr, "[ERROR] Top not updated yet: [%d]:%p != %p\n", i, per_thread_alloc_ptr[i], th_mem_pool.cur_alloc_ptr);
+    if (per_thread_alloc_ptr[PER_THREAD_IDX(i)] != th_mem_pool.cur_alloc_ptr) {
+      fprintf(stderr, "[ERROR] Top not updated yet: [%d]:%p != %p\n", i, per_thread_alloc_ptr[PER_THREAD_IDX(i)], th_mem_pool.cur_alloc_ptr);
       exit(1);
     }
   }
@@ -341,7 +349,9 @@ void r_write(char *data, char *offset, size_t size) {
 	assertf(s_check == size * HEAPWORD, "Sanity check: s_check = %ld", s_check);
 #else
   uint64_t diff = offset - th_mem_pool.mmap_start;
-  pwrite(fd, data, size * HEAPWORD, diff);
+  // The result is not checked in product builds (as before)
+  ssize_t s_unused = pwrite(fd, data, size * HEAPWORD, diff);
+  (void) s_unused;
 #endif
 }
 	

@@ -885,7 +885,7 @@ UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject 
     return;
 
   // Initialize object's teraflag
-  o->mark_move_h2(label, partId);
+  o->mark_move_h2(label, 0);
 
 } UNSAFE_END
 

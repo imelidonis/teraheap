@@ -359,6 +359,9 @@ MetaWord* CollectedHeap::satisfy_failed_metadata_allocation(ClassLoaderData* loa
 }
 
 MemoryUsage CollectedHeap::memory_usage() {
+  if (EnableTeraHeap)
+    return MemoryUsage(InitialHeapSize, used(), capacity(), 1200LL*1024*1024*1024);
+
   return MemoryUsage(InitialHeapSize, used(), capacity(), max_capacity());
 }
 

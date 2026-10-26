@@ -43,7 +43,6 @@ JVM_LDFLAGS += \
     $(JVM_LDFLAGS_FEATURES) \
     $(EXTRA_LDFLAGS) \
     -L$(ALLOCATOR_HOME)/lib -Wl,-rpath=$(ALLOCATOR_HOME)/lib \
-    -L$(TERA_MALLOC_HOME)/lib -Wl,-rpath=$(TERA_MALLOC_HOME)/lib \
     #
 
 JVM_ASFLAGS += $(EXTRA_ASFLAGS)
@@ -51,7 +50,6 @@ JVM_ASFLAGS += $(EXTRA_ASFLAGS)
 JVM_LIBS += \
     $(JVM_LIBS_FEATURES) \
     -lregions \
-    -lteraalloc \
     #
 
 # These files and directories are always excluded

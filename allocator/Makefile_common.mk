@@ -46,7 +46,7 @@ BINFLAG = -c
 DEBUGFLAG = -g
 OFLAG = -o
 WALLFLAG = -Wall -Werror -pedantic
-OPTIMZEFLAG = -O3
+OPTIMIZEFLAG = -O3
 AIOFLAG = -lrt -pthread
 
 LDFLAGS = $(AIOFLAG)

@@ -39,7 +39,7 @@
 #define PER_PAUSE (24 * MB)          // bytes per GC thread per mixed GC
 #define MAX_OBJS (1 << 20)
 
-extern int fd;                       // regions.c: the H2 file
+extern int fd;                       // mem_pool.c: the H2 file
 
 struct obj {
   char *addr;

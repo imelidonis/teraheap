@@ -1,5 +1,5 @@
-#ifndef __ASYNCIO_H__
-#define __ASYNCIO_H__
+#ifndef __ASYNC_IO_H__
+#define __ASYNC_IO_H__
 
 #include <aio.h>
 #include <stdint.h>
@@ -43,4 +43,4 @@ extern "C" {
 }
 #endif
 
-#endif // __ASYNCIO_H__ 
+#endif // __ASYNC_IO_H__ 

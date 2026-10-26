@@ -5,7 +5,9 @@
 #include <aio.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "../include/asyncIO.h"
+#include "../include/async_io.h"
+#include "../include/mem_pool.h"
+#include "../include/shadow.h"
 
 struct ioRequest request[MAX_REQS];
 pthread_mutex_t request_lock;
@@ -161,4 +163,23 @@ int is_all_req_completed() {
 	}
 
 	return 1;
+}
+
+// Explicit asynchronous write 'data' with 'size' in certain 'offset' using
+// system call without memcpy.
+// Do not use h2_awrite() with h2_write()
+static void awrite_bytes(char *data, char *offset, size_t bytes) {
+  req_add(fd, data, bytes, offset - th_mem_pool.mmap_start);
+}
+
+void h2_awrite(char *data, char *offset, size_t size) {
+  // Parts inside shadow chunks are copied into them: a write to the file
+  // there would land behind the chunk and be lost (shadow.h)
+  shadow_split_write(data, offset, size * HeapWordSize, awrite_bytes);
+}
+
+// Check if all the asynchronous requestes have been completed
+// Return 1 on succesfull, and 0 otherwise
+int	h2_areq_completed() {
+	return is_all_req_completed();
 }

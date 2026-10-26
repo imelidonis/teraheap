@@ -11,25 +11,15 @@
 #include <pthread.h>
 
 #include "../include/regions.h"
+#include "../include/mem_pool.h"
+#include "../include/async_io.h"
 #include "../include/sharedDefines.h"
-#include "../include/asyncIO.h"
 #include "../include/segments.h"
 #include "../include/shadow.h"
 
-#define HEAPWORD (8)      // In the JVM the heap is aligned to 8 words
-#define HEADER_SIZE (32)  // Header size of the Dummy object	
 #define align_size_up_(size, alignment) (((size) + ((alignment) - 1)) & ~((alignment) - 1))
 
 static uint64_t _MAX_PARTITIONS;
-
-struct _mem_pool{
-    char *mmap_start;                                   //< Memory mapped allocation start addresss
-    char* start_address;                                //< Aligned start address of TeraCache
-    char* cur_alloc_ptr;                                //< Current allocation pointer of TeraCache
-    char* stop_address;                                 //< Last address of TeraCache
-
-    uint64_t size;                                              //< Current allocated bytes in TeraCache
-};
 
 char dev[150] = { '\0' };
 
@@ -208,7 +198,7 @@ char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t 
 
   assertf(size > 0, "Object should be > 0");
 
-  alloc_ptr = allocate_to_region(size * HEAPWORD, rdd_id, partition_id);
+  alloc_ptr = allocate_to_region(size * HeapWordSize, rdd_id, partition_id);
 
   if (alloc_ptr == NULL) {
     perror("[Error] - H2 Allocator is full");
@@ -220,9 +210,9 @@ char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t 
           alloc_ptr, h2_start_addr_mem_pool(), h2_stop_addr_mem_pool());
 
   // Back new SH space with shadow chunks during mixed GCs (shadow.h)
-  shadow_ensure(alloc_ptr, size * HEAPWORD, thread_id);
+  shadow_ensure(alloc_ptr, size * HeapWordSize, thread_id);
 
-  char *cur_allocation_ptr = (char *) (((uint64_t) alloc_ptr) + size * HEAPWORD);
+  char *cur_allocation_ptr = (char *) (((uint64_t) alloc_ptr) + size * HeapWordSize);
 
 #ifdef LOCKFREE_GLOBAL_UPDATE
   per_thread_size[PER_THREAD_IDX(thread_id)] += size;
@@ -244,7 +234,6 @@ char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t 
   pthread_mutex_unlock(&th_mem_pool_lock);
 #endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
 
-
 #ifndef LOCKFREE_GLOBAL_UPDATE
   // NOTE: no sure if these are necessary.
   // NOTE: this code is executed in `update_allocator_global_state` once
@@ -254,11 +243,11 @@ char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t 
           th_mem_pool.cur_alloc_ptr);
 
   // Alighn to 8 words the pointer (TODO: CHANGE TO ASSERTION)
-  if ((uint64_t)th_mem_pool.cur_alloc_ptr % HEAPWORD != 0) {
+  if ((uint64_t)th_mem_pool.cur_alloc_ptr % HeapWordSize != 0) {
     fprintf(stderr, "[INFO] alignment");
     th_mem_pool.cur_alloc_ptr =
-        (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HEAPWORD - 1)) &
-                 -HEAPWORD);
+        (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HeapWordSize - 1)) &
+                 -HeapWordSize);
   }
 #endif /* ifndef LOCKFREE_GLOBAL_UPDATE */
 
@@ -284,11 +273,11 @@ void h2_update_allocator_global_state() {
   (void)prev_allocation_ptr; // NOTE: otherwise compiler complains
 
   // Alighn to 8 words the pointer (TODO: CHANGE TO ASSERTION)
-  if ((uint64_t)th_mem_pool.cur_alloc_ptr % HEAPWORD != 0) {
+  if ((uint64_t)th_mem_pool.cur_alloc_ptr % HeapWordSize != 0) {
     fprintf(stderr, "[INFO] alignment");
     th_mem_pool.cur_alloc_ptr =
-        (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HEAPWORD - 1)) &
-                 -HEAPWORD);
+        (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HeapWordSize - 1)) &
+                 -HeapWordSize);
   }
 
   reset_per_thread_state();
@@ -329,83 +318,11 @@ void h2_shutdown(void) {
   munmap(th_mem_pool.mmap_start, dev_size);
 }
 
-// Give advise to kernel to expect page references in sequential order.  (Hence,
-// pages in the given range can be aggressively read ahead, and may be freed
-// soon after they are accessed.)
-void h2_enable_seq() {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_SEQUENTIAL);
-}
-
-// Give advise to kernel to expect page references in random order (Hence, read
-// ahead may be less useful than normally.)
-void h2_enable_rand() {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_NORMAL);
-}
-
-// Explicit write 'data' with 'size' in certain 'offset' using system call
-// without memcpy.
-void h2_write(char *data, char *offset, size_t size) {
-#ifdef ASSERT
-	ssize_t s_check = 0;
-	uint64_t diff = offset - th_mem_pool.mmap_start;
-
-	s_check = pwrite(fd, data, size * HEAPWORD, diff);
-	assertf(s_check == size * HEAPWORD, "Sanity check: s_check = %ld", s_check);
-#else
-  uint64_t diff = offset - th_mem_pool.mmap_start;
-  // The result is not checked in product builds (as before)
-  ssize_t s_unused = pwrite(fd, data, size * HEAPWORD, diff);
-  (void) s_unused;
-#endif
-}
-	
-// Explicit asynchronous write 'data' with 'size' in certain 'offset' using
-// system call without memcpy.
-// Do not use r_awrite with r_write
-static void awrite_bytes(char *data, char *offset, size_t bytes) {
-  req_add(fd, data, bytes, offset - th_mem_pool.mmap_start);
-}
-
-void h2_awrite(char *data, char *offset, size_t size) {
-  // Parts inside shadow chunks are copied into them: a write to the file
-  // there would land behind the chunk and be lost (shadow.h)
-  shadow_split_write(data, offset, size * HEAPWORD, awrite_bytes);
-}
-
 int h2_shadow_init(size_t pool_bytes, int precopy_rounds) {
   return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
                      pool_bytes, precopy_rounds, n_gc_threads);
 }
 	
-// Check if all the asynchronous requestes have been completed
-// Return 1 on succesfull, and 0 otherwise
-int	h2_areq_completed() {
-	return is_all_req_completed();
-}
-	
-// We need to ensure that all the writes will be flushed from buffer
-// cur_alloc_ptrcur_alloc_ptrhe and they will be written to the device.
-void h2_fsync() {
-#ifdef ASSERT
-	int check = fsync(fd);
-	assertf(check == 0, "Error in fsync");
-#else
-	fsync(fd);
-#endif
-}
-
-// This function if for the FastMap hybrid version. Give advise to kernel to
-// serve all the pagefault using regular pages.
-void h2_enable_regular_flts(void) {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_NOHUGEPAGE);
-}
-
-// This function if for the FastMap hybrid version. Give advise to kernel to
-// serve all the pagefault using huge pages.
-void h2_enable_huge_flts(void) {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_HUGEPAGE);
-}
-
 int h2_verify_top(void) {
   return h2_cur_alloc_ptr() >= top_in_last_region() &&
          h2_cur_alloc_ptr() >= h2_start_addr_mem_pool() &&

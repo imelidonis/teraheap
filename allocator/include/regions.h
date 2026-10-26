@@ -23,9 +23,6 @@ extern "C" {
   extern uint64_t region_array_size;
   extern uint64_t max_rdd_id; //< Total different rdds
 
-  extern volatile struct _mem_pool th_mem_pool; //< Allocator pool
-  extern int fd;              //< File descriptor for the opended file
-  extern int num_reqs;        //< Number of asynchronous write requests
 
 #ifdef __cplusplus
 }

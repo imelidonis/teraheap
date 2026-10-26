@@ -7,21 +7,13 @@
 
 #include "h2_allocator.h"
 
-// #define TRANSFER_BACK         // This is a work-in-progress
-#define ANONYMOUS 0
-#define PR_BUFFER 1
-#define PR_BUFFER_SIZE (2*1024LU*1024) /* Promotion buffer size */
-#define HeapWordSize 8				   /* Java heap allignment */
-/* Objects that are grater than this threshold we write them directly using
- * async I/O. For objects less than this threshold we use the promotion buffer.
- * THRESHOLD should always be less than the PR_BUFFER_SIZE*/
-#define THRESHOLD (1*1024LU*1024)
+#include "h2_config.h"
 
 /*
  * TODO: restructure the allocator. The code and the API are not well
  * structured any more: region dependencies (dependency sets, liveness
  * marking, freeing), region allocation and the per-thread state are mixed
- * in segments.c/regions.c, and the API mixes object-level calls
+ * in segments.c/mem_pool.c, and the API mixes object-level calls
  * (h2_references(), add_reference(), h2_is_in_the_same_group()) with region
  * indices and raw region_array access. Split them into clear modules with
  * one documented API before adding more features.

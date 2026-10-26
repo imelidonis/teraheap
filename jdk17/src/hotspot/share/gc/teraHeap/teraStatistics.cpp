@@ -58,6 +58,8 @@ TeraStatistics::TeraStatistics() {
     during_h1_time_flag[i] = NEW_C_HEAP_ARRAY(uint, 2, mtGC);
   }
 
+  thr_time_h2_dest = NEW_C_HEAP_ARRAY(double, ParallelGCThreads * 2 * h2_dest_count, mtGC);
+
   which_phase = dummy;
   h2_allocate_ms = 0;
   h2_copy_ms = 0;
@@ -65,6 +67,7 @@ TeraStatistics::TeraStatistics() {
 
   thr_bytes_copy_h2 = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads, mtGC);
   thr_bytes_copy_h2_src = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads * h2_src_count, mtGC);
+  thr_bytes_h2_dest = NEW_C_HEAP_ARRAY(size_t, ParallelGCThreads * h2_dest_count, mtGC);
   h1_copied_bytes = 0;
   h2_copied_bytes = 0;
   conc_cycle_id = 0;
@@ -121,10 +124,13 @@ void TeraStatistics::reset_counters(void) {
     memset(during_h1_time_flag[i], 0, 2 * sizeof(uint));
   }
 
+  memset(thr_time_h2_dest, 0, ParallelGCThreads * 2 * h2_dest_count * sizeof(double));
+
   which_phase = dummy;
 #endif
   memset(thr_bytes_copy_h2, 0, ParallelGCThreads * sizeof(size_t));
   memset(thr_bytes_copy_h2_src, 0, ParallelGCThreads * h2_src_count * sizeof(size_t));
+  memset(thr_bytes_h2_dest, 0, ParallelGCThreads * h2_dest_count * sizeof(size_t));
   memset(thr_fgc_regions_scanned, 0, ParallelGCThreads * sizeof(int));
   memset(thr_fgc_regions_skipped, 0, ParallelGCThreads * sizeof(int));
 }
@@ -231,6 +237,14 @@ size_t TeraStatistics::get_sum_thr_bytes_copy_h2_src(enum h2_source src) {
   return sum_bytes;
 }
 
+size_t TeraStatistics::get_sum_thr_bytes_h2_dest(enum h2_dest dest) {
+  size_t sum_bytes = 0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    sum_bytes += thr_bytes_h2_dest[i * h2_dest_count + dest];
+  }
+  return sum_bytes;
+}
+
 size_t TeraStatistics::get_sum_thr_bytes_copy_h2() {
   size_t sum_bytes = 0;
   for (uint i = 0; i < ParallelGCThreads; i++) {
@@ -279,6 +293,30 @@ void TeraStatistics::thr_add_time_copy_h2(uint thread_id, double time) {
   if (during_h1_time_flag[thread_id][which_phase] == 1) {
     thr_time_copy_h2[thread_id][which_phase] += time;
   }
+}
+
+void TeraStatistics::thr_add_time_h2_dest(uint thread_id, enum h2_dest dest, double time) {
+  assert(which_phase == inital_evac_phase || which_phase == optional_evac_phase, "young/mixed evacuation only");
+  if (which_phase != inital_evac_phase && which_phase != optional_evac_phase) {
+    return;
+  }
+  if (during_h1_time_flag[thread_id][which_phase] == 1) {
+    thr_time_h2_dest[(thread_id * 2 + which_phase) * h2_dest_count + dest] += time;
+  }
+}
+
+double TeraStatistics::get_average_time_ms_h2_dest(enum evac_phase phase, enum h2_dest dest) {
+  assert(phase == inital_evac_phase || phase == optional_evac_phase, "wrong value for enum\n");
+  double sum_time = 0.0;
+  uint contributing_threads = 0;
+  for (uint i = 0; i < ParallelGCThreads; i++) {
+    const double t = thr_time_h2_dest[(i * 2 + phase) * h2_dest_count + dest];
+    if (t != 0) {
+      sum_time += t;
+      contributing_threads++;
+    }
+  }
+  return contributing_threads != 0 ? sum_time / contributing_threads * 1000.0 : 0.0;
 }
 
 double TeraStatistics::get_sum_thr_time_alloc_h2() {

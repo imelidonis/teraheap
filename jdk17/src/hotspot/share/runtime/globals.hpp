@@ -954,6 +954,33 @@ const intx ObjectAlignmentInBytes = 8;
           "TeraH2CostPercentile is computed from")                          \
           range(8, 256)                                                     \
                                                                             \
+  product(bool, TeraH2Shadow, false,                                        \
+          "Mixed GCs copy objects to H2 into DRAM chunks mapped at their "  \
+          "H2 addresses; a background thread writes them to the H2 file "   \
+          "and they are switched back to the file at a later young/mixed " \
+          "pause. Needs Linux 6.7 or later")                                \
+                                                                            \
+  product(size_t, TeraH2ShadowPoolSize, 512*M,                              \
+          "DRAM for the TeraH2Shadow chunks (in 2 MB chunks)")              \
+          range(2*M, max_uintx)                                             \
+                                                                            \
+  product(uintx, TeraH2ShadowPrecopyRounds, 3,                              \
+          "Rounds that copy again the pages written while a TeraH2Shadow "  \
+          "chunk is written back, before it can be switched")              \
+          range(0, 16)                                                      \
+                                                                            \
+  product(uintx, TeraH2ShadowSwitchMaxPages, 64,                            \
+          "A TeraH2Shadow chunk with more pages written since its last "    \
+          "copy is switched at a later pause")                              \
+                                                                            \
+  product(uintx, TeraH2ShadowSwitchMaxChunks, 0,                            \
+          "Maximum TeraH2Shadow chunks switched back to the file per "      \
+          "pause. 0 means no limit")                                        \
+                                                                            \
+  product(bool, TeraH2ShadowVerify, false,                                  \
+          "Debug: compare every TeraH2Shadow chunk with the H2 file before "\
+          "switching it")                                                   \
+                                                                            \
   product(bool, TeraHeapAllocatorStatistics, false,                         \
           "Print TeraHeap allocator statistics")                            \
                                                                             \

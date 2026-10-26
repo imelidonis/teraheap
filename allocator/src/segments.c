@@ -12,6 +12,7 @@
 #include "../include/regions.h"
 #include "../include/sharedDefines.h"
 #include "../include/sllist.h"
+#include "../include/shadow.h"
 
 static uint64_t _MAX_PARTITIONS;
 
@@ -197,8 +198,10 @@ int32_t get_cont_regions(int32_t cont_regions) {
 
   for(; i < (region_array_size + end_index); i++) {
     for (j = i; j < (i + cont_regions); j++) {
+      // A freed region that still has shadow chunks is not reused yet
       if (region_array[j % (int32_t) region_array_size].last_allocated_end == 
-          region_array[j % (int32_t) region_array_size].start_address) 
+          region_array[j % (int32_t) region_array_size].start_address &&
+          !shadow_range_busy(region_array[j % (int32_t) region_array_size].start_address, REGION_SIZE))
         continue;
       else
         break;
@@ -807,6 +810,19 @@ void print_statistics() {
 }
 #endif
 
+void region_info(char *addr, char **top, bool *active) {
+  uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
+  struct region *r = &region_array[seg];
+  *top = r->last_allocated_end;
+  *active = id_mapping_array[get_id(r->rdd_id, r->part_id)].mapped_region == r;
+}
+
+int region_free_prot(char *addr) {
+  uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
+  bool is_free = region_array[seg].last_allocated_end == region_array[seg].start_address;
+  return (protect_regions_on_free && is_free) ? PROT_NONE : (PROT_READ | PROT_WRITE);
+}
+
 /*
  * Frees all unused regions
  */
@@ -867,6 +883,9 @@ struct region_list* free_regions() {
 
       region_array[i].rdd_id = _MAX_PARTITIONS -1;
       region_array[i].part_id = _MAX_PARTITIONS -1;
+
+      // Its shadow chunks are dead: detach them without writing
+      shadow_free_range(region_array[i].start_address, REGION_SIZE);
 
       reclaimed_regions_count++;
     }

@@ -3223,6 +3223,10 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
           // Give advise to kernel to prefetch pages for TeraHeap random
           Universe::teraHeap()->h2_enable_rand_faults();
 
+          // TeraH2Shadow: switch written-back chunks to the H2 file (no
+          // mutator or JNI critical region runs); mixed GCs get chunks
+          Universe::teraHeap()->h2_shadow_pause_start(collector_state()->in_mixed_phase());
+
           if (collector_state()->in_concurrent_start_gc()) {
             // Reset the used field of all regions
             Universe::teraHeap()->h2_reset_used_field();
@@ -3290,6 +3294,9 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
           // if (collector_state()->in_young_gc_before_mixed())
           //   Universe::teraHeap()->free_unused_regions();
           Universe::teraHeap()->update_allocator_state(); 
+
+          // TeraH2Shadow: hand the filled chunks to the writer thread
+          Universe::teraHeap()->h2_shadow_pause_end();
         }
 #endif
 

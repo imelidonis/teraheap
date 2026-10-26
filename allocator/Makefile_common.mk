@@ -22,7 +22,7 @@ BINDIR = $(PREFIX)/bin
 INCLUDEDIR = $(PREFIX)/include
 
 ## Library
-LIBNAME = regions
+LIBNAME = h2allocator
 LIBRARY = $(LIBDIR)/lib$(LIBNAME).so
 LIBOBJS = $(SRCDIR)/regions.o $(SRCDIR)/asyncIO.o $(SRCDIR)/segments.o $(SRCDIR)/sllist.o $(SRCDIR)/shadow.o
 

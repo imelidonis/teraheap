@@ -104,6 +104,18 @@ void TeraHeap::h2_shadow_pause_start(bool mixed) {
   _shadow_start_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 }
 
+size_t TeraHeap::h2_shadow_budget_bytes() const {
+  if (!_shadow_on || !_shadow_mixed)
+    return 0;
+  // Free chunks now (the switch at pause start and the initial evacuation
+  // change them). Each allocating GC worker keeps one partly filled chunk
+  // per region, so that many are held back.
+  struct shadow_stats now;
+  shadow_get_stats(&now);
+  const uint free_chunks = now.free_chunks;
+  return free_chunks > ParallelGCThreads ? (size_t) (free_chunks - ParallelGCThreads) * SHADOW_CHUNK : 0;
+}
+
 void TeraHeap::h2_shadow_pause_end() {
   if (!_shadow_on)
     return;

@@ -102,6 +102,8 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
     _h2_cost_samples(new G1H2Samples((uint) TeraH2CostSamples)),
     _h2_survivor_share_samples(new G1H2Samples((uint) TeraH2CostSamples)),
     _h2_eden_share_samples(new G1H2Samples((uint) TeraH2CostSamples)),
+    _h2_chunk_cost_per_byte_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
+    _h2_chunk_cost_samples(new G1H2Samples((uint) TeraH2CostSamples)),
   #endif
     _recent_prev_end_times_for_all_gcs_sec(new TruncatedSeq(NumPrevPausesForHeuristics)),
     _long_term_pause_time_ratio(0.0),
@@ -281,6 +283,14 @@ void G1Analytics::report_h2_survivor_share(double share) {
 void G1Analytics::report_h2_eden_share(double share) {
   _h2_eden_share_samples->add(MIN2(MAX2(share, 0.0), 1.0), 50);
 }
+
+void G1Analytics::report_h2_chunk_cost_per_byte_ms(double h2_cost_per_byte_ms) {
+  _h2_chunk_cost_per_byte_ms_seq->add(h2_cost_per_byte_ms);
+}
+
+void G1Analytics::report_h2_chunk_cost_sample(double h2_cost_per_byte_ms) {
+  _h2_chunk_cost_samples->add(h2_cost_per_byte_ms, TeraH2CostPercentile);
+}
 #endif
 
 void G1Analytics::report_young_other_cost_per_region_ms(double other_cost_per_region_ms) {
@@ -384,6 +394,24 @@ double G1Analytics::predict_h2_object_copy_time_ms_conservative(size_t h2_bytes_
     return avg_ms;
   }
   return MAX2(avg_ms, h2_bytes_to_copy * _h2_cost_samples->percentile());
+}
+
+double G1Analytics::predict_h2_chunk_copy_time_ms(size_t h2_bytes_to_copy, bool during_concurrent_mark) const {
+  if (_h2_chunk_cost_per_byte_ms_seq->num() == 0) {
+    return predict_h2_object_copy_time_ms(h2_bytes_to_copy, during_concurrent_mark);
+  }
+  return h2_bytes_to_copy * predict_zero_bounded(_h2_chunk_cost_per_byte_ms_seq);
+}
+
+double G1Analytics::predict_h2_chunk_copy_time_ms_conservative(size_t h2_bytes_to_copy, bool during_concurrent_mark) const {
+  if (_h2_chunk_cost_per_byte_ms_seq->num() == 0) {
+    return predict_h2_object_copy_time_ms_conservative(h2_bytes_to_copy, during_concurrent_mark);
+  }
+  const double avg_ms = predict_h2_chunk_copy_time_ms(h2_bytes_to_copy, during_concurrent_mark);
+  if (TeraH2CostPercentile == 0 || _h2_chunk_cost_samples->num() == 0) {
+    return avg_ms;
+  }
+  return MAX2(avg_ms, h2_bytes_to_copy * _h2_chunk_cost_samples->percentile());
 }
 #endif
 

@@ -954,10 +954,11 @@ const intx ObjectAlignmentInBytes = 8;
           "TeraH2CostPercentile is computed from")                          \
           range(8, 256)                                                     \
                                                                             \
-  product(bool, TeraH2GroupByGCThread, false,                               \
+  product(bool, TeraH2GroupByGCThread, true,                                \
           "Group the H2 regions by the GC thread that moves the objects "  \
           "instead of by the object label, so that each H2 region has "    \
-          "one allocating GC thread. TeraH2Shadow needs it")               \
+          "one allocating GC thread. TeraH2Shadow needs it, and the Full " \
+          "GC promotion buffers need it to see contiguous addresses")      \
                                                                             \
   product(bool, TeraH2Shadow, false,                                        \
           "Mixed GCs copy objects to H2 into DRAM chunks mapped at their "  \

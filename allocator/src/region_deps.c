@@ -29,10 +29,10 @@
  *    in the region (CAS). A thread that meets a frozen slot continues in
  *    'next'. Old tables stay readable (and keep 'next') until
  *    h2_free_regions() frees them.
- *  - Liveness: an insert is a full fence (CAS) before it reads 'used' of the
- *    source region, and h2_mark_used() fences between setting 'used' and
- *    walking the set. So a new edge is either seen by the walk, or the
- *    inserter sees 'used' and marks the target itself.
+ *  - Liveness: an insert (CAS, seq_cst) comes before it reads 'used' of the
+ *    source region (seq_cst), and h2_mark_used() sets 'used' (CAS, seq_cst)
+ *    before it walks the set (seq_cst loads). So a new edge is either seen
+ *    by the walk, or the inserter sees 'used' and marks the target itself.
  */
 #define DEP_EMPTY         0u
 #define DEP_FROZEN        UINT32_MAX
@@ -214,17 +214,6 @@ static uint64_t dep_set_count(struct dep_set *s) {
   return __atomic_load_n(&s->count, __ATOMIC_RELAXED);
 }
 
-/* Call 'fn' for every region index in the set (all tables of the chain) */
-static void dep_set_for_each(struct dep_set *s, void (*fn)(uint64_t seg)) {
-  for (; s != NULL; s = dep_load(&s->next)) {
-    for (uint32_t i = 0; i < s->capacity; i++) {
-      const uint32_t v = __atomic_load_n(&s->slots[i], __ATOMIC_ACQUIRE);
-      if (v != DEP_EMPTY && v != DEP_FROZEN)
-        fn((uint64_t) v - 1);
-    }
-  }
-}
-
 /* At a safepoint: free the set of a region (its current table chain) */
 void dep_set_free(struct dep_set *s) {
   while (s != NULL) {
@@ -301,32 +290,92 @@ void h2_reset_used() {
     region_array[i].used = 0;
 }
 
-static void mark_used_region_index(uint64_t seg) {
-  h2_mark_used(region_array[seg].start_address);
-}
-
-static void mark_live_dependent_regions(uint64_t seg) {
-  dep_set_for_each(dep_load(&region_array[seg].deps), mark_used_region_index);
+/*
+ * Set 'used' of region seg if it is not set. Returns true if this call set
+ * it, so only one thread walks the region's dependencies. The plain load
+ * first keeps the CAS off regions that are already marked.
+ */
+static inline bool claim_region(uint64_t seg) {
+  int8_t expected = 0;
+  if (__atomic_load_n(&region_array[seg].used, __ATOMIC_RELAXED) != 0)
+    return false;
+  return __atomic_compare_exchange_n(&region_array[seg].used, &expected, 1, false,
+                                     __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
 
 /*
- * Marks the region that contains this obj as used and increases tera_group
- * counter (if it belongs to a tera_group)
+ * Regions claimed by one h2_mark_used() call whose dependencies are not
+ * walked yet. On the stack; moves to the heap only for more than
+ * MARK_STACK_INLINE pending regions, and is freed before returning.
+ */
+#define MARK_STACK_INLINE 64
+
+struct mark_stack {
+  uint32_t *items;
+  uint32_t size;
+  uint32_t cap;
+  uint32_t inline_items[MARK_STACK_INLINE];
+};
+
+static void mark_stack_push(struct mark_stack *st, uint64_t seg) {
+  if (st->size == st->cap) {
+    uint32_t cap = 2 * st->cap;
+    uint32_t *items = malloc((size_t) cap * sizeof(uint32_t));
+    check_allocation_failure(items, "[ERROR] -- Failed to allocate the mark stack\n");
+    memcpy(items, st->items, (size_t) st->size * sizeof(uint32_t));
+    if (st->items != st->inline_items)
+      free(st->items);
+    st->items = items;
+    st->cap = cap;
+  }
+  st->items[st->size++] = (uint32_t) seg;
+}
+
+/*
+ * Region seg was just claimed: mark every region reachable from it through
+ * the dependency sets. Iterative (a worklist, not recursion), so a long
+ * chain of dependencies cannot overflow the GC thread's stack.
+ *
+ * Ordering with add_dependency_if_not_exist(), which inserts an entry (CAS,
+ * seq_cst) and then reads 'used' (seq_cst): here the claim (CAS, seq_cst)
+ * comes before the loads of the set (seq_cst). So either the walk sees the
+ * new entry, or the inserter sees 'used' and marks the target itself.
+ * On x86 the seq_cst loads are plain loads.
+ */
+static __attribute__((noinline)) void mark_dependent_regions(uint64_t seg) {
+  struct mark_stack st;
+  st.items = st.inline_items;
+  st.size = 0;
+  st.cap = MARK_STACK_INLINE;
+
+  mark_stack_push(&st, seg);
+  while (st.size > 0) {
+    uint64_t cur = st.items[--st.size];
+    struct dep_set *s = __atomic_load_n(&region_array[cur].deps, __ATOMIC_SEQ_CST);
+    for (; s != NULL; s = __atomic_load_n(&s->next, __ATOMIC_SEQ_CST)) {
+      for (uint32_t i = 0; i < s->capacity; i++) {
+        const uint32_t v = __atomic_load_n(&s->slots[i], __ATOMIC_SEQ_CST);
+        if (v != DEP_EMPTY && v != DEP_FROZEN && claim_region((uint64_t) v - 1))
+          mark_stack_push(&st, (uint64_t) v - 1);
+      }
+    }
+  }
+
+  if (st.items != st.inline_items)
+    free(st.items);
+}
+
+/*
+ * Marks the region that contains this obj as used, and every region it
+ * depends on (directly or not)
  * Arguments: obj: the object that is alive
  */
 void h2_mark_used(char *obj) {
   uint64_t seg = region_index(obj);
 
   assertf(seg < region_array_size, "Region index out of range %lu", seg);
-  if (__atomic_load_n(&region_array[seg].used, __ATOMIC_RELAXED) == 1)
-    return;
-
-  __atomic_store_n(&region_array[seg].used, 1, __ATOMIC_RELAXED);
-  // Full fence between setting 'used' and walking the set, so that either
-  // this walk sees a dependency added concurrently, or the thread that
-  // added it sees 'used' and marks the target (add_dependency_if_not_exist())
-  __atomic_thread_fence(__ATOMIC_SEQ_CST);
-  mark_live_dependent_regions(seg);
+  if (claim_region(seg))
+    mark_dependent_regions(seg);
 }
 
 /*

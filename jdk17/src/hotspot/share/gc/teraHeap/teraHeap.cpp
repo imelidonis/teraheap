@@ -31,7 +31,8 @@ TeraHeap::TeraHeap() {
     ShouldNotReachHere();
   }
 
-  ::h2_init(align, AllocateH2At, H2FileSize, H2MaxPartitions, ParallelGCThreads);
+  ::h2_init(align, AllocateH2At, H2FileSize, H2MaxPartitions, ParallelGCThreads,
+            TeraH2GroupByGCThread);
   ::h2_protect_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
 
   _start_addr = ::h2_start_addr_mem_pool();
@@ -69,6 +70,11 @@ TeraHeap::TeraHeap() {
 void TeraHeap::h2_shadow_init() {
   if (!TeraH2Shadow)
     return;
+  if (!TeraH2GroupByGCThread) {
+    // A shadow chunk is attached only by the GC thread that owns its region
+    warning("TeraH2Shadow needs -XX:+TeraH2GroupByGCThread; disabled");
+    return;
+  }
 #if defined(SYNC) || defined(FMAP) || defined(ASYNC) || defined(FMAP_HYBRID)
   // These builds write H2 with explicit I/O or change the huge page advice
   // of the whole H2 range in young GCs

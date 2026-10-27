@@ -32,9 +32,12 @@ extern "C" {
  * map it with its start aligned to `alignment`, and set up the regions.
  * `partitions`: maximum partitions per group (sizes the id mapping array).
  * `total_gc_threads`: number of GC threads that call h2_allocate().
+ * `group_by_gc_thread`: group regions by the allocating GC thread
+ * (h2_allocate()'s thread_id) instead of by rdd_id; then each region has
+ * one allocating thread. h2_shadow_init() needs it.
  */
 H2_API void h2_init(uint64_t alignment, const char *h2_file_path, uint64_t h2_file_size,
-             uint64_t partitions, int total_gc_threads);
+             uint64_t partitions, int total_gc_threads, bool group_by_gc_thread);
 
 /* Start (aligned) and end of the H2 address range */
 H2_API char *h2_start_addr_mem_pool(void);
@@ -230,7 +233,8 @@ struct h2_shadow_stats {
 /*
  * Enable shadow chunks for the H2 file mapping, with a pool of up to
  * pool_bytes and up to precopy_rounds pre-copy rounds per chunk.
- * Returns 0, or -1 if not available (the allocator then works as before).
+ * Returns 0, or -1 if not available (the allocator then works as before),
+ * also when h2_init() did not group regions by GC thread.
  */
 H2_API int h2_shadow_init(size_t pool_bytes, int precopy_rounds);
 

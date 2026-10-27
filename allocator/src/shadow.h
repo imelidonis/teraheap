@@ -25,8 +25,8 @@
  *
  * Rules:
  *  - Only empty chunks are attached (no object allocated in them yet).
- *  - Only the region's owner attaches during a pause (CUSTOM_GROUPING: one
- *    allocating GC worker per region).
+ *  - Only the region's owner attaches during a pause (regions grouped by GC
+ *    thread, h2_init(): one allocating GC worker per region).
  *  - Write-protect is armed before the writer's first copy of a chunk.
  *  - h2_shadow_switch() runs only in young/mixed GC pauses (mutators stopped,
  *    no JNI critical region active).

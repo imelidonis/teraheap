@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
   int cycles = argc > 2 ? atoi(argv[2]) : 40;
   objs = calloc(MAX_OBJS, sizeof *objs);
 
-  h2_init(SHADOW_CHUNK, dir, 8 * GB, NPARTS, NTHREADS);
+  h2_init(SHADOW_CHUNK, dir, 8 * GB, NPARTS, NTHREADS, true);   // shadow needs grouping by GC thread
   if (h2_shadow_init(POOL, 3)) { fprintf(stderr, "FAIL: shadow_init\n"); return 1; }
 
   pthread_t wt, mt;

@@ -17,9 +17,6 @@
 
 #define DEBUG_PRINT 0                 //< Debug prints
 
-#define CUSTOM_GROUPING               //< Group regions by GC thread instead of
-                                      // by rdd (one allocating thread per region)
-
 /* ------------------------------------------------------------------ */
 /* Sizes                                                               */
 /* ------------------------------------------------------------------ */

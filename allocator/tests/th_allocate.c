@@ -31,7 +31,7 @@ int main() {
   // Init allocator
   // One GC thread per group (thread_id = rdd_id): the regions are the same
   // whether the allocator groups by GC thread or by rdd
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 4);
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 4, false);
 
   //obj1 should be in region 0
   obj1 = h2_allocate(1, 0, 0, 0);

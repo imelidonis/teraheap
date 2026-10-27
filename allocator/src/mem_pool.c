@@ -31,6 +31,9 @@ int fd;
 
 static int n_gc_threads = 0;
 
+// Group regions by GC thread (thread_id) instead of by rdd (h2_init())
+static bool group_by_gc_thread = false;
+
 // Per-Thread state
 static size_t *per_thread_size;
 static char **per_thread_alloc_ptr;
@@ -97,7 +100,8 @@ static void reset_per_thread_state(void) {
 }
 
 // Initialize allocator
-void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads) {
+void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads,
+             bool group_by_thread) {
   fd = -1;
   _MAX_PARTITIONS = partitions;
 
@@ -123,13 +127,13 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
 
   n_gc_threads = total_gc_threads;
 
-#ifdef CUSTOM_GROUPING
-  fprintf(stderr, "[INFO] custom grouping enabled: using thread id for groups\n");
-  // NOTE: or the number of gc threads
-  max_rdd_id = n_gc_threads;
-#else
-  max_rdd_id = region_array_size / _MAX_PARTITIONS;
-#endif /* ifdef CUSTOM_GROUPING */
+  group_by_gc_thread = group_by_thread;
+  if (group_by_gc_thread) {
+    fprintf(stderr, "[INFO] custom grouping enabled: using thread id for groups\n");
+    max_rdd_id = n_gc_threads;
+  } else {
+    max_rdd_id = region_array_size / _MAX_PARTITIONS;
+  }
 
   fprintf(stderr, "[INFO] Lockfree enabled\n");
   per_thread_size = aligned_alloc(64, PER_THREAD_IDX(n_gc_threads) * sizeof(size_t));
@@ -164,9 +168,8 @@ char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t 
 
   char* alloc_ptr = NULL;
 
-#ifdef CUSTOM_GROUPING
-  rdd_id = thread_id;
-#endif /* ifdef CUSTOM_GROUPING */
+  if (group_by_gc_thread)
+    rdd_id = thread_id;
 
   assertf(size > 0, "Object should be > 0");
 
@@ -256,6 +259,11 @@ void h2_shutdown(void) {
 }
 
 int h2_shadow_init(size_t pool_bytes, int precopy_rounds) {
+  // A shadow chunk is attached only by its region's owner (shadow.h)
+  if (!group_by_gc_thread) {
+    fprintf(stderr, "[SHADOW] needs regions grouped by GC thread (h2_init)\n");
+    return -1;
+  }
   return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
                      pool_bytes, precopy_rounds, n_gc_threads,
                      region_info, region_free_prot);

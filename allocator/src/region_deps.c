@@ -245,35 +245,17 @@ void dep_free_retired(void) {
   }
 }
 
-// Returns 1 if this call added the dependency
-static int add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
+// Add the dependency seg1 -> seg2; if seg1 is already marked used, mark seg2 too
+static void add_dependency_if_not_exist(int32_t seg1, int32_t seg2) {
   // Lock-free; the successful CAS of the insert is a full fence, so the
   // load of 'used' below cannot be ordered before the new entry is
   // visible (see h2_mark_used())
   if (!dep_set_add(seg1, seg2))
-    return 0;
+    return;
 
   if (__atomic_load_n(&region_array[seg1].used, __ATOMIC_SEQ_CST)) {
     h2_mark_used(region_array[seg2].start_address);
   }
-  return 1;
-}
-
-/*
- * Same as h2_references(), and returns 1 if this call added the dependency
- * (0 if it existed, or both objects are in the same region). Lock-free:
- * GC threads may call it in parallel.
- */
-static int add_reference(char *obj1, char *obj2) {
-  int32_t seg1 = (obj1 - region_array_base) / ((uint64_t)REGION_SIZE);
-  int32_t seg2 = (obj2 - region_array_base) / ((uint64_t)REGION_SIZE);
-  if (seg1 >= region_array_size || seg2 >= region_array_size || seg1 < 0 || seg2 < 0)
-    return 0;
-
-  if (seg1 == seg2)
-    return 0;
-
-  return add_dependency_if_not_exist(seg1, seg2);
 }
 
 /*
@@ -281,9 +263,17 @@ static int add_reference(char *obj1, char *obj2) {
  * arguments:
  * - obj1: the object that references the other
  * - obj2 the object that is referenced
+ * Nothing to do if both objects are in the same region, or one is outside
+ * H2. Lock-free: GC threads may call it in parallel.
  */
 void h2_references(char *obj1, char *obj2) {
-  add_reference(obj1, obj2);
+  uint64_t seg1 = region_index(obj1);
+  uint64_t seg2 = region_index(obj2);
+
+  if (seg1 >= region_array_size || seg2 >= region_array_size || seg1 == seg2)
+    return;
+
+  add_dependency_if_not_exist(seg1, seg2);
 }
 
 /*
@@ -295,7 +285,7 @@ void h2_print_groups() {
   fprintf(stderr, "Groups:\n");
 
   for (i = 0; i < region_array_size; i++) {
-    if (region_array[i % region_array_size].last_allocated_end != region_array[i % region_array_size].start_address ) {
+    if (!region_is_empty(&region_array[i])) {
       size_t dep_size = dep_set_count(region_array[i].deps);
       fprintf(stderr, "Region %d has %lu dependencies.\n", i, dep_size);
     }
@@ -325,10 +315,9 @@ static void mark_live_dependent_regions(uint64_t seg) {
  * Arguments: obj: the object that is alive
  */
 void h2_mark_used(char *obj) {
-  uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
+  uint64_t seg = region_index(obj);
 
-	assertf(seg >= 0 && seg < region_array_size,
-			"Segment index is out of range %lu", seg);
+  assertf(seg < region_array_size, "Region index out of range %lu", seg);
   if (__atomic_load_n(&region_array[seg].used, __ATOMIC_RELAXED) == 1)
     return;
 
@@ -349,11 +338,11 @@ void h2_mark_used(char *obj) {
  * returns: 1 if objects are in the same tera_group, 0 otherwise
  */
 int h2_is_in_the_same_group(char *obj1, char *obj2) {
-	uint64_t seg1 = (obj1 - region_array_base) / ((uint64_t)REGION_SIZE);
-	uint64_t seg2 = (obj2 - region_array_base) / ((uint64_t)REGION_SIZE);
+	uint64_t seg1 = region_index(obj1);
+	uint64_t seg2 = region_index(obj2);
 
-	assertf(seg1 < region_array_size && seg2 < region_array_size && seg1 >= 0
-         && seg2 >=0, "Segment index is out of range %lu, %lu", seg1, seg2);
+	assertf(seg1 < region_array_size && seg2 < region_array_size,
+	        "Region index out of range %lu, %lu", seg1, seg2);
 
 	/* Objects belong to the same regions */
 	if (seg1 == seg2)

@@ -18,8 +18,6 @@
 
 #define align_size_up_(size, alignment) (((size) + ((alignment) - 1)) & ~((alignment) - 1))
 
-static uint64_t _MAX_PARTITIONS;
-
 static char dev[150] = { '\0' };   // H2 file path (create_file)
 
 uint64_t dev_size = 0;
@@ -103,7 +101,6 @@ static void reset_per_thread_state(void) {
 void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads,
              bool group_by_thread) {
   fd = -1;
-  _MAX_PARTITIONS = partitions;
 
   dev_size = h2_file_size;
   create_file(h2_file_path, dev_size);
@@ -121,7 +118,7 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
 
   region_array_size = dev_size / REGION_SIZE;
 
-  assertf(region_array_size >= _MAX_PARTITIONS,
+  assertf(region_array_size >= partitions,
           "Device size should be larger, because region_array_size is "
           "calculated to be smaller than _MAX_PARTITIONS!");
 
@@ -132,7 +129,7 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
     fprintf(stderr, "[INFO] custom grouping enabled: using thread id for groups\n");
     max_rdd_id = n_gc_threads;
   } else {
-    max_rdd_id = region_array_size / _MAX_PARTITIONS;
+    max_rdd_id = region_array_size / partitions;
   }
 
   fprintf(stderr, "[INFO] Lockfree enabled\n");
@@ -141,7 +138,7 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
 
   reset_per_thread_state();
 
-  init_regions(_MAX_PARTITIONS);
+  init_regions(partitions);
   req_init();
 }
 

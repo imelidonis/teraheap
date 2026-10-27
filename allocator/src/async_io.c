@@ -31,6 +31,34 @@ void req_init() {
 	}
 }
 
+// If request i is in progress, update its state with aio_error() and free
+// its buffer when it has completed. Returns the state of the request.
+static int req_poll(int i) {
+	if (request[i].state != EINPROGRESS)
+		return request[i].state;
+
+	request[i].state = aio_error(&request[i].aiocbp);
+
+	switch (request[i].state) {
+		case 0:
+			free(request[i].buffer);
+			request[i].buffer = NULL;
+			break;
+
+		case EINPROGRESS:
+			break;
+
+		case ECANCELED:
+			assertf(0, "Request cacelled");
+			break;
+
+		default:
+			assertf(0, "AIO_ERROR %d", request[i].state);
+			break;
+	}
+	return request[i].state;
+}
+
 // Check to find available slot in the i/o request array for the new i/o
 // request.
 // Return the 'index' of the available slot in the array, or return '-1' if all
@@ -39,39 +67,11 @@ static int find_slot() {
 	static volatile int i = 0;
 
 	for (; i < MAX_REQS; i++) {
-		if (request[i].state == 0) {
-      return i;
-    }
-
-		// If the request is in active state, then check if it has finished.
-		// Update the state based on the return valuew of aio_error().
-		if (request[i].state == EINPROGRESS) {
-			request[i].state = aio_error(&request[i].aiocbp);
-
-			switch (request[i].state) {
-				case 0:
-					if (request[i].buffer != NULL) {
-						free(request[i].buffer);
-						request[i].buffer = NULL;
-					}
-					return i;
-					break;
-
-				case EINPROGRESS:
-					break;
-
-				case ECANCELED:
-					assertf(0, "Request cacelled");
-					break;
-
-				default:
-					assertf(0, "AIO_ERROR %d", request[i].state);
-					break;
-			}
-		}
+		if (req_poll(i) == 0)
+			return i;
 	}
 
-  i = 0;
+	i = 0;
 	return -1;
 }
 
@@ -86,12 +86,9 @@ static void req_add(int fd, char *data, size_t size, uint64_t offset) {
   pthread_mutex_lock(&request_lock);
   int slot;					// Find available slot for the request
 
-	slot = find_slot();
-
 	// Wait here until find an available slot for the request
-	while (slot == -1) {
-		slot = find_slot();
-	}
+	while ((slot = find_slot()) == -1)
+		;
 
 	// Create and initialize the aiocb structure.
 	// If we don't init to 0, we have undefined behavior.
@@ -118,43 +115,6 @@ static void req_add(int fd, char *data, size_t size, uint64_t offset) {
   pthread_mutex_unlock(&request_lock);
 }
 
-// Traverse tthe array to check if all the i/o requests have been completed.  We
-// check the state of the i/o request and update the state of each request.
-// Return 1 if all the requests are completed succesfully
-// Return 0, otherwise
-static int is_all_req_completed(void) {
-	int i;
-
-	for (i = 0; i < MAX_REQS; i++) {
-		if (request[i].state == EINPROGRESS) {
-			request[i].state = aio_error(&request[i].aiocbp);
-
-			switch (request[i].state) {
-				case 0:
-					if (request[i].buffer != NULL) {
-						free(request[i].buffer);
-						request[i].buffer = NULL;
-					}
-					break;
-
-				case EINPROGRESS:
-					return 0;
-					break;
-
-				case ECANCELED:
-					assertf(0, "Request cacelled");
-					break;
-
-				default:
-					assertf(0, "AIO_ERROR");
-					break;
-			}
-		}
-	}
-
-	return 1;
-}
-
 // Explicit asynchronous write 'data' with 'size' in certain 'offset' using
 // system call without memcpy.
 // Do not use h2_awrite() with h2_write()
@@ -168,8 +128,13 @@ void h2_awrite(char *data, char *offset, size_t size) {
   shadow_split_write(data, offset, size * HeapWordSize, awrite_bytes);
 }
 
-// Check if all the asynchronous requestes have been completed
+// Check if all the asynchronous requestes have been completed (updates the
+// state of each request in progress)
 // Return 1 on succesfull, and 0 otherwise
 int	h2_areq_completed() {
-	return is_all_req_completed();
+	for (int i = 0; i < MAX_REQS; i++) {
+		if (req_poll(i) == EINPROGRESS)
+			return 0;
+	}
+	return 1;
 }

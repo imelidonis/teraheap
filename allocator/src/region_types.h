@@ -9,9 +9,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <pthread.h>
 
 #include "h2_config.h"
+#include "sharedDefines.h"
 
 /* We use promotion buffer in each region to reduce the number of system calls
  * for small sized objects.
@@ -67,6 +69,9 @@ extern struct region *region_array;
 extern char *region_array_base;
 extern struct id_to_reg_mapping *id_mapping_array;
 
+/* Defined in mem_pool.c */
+extern uint64_t region_array_size;
+
 /* Defined in reclaim.c */
 extern int protect_regions_on_free;
 
@@ -75,6 +80,24 @@ extern int protect_regions_on_free;
 extern double alloc_elapsedtime;
 extern double free_elapsedtime;
 #endif
+
+/* Index of the region that contains addr (not checked: an address outside
+ * H2 gives an index >= region_array_size) */
+static inline uint64_t region_index(const char *addr) {
+  return (uint64_t) (addr - region_array_base) / REGION_SIZE;
+}
+
+/* The region that contains addr, which must be in H2 */
+static inline struct region *region_of(const char *addr) {
+  uint64_t i = region_index(addr);
+  assertf(i < region_array_size, "Region index out of range %lu", i);
+  return &region_array[i];
+}
+
+/* A region is empty (free) when nothing is allocated in it */
+static inline bool region_is_empty(const struct region *r) {
+  return r->last_allocated_end == r->start_address;
+}
 
 static inline void check_allocation_failure(void *ptr, const char *msg) {
   if (!ptr) {

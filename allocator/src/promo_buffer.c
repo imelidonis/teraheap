@@ -9,15 +9,13 @@
 #include "region_types.h"
 #include "sharedDefines.h"
 
-/*
- * Flush the promotion buffer of a certain region
- *
- * seg: Index of the region in region array
- *
- */
-static void flush_buffer(uint64_t seg) {
-	struct pr_buffer *buf = region_array[seg].pr_buffer;
+_Static_assert(THRESHOLD < PR_BUFFER_SIZE, "THRESHOLD must be less than PR_BUFFER_SIZE");
 
+/*
+ * Write the objects in the promotion buffer `buf` to H2 and empty it.
+ * Called with buf->buffer_lock held.
+ */
+static void flush_buffer(struct pr_buffer *buf) {
 	if (buf->size == 0)
 		return;
 
@@ -38,24 +36,19 @@ static void flush_buffer(uint64_t seg) {
  * obj: Object that will be writter in the promotion buffer
  * new_adr: Is used to know where the first object in the promotion buffer will
  *			be move to H2
- * size: Size of the object
+ * size: Size of the object (in words)
  */
 void h2_buffer_insert(char* obj, char* new_adr, size_t size) {
-	uint64_t seg = (new_adr - region_array_base) / ((uint64_t)REGION_SIZE);
-	struct pr_buffer *buf = region_array[seg].pr_buffer;
+	struct pr_buffer *buf = region_of(new_adr)->pr_buffer;
+	size_t bytes = size * HeapWordSize;
 
-  pthread_mutex_lock(&buf->buffer_lock);
+	pthread_mutex_lock(&buf->buffer_lock);
 
-	char*  start_adr  = buf->first_obj_addr;
-	size_t cur_size   = buf->size;
-	size_t free_space = PR_BUFFER_SIZE - cur_size;
-
-	assertf(THRESHOLD < PR_BUFFER_SIZE, "Threshold should be less that promotion buffer size");
-
-	if ((size * HeapWordSize) > THRESHOLD) {
-    h2_awrite(obj, new_adr, size);
-    pthread_mutex_unlock(&buf->buffer_lock);
-    return;
+	if (bytes > THRESHOLD) {
+		// Big objects are written directly
+		h2_awrite(obj, new_adr, size);
+		pthread_mutex_unlock(&buf->buffer_lock);
+		return;
 	}
 
 	/* Allocate a buffer for the region and set buffer allocation ptr */
@@ -64,48 +57,25 @@ void h2_buffer_insert(char* obj, char* new_adr, size_t size) {
 		buf->alloc_ptr = buf->buffer;
 	}
 
-	/* Case1: Buffer is empty */
-	if (cur_size == 0) {
-		assertf(start_adr == NULL, "Sanity check");
-
-		memcpy(buf->alloc_ptr, obj, size * HeapWordSize);
-
-		buf->first_obj_addr = new_adr;
-		buf->alloc_ptr += size * HeapWordSize;
-		buf->size = size * HeapWordSize;
-
-    pthread_mutex_unlock(&buf->buffer_lock);
-
-		return;
-	}
-	
-	/* 
-	 * Case2: Object size is grater than the available free space in buffer
-	 * Case3: Object's new address is not contignious with the other objects - 
-	 * object belongs to next addresses in the region
-	 * In both cases we flush the buffer and allocate the object in a new
-	 * buffer.
+	/*
+	 * Flush the buffer if the object does not fit in its free space, or if
+	 * its new address does not follow the buffered objects
 	 */
-	if (((size * HeapWordSize) > free_space) || ((start_adr + cur_size) != new_adr)) {
-		flush_buffer(seg);
-		
-		memcpy(buf->alloc_ptr, obj, size * HeapWordSize);
-
-		buf->first_obj_addr = new_adr;
-		buf->alloc_ptr += size * HeapWordSize;
-		buf->size = size * HeapWordSize;
-
-    pthread_mutex_unlock(&buf->buffer_lock);
-
-		return;
+	if (buf->size != 0 &&
+	    (bytes > PR_BUFFER_SIZE - buf->size || buf->first_obj_addr + buf->size != new_adr)) {
+		flush_buffer(buf);
 	}
-	
-	memcpy(buf->alloc_ptr, obj, size * HeapWordSize);
 
-	buf->alloc_ptr += size * HeapWordSize;
-	buf->size += size * HeapWordSize;
+	if (buf->size == 0) {
+		assertf(buf->first_obj_addr == NULL, "Sanity check");
+		buf->first_obj_addr = new_adr;
+	}
 
-  pthread_mutex_unlock(&buf->buffer_lock);
+	memcpy(buf->alloc_ptr, obj, bytes);
+	buf->alloc_ptr += bytes;
+	buf->size += bytes;
+
+	pthread_mutex_unlock(&buf->buffer_lock);
 }
 
 /*
@@ -121,9 +91,7 @@ void h2_free_all_buffers() {
 
     pthread_mutex_lock(&buf->buffer_lock);
 
-		/* Buffer is not empty, so flush it */
-		if (buf->size != 0)
-			flush_buffer(i);
+		flush_buffer(buf);
 
 		/* If the buffer is already flushed, just free bufffer's memory */
 		if (buf->buffer != NULL) {

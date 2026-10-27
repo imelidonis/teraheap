@@ -27,11 +27,30 @@ struct id_to_reg_mapping *id_mapping_array;
 
 static int32_t _next_region;
 
+/* An empty region that starts at `start`, with an empty promotion buffer */
+static void init_region(struct region *r, char *start) {
+  r->start_address         = start;
+  r->used                  = 0;
+  r->last_allocated_end    = start;
+  r->last_allocated_start  = NULL;
+  r->first_allocated_start = NULL;
+  r->deps                  = NULL;
+  r->rdd_id                = _MAX_PARTITIONS - 1;
+  r->part_id               = _MAX_PARTITIONS - 1;
+
+  r->pr_buffer = malloc(sizeof(struct pr_buffer));
+  check_allocation_failure(r->pr_buffer, "[ERROR] -- Failed to allocate memory for pr_buffer\n");
+  r->pr_buffer->buffer         = NULL;
+  r->pr_buffer->size           = 0;
+  r->pr_buffer->alloc_ptr      = NULL;
+  r->pr_buffer->first_obj_addr = NULL;
+  pthread_mutex_init(&r->pr_buffer->buffer_lock, NULL);
+}
+
 /*
  * Initialize region array, tera_group array and their fields
  */
 void init_regions(uint64_t partitions) {
-  int32_t i;
   _MAX_PARTITIONS = partitions;
 
   // Cache-line aligned, so that each region (exactly one cache line, see
@@ -41,8 +60,8 @@ void init_regions(uint64_t partitions) {
   region_array = aligned_alloc(CACHE_LINE_SIZE, region_array_size * sizeof(struct region));
   check_allocation_failure(region_array, "[ERROR] -- Failed to allocate memory for region_array\n");
 
-  id_mapping_array =
-      malloc((_MAX_PARTITIONS * max_rdd_id) * sizeof(struct id_to_reg_mapping));
+  uint64_t n_ids = _MAX_PARTITIONS * max_rdd_id;
+  id_mapping_array = malloc(n_ids * sizeof(struct id_to_reg_mapping));
   check_allocation_failure(
       id_mapping_array, "[ERROR] -- Failed to allocate memory for id_mapping_array\n");
 
@@ -50,33 +69,16 @@ void init_regions(uint64_t partitions) {
   fprintf(stderr, "Total num of regions:%d\n", (int32_t) region_array_size);
 #endif
 
-  for (i = 0; i < region_array_size; i++) {
-    region_array[i].start_address             = (i == 0) ? h2_start_addr_mem_pool() : (region_array[i - 1].start_address + (uint64_t) REGION_SIZE);
-    if (i == 0) {
-      region_array_base = region_array[0].start_address;
-    }
-    region_array[i].used                      = 0;
-    region_array[i].last_allocated_end        = region_array[i].start_address;
-    region_array[i].last_allocated_start      = NULL;
-    region_array[i].first_allocated_start     = NULL;
-    region_array[i].deps           = NULL;
-    region_array[i].rdd_id                    = _MAX_PARTITIONS - 1;
-    region_array[i].part_id                   = _MAX_PARTITIONS - 1;
-    region_array[i].pr_buffer                 = malloc(sizeof(struct pr_buffer));
-    region_array[i].pr_buffer->buffer         = NULL;
-    region_array[i].pr_buffer->size           = 0;
-    region_array[i].pr_buffer->alloc_ptr      = NULL;
-    region_array[i].pr_buffer->first_obj_addr = NULL;
-    pthread_mutex_init(&region_array[i].pr_buffer->buffer_lock, NULL);
-  }
+  region_array_base = h2_start_addr_mem_pool();
+  for (uint64_t i = 0; i < region_array_size; i++)
+    init_region(&region_array[i], region_array_base + i * (uint64_t) REGION_SIZE);
 
-  for (i = 0; i < _MAX_PARTITIONS * max_rdd_id; i++) {
+  for (uint64_t i = 0; i < n_ids; i++) {
     id_mapping_array[i].mapped_region = NULL;
     pthread_mutex_init(&id_mapping_array[i].mapping_lock, NULL);
   }
 
   pthread_mutex_init(&alloc_region_lock, NULL);
-
 }
 
 /*
@@ -88,12 +90,9 @@ static int32_t get_cont_regions(int32_t cont_regions) {
 
   for(; i < (region_array_size + end_index); i++) {
     for (j = i; j < (i + cont_regions); j++) {
+      struct region *r = &region_array[j % (int32_t) region_array_size];
       // A freed region that still has shadow chunks is not reused yet
-      if (region_array[j % (int32_t) region_array_size].last_allocated_end == 
-          region_array[j % (int32_t) region_array_size].start_address &&
-          !shadow_range_busy(region_array[j % (int32_t) region_array_size].start_address, REGION_SIZE))
-        continue;
-      else
+      if (!region_is_empty(r) || shadow_range_busy(r->start_address, REGION_SIZE))
         break;
     }
 
@@ -154,86 +153,54 @@ uint64_t get_id(uint64_t rdd_id, uint64_t partition_id) {
   return (rdd_id % max_rdd_id) * _MAX_PARTITIONS + partition_id;
 }
 
+/*
+ * Allocate `size` bytes at the start of new empty regions and, for an
+ * object smaller than a region, make the region that holds its end the
+ * active region of mapping `m`. Called with m->mapping_lock held.
+ */
+static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
+                                    uint64_t rdd_id, uint64_t partition_id) {
+  pthread_mutex_lock(&alloc_region_lock);
+  char *res = new_region(size);
+  pthread_mutex_unlock(&alloc_region_lock);
+
+  if (res == NULL) {
+    perror("[Error] - H2 Allocator is full");
+    exit(EXIT_FAILURE);
+  }
+
+  // If the object spans more than one region, no other object goes after it
+  if (size < (uint64_t) REGION_SIZE) {
+    m->mapped_region = &region_array[region_index(res + size)];
+    m->mapped_region->rdd_id = rdd_id;
+    m->mapped_region->part_id = partition_id;
+  }
+
+  return res;
+}
+
 char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
 #if STATISTICS
   struct timeval start_time, end_time;
   gettimeofday(&start_time, NULL);
 #endif
 
+  struct id_to_reg_mapping *m = &id_mapping_array[get_id(rdd_id, partition_id)];
+  char *res;
 
-  int32_t id_index = get_id(rdd_id, partition_id);
+  pthread_mutex_lock(&m->mapping_lock);
 
-  pthread_mutex_lock(&id_mapping_array[id_index].mapping_lock);
-
-  if (id_mapping_array[id_index].mapped_region == NULL) {
-    pthread_mutex_lock(&alloc_region_lock);
-    char* res = new_region(size);
-    pthread_mutex_unlock(&alloc_region_lock);
-  
-    if (res == NULL) {
-      perror("[Error] - H2 Allocator is full");
-      exit(EXIT_FAILURE);
-    }
-    /* If object spans more than 1 region we don't want to allocate more objects with it*/
-    if (size < (uint64_t) REGION_SIZE) {
-      id_mapping_array[id_index].mapped_region =
-          &region_array[((res + size) - region_array_base) /
-                        ((uint64_t)REGION_SIZE)];
-      id_mapping_array[id_index].mapped_region->rdd_id = rdd_id;
-      id_mapping_array[id_index].mapped_region->part_id = partition_id;
-    }
-
-
-#if DEBUG_PRINT
-    printf("Allocating from region %ld until region %ld\n",((res) - region_array_base) / ((uint64_t)REGION_SIZE),((res+size) - region_array_base) / ((uint64_t)REGION_SIZE));
-#endif
-
-    pthread_mutex_unlock(&id_mapping_array[id_index].mapping_lock);
-
-    return res;
+  struct region *r = m->mapped_region;
+  if (r == NULL || r->last_allocated_end + size > r->start_address + (uint64_t) REGION_SIZE) {
+    res = allocate_in_new_region(m, size, rdd_id, partition_id);
+  } else {
+    h2_mark_used(r->start_address);
+    r->last_allocated_start = r->last_allocated_end;
+    r->last_allocated_end = r->last_allocated_start + size;
+    res = r->last_allocated_start;
   }
 
-  struct region *mapped_region = id_mapping_array[id_index].mapped_region;
-
-  if (mapped_region->last_allocated_end + size >
-      ((mapped_region->start_address + (uint64_t)REGION_SIZE))) {
-
-    pthread_mutex_lock(&alloc_region_lock);
-    char* res = new_region(size);
-    pthread_mutex_unlock(&alloc_region_lock);
-    
-    if (res == NULL) {
-      perror("[Error] - H2 Allocator is full");
-      exit(EXIT_FAILURE);
-    }
-
-    /* If object spans more than 1 region we don't want to allocate more objects with it*/
-    if (size < (uint64_t) REGION_SIZE) {
-      id_mapping_array[id_index].mapped_region =
-          &region_array[((res + size) - region_array_base) /
-                        ((uint64_t)REGION_SIZE)];
-      id_mapping_array[id_index].mapped_region->rdd_id = rdd_id;
-      id_mapping_array[id_index].mapped_region->part_id = partition_id;
-    }
-
-    assertf(res != NULL, "No empty region");
-
-
-#if DEBUG_PRINT
-    printf("Allocating from region %ld until region %ld\n",((res) - region_array_base) / ((uint64_t)REGION_SIZE),((res+size) - region_array_base) / ((uint64_t)REGION_SIZE));
-#endif
-    
-    pthread_mutex_unlock(&id_mapping_array[id_index].mapping_lock);
-
-    return res;
-  }
-
-  h2_mark_used(mapped_region->start_address);
-  mapped_region->last_allocated_start =
-      mapped_region->last_allocated_end;
-  mapped_region->last_allocated_end =
-      mapped_region->last_allocated_start + size;
-
+  pthread_mutex_unlock(&m->mapping_lock);
 
 #if STATISTICS
   gettimeofday(&end_time, NULL);
@@ -242,26 +209,20 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
 #endif
 
 #if DEBUG_PRINT
-  printf("Allocating from region %ld until region %ld\n",((mapped_region->last_allocated_start) - region_array_base) / ((uint64_t)REGION_SIZE),((mapped_region->last_allocated_start+size) - region_array_base) / ((uint64_t)REGION_SIZE));
+  printf("Allocating from region %lu until region %lu\n", region_index(res), region_index(res + size));
 #endif
 
-  char *last_alloc_start = mapped_region->last_allocated_start;
-
-  pthread_mutex_unlock(&id_mapping_array[id_index].mapping_lock);
-
-  return last_alloc_start;
+  return res;
 }
 
 void region_info(char *addr, char **top, bool *active) {
-  uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
-  struct region *r = &region_array[seg];
+  struct region *r = &region_array[region_index(addr)];
   *top = r->last_allocated_end;
   *active = id_mapping_array[get_id(r->rdd_id, r->part_id)].mapped_region == r;
 }
 
 int region_free_prot(char *addr) {
-  uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
-  bool is_free = region_array[seg].last_allocated_end == region_array[seg].start_address;
+  bool is_free = region_is_empty(&region_array[region_index(addr)]);
   return (protect_regions_on_free && is_free) ? PROT_NONE : (PROT_READ | PROT_WRITE);
 }
 
@@ -269,31 +230,19 @@ int region_free_prot(char *addr) {
  * Checks if obj is before last object of region
  */
 bool h2_is_before_last_object(char *obj) {
-  uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
-  assertf(seg >= 0 && seg < region_array_size,
-          "Segment index is out of range %lu", seg);
-
-  return (obj >= region_array[seg].last_allocated_end) ? false : true;
+  return obj < region_of(obj)->last_allocated_end;
 }
 
 /*
  * Returns last object of region
  */
 char* h2_get_last_object(char *obj) {
-  uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
-  assertf(seg >= 0 && seg < region_array_size,
-          "Segment index is out of range %lu", seg);
-
-  return region_array[seg].last_allocated_end;
+  return region_of(obj)->last_allocated_end;
 }
 
 // Returns true if object is first of its region false otherwise
 bool h2_is_region_start(char *obj) {
-  uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
-  assertf(seg >= 0 && seg < region_array_size,
-          "Segment index is out of range %lu", seg);
-
-  return (region_array[seg].first_allocated_start == obj) ? true : false;
+  return region_of(obj)->first_allocated_start == obj;
 }
 
 /*
@@ -329,20 +278,18 @@ char* h2_get_next_region() {
 }
 
 char *h2_get_first_object(char *addr) {
-  uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
-  assertf(seg >= 0 && seg < region_array_size, "Segment index is out of range %lu", seg);
-  return region_array[seg].first_allocated_start;
+  return region_of(addr)->first_allocated_start;
 }
 
 int h2_get_num_of_continuous_regions(char *addr) {
-  uint64_t seg = (addr - region_array_base) / ((uint64_t)REGION_SIZE);
+  struct region *r = &region_array[region_index(addr)];
 
-  if (region_array[seg].last_allocated_end == region_array[seg].start_address)
+  if (region_is_empty(r))
     return 0;
 
-  return ((region_array[seg].last_allocated_end - region_array[seg].first_allocated_start) % (uint64_t)REGION_SIZE != 0) ? 
-          (region_array[seg].last_allocated_end - region_array[seg].first_allocated_start) / (uint64_t)REGION_SIZE + 1 :
-          (region_array[seg].last_allocated_end - region_array[seg].first_allocated_start) / (uint64_t)REGION_SIZE;
+  // Regions covered from the first object, rounded up
+  uint64_t bytes = r->last_allocated_end - r->first_allocated_start;
+  return (bytes + REGION_SIZE - 1) / REGION_SIZE;
 }
 
 /*
@@ -354,11 +301,7 @@ int h2_get_num_of_continuous_regions(char *addr) {
  * Return: the object rdd id
  */
 uint64_t h2_get_obj_group_id(char *obj) {
-  uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
-  assertf(seg >= 0 && seg < region_array_size,
-          "Segment index is out of range %lu", seg);
-
-  return region_array[seg].rdd_id;
+  return region_of(obj)->rdd_id;
 }
 
 /*
@@ -370,29 +313,23 @@ uint64_t h2_get_obj_group_id(char *obj) {
  * returns: the object partition Id
  */
 uint64_t h2_get_obj_part_id(char *obj) {
-  uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
-  assertf(seg >= 0 && seg < region_array_size,
-          "Segment index is out of range %lu", seg);
-
-  return region_array[seg].part_id;
+  return region_of(obj)->part_id;
 }
 
+/* The allocation top of the last non-empty region (of region 0 if all are empty) */
 char* top_in_last_region() {
-  int32_t i;
-  struct region top_reg = region_array[0];
+  char *top = region_array[0].last_allocated_end;
 
-  for (i = 1 ; i < region_array_size; i++) {
-    if (region_array[i].start_address == region_array[i].last_allocated_end) {
-      continue;
-    }
-    top_reg = region_array[i];
+  for (int32_t i = 1; i < region_array_size; i++) {
+    if (!region_is_empty(&region_array[i]))
+      top = region_array[i].last_allocated_end;
   }
 
-  return top_reg.last_allocated_end;
+  return top;
 }
 
 uint64_t h2_region_containing_addr(char *addr) {
-  return (addr - region_array_base) / ((uint64_t)REGION_SIZE);
+  return region_index(addr);
 }
 
 int h2_is_used(uint64_t region) {
@@ -400,8 +337,6 @@ int h2_is_used(uint64_t region) {
 }
 
 bool h2_object_starts_from_region(char *obj) {
-  uint64_t seg = (obj - region_array_base) / ((uint64_t)REGION_SIZE);
-  assertf(seg >= 0 && seg < region_array_size,
-          "Segment index is out of range %lu", seg);
-  return (region_array[seg].first_allocated_start != region_array[seg].start_address) ? false : true;
+  struct region *r = region_of(obj);
+  return r->first_allocated_start == r->start_address;
 }

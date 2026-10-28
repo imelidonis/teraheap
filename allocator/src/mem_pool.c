@@ -116,7 +116,9 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
 
   th_mem_pool.stop_address = th_mem_pool.mmap_start + dev_size;
 
-  region_array_size = dev_size / REGION_SIZE;
+  // Regions start at start_address (aligned up), so only whole regions
+  // between start_address and stop_address are inside the mapping
+  region_array_size = (uint64_t) (th_mem_pool.stop_address - th_mem_pool.start_address) / REGION_SIZE;
 
   assertf(region_array_size >= partitions,
           "Device size should be larger, because region_array_size is "

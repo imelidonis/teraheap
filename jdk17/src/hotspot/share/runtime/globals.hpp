@@ -1012,11 +1012,13 @@ const intx ObjectAlignmentInBytes = 8;
   product(uintx, TeraHeapSize, 0,                                           \
           "(depricated?)Initial TeraHeap total size(in bytes)")             \
                                                                             \
-  product(uintx, TeraStripeSize, 512,                                       \
-          "Size of TeraHeap stripe size (e.g 128)")                         \
-                                                                            \
   product(uintx, H2FileSize, 0,						                        \
           "H2 file size (bytes e.g 20GB=21474836480")			            \
+                                                                            \
+  product(size_t, H2RegionSize, 256*M,                                      \
+          "Size of an H2 region (bytes): a power of two and a multiple "   \
+          "of 32MB (the heap one page of H2 cards covers). "              \
+          "The H2 card-table stripe is one region")                         \
                                                                             \
   product(ccstr, AllocateH2At, NULL,					                    \
           "Path to the directory where the H2 file will be created")	    \

@@ -28,6 +28,7 @@
 #define SIZE_1M (1*1024LU*1024)
 #define SIZE_4M (4*1024LU*1024)
 
+#define MB (1024LU * 1024)
 #define GB 1024LU * 1024 * 1024
 
 #define HEAPWORD (8)
@@ -39,7 +40,7 @@ int main() {
 	char *tmp, *tmp2, *tmp3, *tmp4;
 	
 	// Init allocator
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4, 1, false);
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4, 1, false);
 
 	tmp = malloc(SIZE_80B * sizeof(char));
 	memset(tmp, '1', SIZE_80B);

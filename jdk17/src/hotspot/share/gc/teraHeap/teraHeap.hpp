@@ -19,6 +19,8 @@ private:
   static char *_stop_addr;        // TeraHeap ends address of mmap region
   ObjectStartArray _start_array;  // Keeps track of where objects
                                   // start in a 2^CARD_SEGMENT_SIZE block
+  size_t _h2_stripe_cards;        // H2 card-table stripe: the cards of one
+                                  // region (H2RegionSize / card size)
 
   /*-----------------------------------------------
    * Stacks
@@ -282,6 +284,11 @@ public:
 
   // Check if the object with `addr` span multiple regions
   int h2_continuous_regions(HeapWord *addr);
+
+  // Cards per stripe when GC workers scan the H2 card table in parallel:
+  // one stripe per region, so that a stripe times h2_continuous_regions()
+  // covers whole regions
+  size_t h2_stripe_cards() const { return _h2_stripe_cards; }
 
   // Check where the object starts
   bool h2_object_starts_in_region(HeapWord *obj);

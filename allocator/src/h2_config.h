@@ -23,7 +23,7 @@
 
 #define HeapWordSize 8                    //< Java heap word (bytes)
 
-#define REGION_SIZE (256*1024LU*1024)     //< Region size (bytes)
+/* The region size is set at run time: h2_init(region_size) */
 
 #define MAX_REQS    64                    //< Maximum async I/O requests
 

@@ -21,6 +21,7 @@
 #define CARD_SIZE ((uint64_t) (1 << 9))
 #define PAGE_SIZE ((uint64_t) (1 << 12))
 
+#define MB (1024LU * 1024)
 #define GB 1024LU * 1024 * 1024
 
 #define NOBJ      240   // one object per region (each has its own label)
@@ -53,7 +54,7 @@ static void *mark_chain_part(void *arg) {
 
 int main() {
   // One partition: each label (rdd id) gets its own region
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 1, 1, false);
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 1, 1, false);
 
   for (int i = 0; i < NOBJ; i++)
     obj[i] = h2_allocate(1, i, 0, 0);

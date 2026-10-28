@@ -30,6 +30,9 @@ extern "C" {
 /*
  * Create the H2 file `h2_file_size` bytes big in directory `h2_file_path`,
  * map it with its start aligned to `alignment`, and set up the regions.
+ * `region_size`: bytes per region; a power of two, at least
+ * H2_SHADOW_CHUNK and a multiple of `alignment` (the process exits
+ * otherwise).
  * `partitions`: maximum partitions per group (sizes the id mapping array).
  * `total_gc_threads`: number of GC threads that call h2_allocate().
  * `group_by_gc_thread`: group regions by the allocating GC thread
@@ -37,11 +40,15 @@ extern "C" {
  * one allocating thread. h2_shadow_init() needs it.
  */
 H2_API void h2_init(uint64_t alignment, const char *h2_file_path, uint64_t h2_file_size,
-             uint64_t partitions, int total_gc_threads, bool group_by_gc_thread);
+             uint64_t region_size, uint64_t partitions, int total_gc_threads,
+             bool group_by_gc_thread);
 
 /* Start (aligned) and end of the H2 address range */
 H2_API char *h2_start_addr_mem_pool(void);
 H2_API char *h2_stop_addr_mem_pool(void);
+
+/* Bytes per region (h2_init()) */
+H2_API uint64_t h2_region_size(void);
 
 /* Current allocation top (updated by h2_update_allocator_global_state()) */
 H2_API char *h2_cur_alloc_ptr(void);

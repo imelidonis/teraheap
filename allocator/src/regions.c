@@ -23,6 +23,8 @@ struct region *region_array;
 
 // See region_types.h
 char *region_array_base __attribute__((aligned(CACHE_LINE_SIZE)));
+uint64_t region_size;
+unsigned region_shift;
 struct id_to_reg_mapping *id_mapping_array;
 
 static int32_t _next_region;
@@ -71,7 +73,7 @@ void init_regions(uint64_t partitions) {
 
   region_array_base = h2_start_addr_mem_pool();
   for (uint64_t i = 0; i < region_array_size; i++)
-    init_region(&region_array[i], region_array_base + i * (uint64_t) REGION_SIZE);
+    init_region(&region_array[i], region_array_base + i * region_size);
 
   for (uint64_t i = 0; i < n_ids; i++) {
     id_mapping_array[i].mapped_region = NULL;
@@ -92,7 +94,7 @@ static int32_t get_cont_regions(int32_t cont_regions) {
     for (j = i; j < (i + cont_regions); j++) {
       struct region *r = &region_array[j % (int32_t) region_array_size];
       // A freed region that still has shadow chunks is not reused yet
-      if (!region_is_empty(r) || shadow_range_busy(r->start_address, REGION_SIZE))
+      if (!region_is_empty(r) || shadow_range_busy(r->start_address, region_size))
         break;
     }
 
@@ -122,7 +124,7 @@ static int32_t get_cont_regions(int32_t cont_regions) {
  */
 static char* new_region(size_t size) {
   int32_t i;
-  int32_t cont_regions = (size % REGION_SIZE != 0) ? (size / REGION_SIZE) + 1 : (size / REGION_SIZE);
+  int32_t cont_regions = (size % region_size != 0) ? (size / region_size) + 1 : (size / region_size);
   int32_t cur_region = get_cont_regions(cont_regions);
 
   if (cur_region == -1)
@@ -140,7 +142,7 @@ static char* new_region(size_t size) {
     if (protect_regions_on_free) {
       // Enable accesses
       fprintf(stderr, "Enable permissions for region: %u\n", i);
-      if (mprotect(region_array[i].start_address, REGION_SIZE, PROT_READ | PROT_WRITE) != 0) {
+      if (mprotect(region_array[i].start_address, region_size, PROT_READ | PROT_WRITE) != 0) {
         fprintf(stderr, "mprotect error\n");
       }
     }
@@ -170,7 +172,7 @@ static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
   }
 
   // If the object spans more than one region, no other object goes after it
-  if (size < (uint64_t) REGION_SIZE) {
+  if (size < region_size) {
     m->mapped_region = &region_array[region_index(res + size)];
     m->mapped_region->rdd_id = rdd_id;
     m->mapped_region->part_id = partition_id;
@@ -191,7 +193,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
   pthread_mutex_lock(&m->mapping_lock);
 
   struct region *r = m->mapped_region;
-  if (r == NULL || r->last_allocated_end + size > r->start_address + (uint64_t) REGION_SIZE) {
+  if (r == NULL || r->last_allocated_end + size > r->start_address + region_size) {
     res = allocate_in_new_region(m, size, rdd_id, partition_id);
   } else {
     h2_mark_used(r->start_address);
@@ -289,7 +291,7 @@ int h2_get_num_of_continuous_regions(char *addr) {
 
   // Regions covered from the first object, rounded up
   uint64_t bytes = r->last_allocated_end - r->first_allocated_start;
-  return (bytes + REGION_SIZE - 1) / REGION_SIZE;
+  return (bytes + region_size - 1) / region_size;
 }
 
 /*

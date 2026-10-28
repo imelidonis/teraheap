@@ -7,9 +7,11 @@
 #include "memory/sharedDefines.h"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 #include "logging/log.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 
 char *TeraHeap::_start_addr = NULL;
@@ -31,7 +33,22 @@ TeraHeap::TeraHeap() {
     ShouldNotReachHere();
   }
 
-  ::h2_init(align, AllocateH2At, H2FileSize, H2MaxPartitions, ParallelGCThreads,
+  // The allocator needs a power of two (region index = shift) that is a
+  // multiple of the H2 card-table alignment: the heap one page of cards
+  // covers (32MB with 8KB cards and 4KB pages)
+  if (!is_power_of_2(H2RegionSize) || H2RegionSize < align || H2RegionSize % align != 0) {
+    vm_exit_during_initialization(err_msg("H2RegionSize (" SIZE_FORMAT ") must be a power of two "
+                                          "and a multiple of " UINT64_FORMAT " bytes",
+                                          H2RegionSize, align));
+  }
+  if (H2FileSize / H2RegionSize < H2MaxPartitions) {
+    vm_exit_during_initialization(err_msg("H2FileSize / H2RegionSize (" SIZE_FORMAT ") must be at "
+                                          "least H2MaxPartitions (" UINTX_FORMAT ")",
+                                          (size_t) (H2FileSize / H2RegionSize), H2MaxPartitions));
+  }
+  _h2_stripe_cards = H2RegionSize >> CardTable::th_card_shift;
+
+  ::h2_init(align, AllocateH2At, H2FileSize, H2RegionSize, H2MaxPartitions, ParallelGCThreads,
             TeraH2GroupByGCThread);
   ::h2_protect_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
 

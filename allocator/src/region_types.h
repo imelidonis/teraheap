@@ -67,6 +67,9 @@ extern struct region *region_array;
 // after init, so it does not share a cache line with region 0's
 // allocation fields, which are written on every allocation.
 extern char *region_array_base;
+// Region size in bytes, a power of two, and its log2. Set once by h2_init().
+extern uint64_t region_size;
+extern unsigned region_shift;
 extern struct id_to_reg_mapping *id_mapping_array;
 
 /* Defined in mem_pool.c */
@@ -84,7 +87,7 @@ extern double free_elapsedtime;
 /* Index of the region that contains addr (not checked: an address outside
  * H2 gives an index >= region_array_size) */
 static inline uint64_t region_index(const char *addr) {
-  return (uint64_t) (addr - region_array_base) / REGION_SIZE;
+  return (uint64_t) (addr - region_array_base) >> region_shift;
 }
 
 /* The region that contains addr, which must be in H2 */

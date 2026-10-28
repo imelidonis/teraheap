@@ -20,8 +20,8 @@ void print_statistics() {
   for(i = 0 ; i < region_array_size ; i++ ) {
     if (region_array[i % region_array_size].last_allocated_end != region_array[i % region_array_size].start_address ) {
       total_regions++;
-      if (region_array[i].last_allocated_end <= region_array[i].start_address + REGION_SIZE) { 
-        wasted_space += (region_array[i].start_address + (uint64_t) REGION_SIZE) - region_array[i].last_allocated_end;
+      if (region_array[i].last_allocated_end <= region_array[i].start_address + region_size) { 
+        wasted_space += (region_array[i].start_address + region_size) - region_array[i].last_allocated_end;
       }
     }
   }

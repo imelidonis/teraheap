@@ -16,7 +16,7 @@ int         protect_regions_on_free = 0;
 /* Remove all access to a freed region (h2_protect_regions_on_free()) */
 static void make_region_inaccessible(char *region_start) {
   fprintf(stderr, "Remove permissions for region: %lu\n", h2_region_containing_addr(region_start));
-  if (mprotect(region_start, REGION_SIZE, PROT_NONE) != 0) {
+  if (mprotect(region_start, region_size, PROT_NONE) != 0) {
     fprintf(stderr, "mprotect error\n");
   }
 }
@@ -47,7 +47,7 @@ static void free_region(struct region *r, h2_region_free_cb cb, void *ctx) {
   r->part_id = _MAX_PARTITIONS - 1;
 
   // Its shadow chunks are dead: detach them without writing
-  shadow_free_range(r->start_address, REGION_SIZE);
+  shadow_free_range(r->start_address, region_size);
 
   if (report) {
     if (cb != NULL)

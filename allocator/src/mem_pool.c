@@ -97,9 +97,23 @@ static void reset_per_thread_state(void) {
   }
 }
 
+static void init_failed(const char *msg, uint64_t value) {
+  fprintf(stderr, "[ERROR] h2_init: %s (%lu)\n", msg, value);
+  exit(EXIT_FAILURE);
+}
+
 // Initialize allocator
-void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads,
-             bool group_by_thread) {
+void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t region_bytes,
+             uint64_t partitions, int total_gc_threads, bool group_by_thread) {
+  // A power of two, so that region_index() is a shift; a multiple of the
+  // alignment and of a shadow chunk, so that a chunk never crosses regions
+  if (region_bytes == 0 || (region_bytes & (region_bytes - 1)) != 0)
+    init_failed("the region size must be a power of two", region_bytes);
+  if (region_bytes < H2_SHADOW_CHUNK || region_bytes % align != 0)
+    init_failed("the region size must be a multiple of 2 MB and of the alignment", region_bytes);
+  region_size = region_bytes;
+  region_shift = (unsigned) __builtin_ctzll(region_bytes);
+
   fd = -1;
 
   dev_size = h2_file_size;
@@ -118,11 +132,11 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
 
   // Regions start at start_address (aligned up), so only whole regions
   // between start_address and stop_address are inside the mapping
-  region_array_size = (uint64_t) (th_mem_pool.stop_address - th_mem_pool.start_address) / REGION_SIZE;
+  region_array_size = (uint64_t) (th_mem_pool.stop_address - th_mem_pool.start_address) / region_size;
 
-  assertf(region_array_size >= partitions,
-          "Device size should be larger, because region_array_size is "
-          "calculated to be smaller than _MAX_PARTITIONS!");
+  if (region_array_size < partitions)
+    init_failed("H2 has fewer regions than partitions; use a bigger H2 file or smaller regions",
+                region_array_size);
 
   n_gc_threads = total_gc_threads;
 
@@ -154,6 +168,10 @@ char* h2_start_addr_mem_pool() {
 char* h2_stop_addr_mem_pool() {
   assertf(th_mem_pool.stop_address != NULL, "Stop address is NULL");
   return th_mem_pool.stop_address;
+}
+
+uint64_t h2_region_size(void) {
+  return region_size;
 }
 
 // Return the `size` of the memory allocation pool
@@ -264,7 +282,7 @@ int h2_shadow_init(size_t pool_bytes, int precopy_rounds) {
     return -1;
   }
   return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
-                     pool_bytes, precopy_rounds, n_gc_threads,
+                     region_size, pool_bytes, precopy_rounds, n_gc_threads,
                      region_info, region_free_prot);
 }
 	

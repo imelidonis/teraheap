@@ -23,6 +23,11 @@ extern "C" {
 extern uint64_t region_array_size;
 extern uint64_t max_rdd_id; //< Total different rdds
 
+/* Defined in regions.c, set by h2_init(): region size (a power of two) and
+ * its log2 */
+extern uint64_t region_size;
+extern unsigned region_shift;
+
 struct region;
 struct dep_set;
 

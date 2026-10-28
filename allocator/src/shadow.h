@@ -53,7 +53,8 @@ extern "C" {
 
 // Set up the pool (up to pool_bytes), userfaultfd and the pagemap fd for the
 // H2 file mapping [map_start, map_start + map_size) of file `fd` (file offset
-// = address - map_start). h2_start is the 2 MB aligned start of the regions.
+// = address - map_start). h2_start is the 2 MB aligned start of the regions,
+// region_size the allocator's region size (a power of two, >= 2 MB).
 // precopy_rounds: max pre-copy rounds per chunk. Returns 0, or -1 with a
 // message on stderr (the allocator then works as before).
 // The region queries come from the region code (regions.c):
@@ -62,7 +63,7 @@ extern "C" {
 //  - region_free_prot(addr): the protection to map a chunk of a freed region
 //    with.
 int  shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
-                 size_t pool_bytes, int precopy_rounds, int n_threads,
+                 uint64_t region_size, size_t pool_bytes, int precopy_rounds, int n_threads,
                  void (*region_info)(char *addr, char **top, bool *active),
                  int (*region_free_prot)(char *addr));
 

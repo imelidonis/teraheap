@@ -27,7 +27,6 @@
 #include <time.h>
 #include <unistd.h>
 #include "h2_allocator.h"
-#include "../src/h2_config.h" // white-box: REGION_SIZE
 #include "../src/shadow.h"    // white-box: writer step, pre-attach
 #include "test_util.h"
 
@@ -235,8 +234,8 @@ static int free_one_region(uint64_t *s, int shadow_only) {
     if (o->live && (!shadow_only || h2_shadow_is_attached(o->addr))) victim = o->addr;
   }
   if (!victim) return 0;
-  char *rstart = h2_start_addr_mem_pool() + ((victim - h2_start_addr_mem_pool()) / REGION_SIZE) * REGION_SIZE;
-  char *rend = rstart + REGION_SIZE;
+  char *rstart = h2_start_addr_mem_pool() + ((victim - h2_start_addr_mem_pool()) / h2_region_size()) * h2_region_size();
+  char *rend = rstart + h2_region_size();
   h2_reset_used();
   int dropped = 0;
   for (long k = 0; k < n; k++) {
@@ -258,7 +257,7 @@ int main(int argc, char **argv) {
   int cycles = argc > 2 ? atoi(argv[2]) : 40;
   objs = calloc(MAX_OBJS, sizeof *objs);
 
-  h2_init(SHADOW_CHUNK, dir, 8 * GB, NPARTS, NTHREADS, true);   // shadow needs grouping by GC thread
+  h2_init(SHADOW_CHUNK, dir, 8 * GB, 256 * MB, NPARTS, NTHREADS, true);   // shadow needs grouping by GC thread
   if (h2_shadow_init(POOL, 3)) { fprintf(stderr, "FAIL: shadow_init\n"); return 1; }
 
   pthread_t wt, mt;
@@ -290,7 +289,7 @@ int main(int argc, char **argv) {
     if (c % 2 == 1)
       for (int t = 0; t < NTHREADS; t++)
         for (long k = nobjs - 1; k >= 0; k--)
-          if (objs[k].live && objs[k].gen == (uint64_t) c + 1 && (objs[k].addr - h2_start_addr_mem_pool()) / REGION_SIZE % NTHREADS == (uint64_t) t) {
+          if (objs[k].live && objs[k].gen == (uint64_t) c + 1 && (objs[k].addr - h2_start_addr_mem_pool()) / h2_region_size() % NTHREADS == (uint64_t) t) {
             preattached += shadow_preattach(objs[k].addr + objs[k].words * 8, 4 * MB);
             break;
           }
@@ -316,7 +315,7 @@ int main(int argc, char **argv) {
     ((uint64_t *) p)[0] = pattern(p, 7777); ((uint64_t *) p)[1] = pattern(p + 8, 7777);
     add_obj(p, 2, 7777);
     char *top = p + 16;
-    char *rend = h2_start_addr_mem_pool() + ((top - h2_start_addr_mem_pool()) / REGION_SIZE + 1) * REGION_SIZE;
+    char *rend = h2_start_addr_mem_pool() + ((top - h2_start_addr_mem_pool()) / h2_region_size() + 1) * h2_region_size();
     int pre = shadow_preattach(top, 6 * MB);
     size_t w = (rend - top) / 8 + 1;   // does not fit: the region retires
     char *q = h2_allocate(w, 0, 1, 0);
@@ -326,7 +325,7 @@ int main(int argc, char **argv) {
     h2_shadow_pause_end();
     h2_shadow_get_stats(&st);
     printf("retired-region check: preattached %d, returned %ld, new object in another region: %s\n",
-           pre, st.empty_detached - empty_before, (q - h2_start_addr_mem_pool()) / REGION_SIZE != (top - h2_start_addr_mem_pool()) / REGION_SIZE ? "yes" : "no");
+           pre, st.empty_detached - empty_before, (q - h2_start_addr_mem_pool()) / h2_region_size() != (top - h2_start_addr_mem_pool()) / h2_region_size() ? "yes" : "no");
     // Other retired regions may return chunks at the same pause end, so
     // check the pre-attached chunks themselves
     int still = 0;

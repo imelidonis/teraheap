@@ -62,6 +62,12 @@ test: tests
 			printf '%b %s\n' '[$(BRED)FAIL$(RESET)]' "$$name (see $(BINDIR)/$$name.log)"; fail=1; \
 		fi; \
 	done; \
+	name=th_allocate_multi_regions_4mb; \
+	if $(BINDIR)/th_allocate_multi_regions.bin $(TEST_H2_DIR) 4 > $(BINDIR)/$$name.log 2>&1; then \
+		printf '%b %s\n' '[$(BGREEN)PASS$(RESET)]' $$name; \
+	else \
+		printf '%b %s\n' '[$(BRED)FAIL$(RESET)]' "$$name (see $(BINDIR)/$$name.log)"; fail=1; \
+	fi; \
 	exit $$fail
 
 install: $(LIBRARY)

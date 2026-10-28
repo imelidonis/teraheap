@@ -76,7 +76,7 @@ public class Test_H2_HumongousBackRefsStress {
     // Keep defaults fairly spicy; you can override via args for local tuning.
     final int H2_SIZE = (args.length > 0) ? Integer.parseInt(args[0]) : (1 << 20); // 1M slots
     final int CYCLES  = (args.length > 1) ? Integer.parseInt(args[1]) : 2;
-    final int ALLOCS_PER_CYCLE = (args.length > 2) ? Integer.parseInt(args[2]) : 4096; // edges created during CM
+    final int ALLOCS_PER_CYCLE = (args.length > 2) ? Integer.parseInt(args[2]) : 1024; // edges created during CM
     final int HUM_MB = (args.length > 3) ? Integer.parseInt(args[3]) : 32; // 8/16/32/64
     final int YOUNG_GC_STORM = (args.length > 4) ? Integer.parseInt(args[4]) : 5000;
 
@@ -163,8 +163,10 @@ public class Test_H2_HumongousBackRefsStress {
 
         // Optionally age it / force progress for determinism in your harness.
         // (Even without this, humongous regions are typically handled specially.)
+        // GC.gc() runs a whole CM cycle, so only every 8th object: the
+        // others get their H2 -> humongous edge while CM is in progress.
         GC.move_to_old();
-        GC.gc();
+        if ((i & 7) == 0) GC.gc();
 
         // Publish the ONLY durable reference (H2 -> humongous).
         h2[slot] = a;

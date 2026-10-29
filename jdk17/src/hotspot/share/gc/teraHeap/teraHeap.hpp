@@ -9,8 +9,7 @@
 #include "gc/teraHeap/teraStatistics.hpp"
 
 // Allocator functions
-#include <regions.h>
-#include <shadow.h>
+#include <h2_allocator.h>
 
 class PSCardTable;
 
@@ -20,6 +19,8 @@ private:
   static char *_stop_addr;        // TeraHeap ends address of mmap region
   ObjectStartArray _start_array;  // Keeps track of where objects
                                   // start in a 2^CARD_SEGMENT_SIZE block
+  size_t _h2_stripe_cards;        // H2 card-table stripe: the cards of one
+                                  // region (H2RegionSize / card size)
 
   /*-----------------------------------------------
    * Stacks
@@ -62,13 +63,18 @@ private:
 
   static CardTable* th_card_table(void);
 
+  // h2_free_regions() callback (ctx: the TeraHeap): clears the start array
+  // and the cards of a freed region
+  static void h2_region_freed(char *region_start, char *last_alloc_start,
+                              char *last_alloc_end, void *ctx);
+
   // TeraH2Shadow (allocator shadow.h): enabled, and the counters at the
   // start of the current pause for the [H2_SHADOW] line
   bool _shadow_on;
   bool _shadow_mixed;
   uint64_t _shadow_switch_skipped;           // READY chunks left by this pause's switch
-  struct shadow_stats _shadow_at_start;      // after this pause's switch
-  struct shadow_stats _shadow_at_last_end;   // at the previous pause end
+  struct h2_shadow_stats _shadow_at_start;      // after this pause's switch
+  struct h2_shadow_stats _shadow_at_last_end;   // at the previous pause end
   double _shadow_start_ms;                   // time of h2_shadow_pause_start() in this pause
   double _rand_faults_ms;                    // time of h2_enable_rand_faults() in the last pause
   double _alloc_state_ms;                    // time of update_allocator_state() in the last pause
@@ -76,6 +82,15 @@ private:
   // Start the shadow chunks if TeraH2Shadow is set and the build and the
   // kernel support them
   void h2_shadow_init();
+
+  // TeraH2AllocatorStats: regions allocated at the last print, and the
+  // regions freed and the time to free them since then and in total
+  uint64_t _as_last_allocated;
+  uint64_t _as_taken_total;
+  uint64_t _as_freed;
+  uint64_t _as_freed_total;
+  double _as_free_ms;
+  double _as_free_ms_total;
 public:
   // True if the GC workers time their H2 (SH) evacuation work and count the
   // bytes they move to H2: for the statistics, or for the H2 copy cost
@@ -95,11 +110,11 @@ public:
   ~TeraHeap();
 
   bool h2_verify_top() {
-    bool res = verify_top();
+    bool res = ::h2_verify_top();
 
     if (!res) {
       fprintf(stderr, "[ERROR] Allocator bounds [%p, %p), top: %p\n",
-              start_addr_mem_pool(), stop_addr_mem_pool(), cur_alloc_ptr());
+              ::h2_start_addr_mem_pool(), ::h2_stop_addr_mem_pool(), ::h2_cur_alloc_ptr());
     }
 
     return res; 
@@ -233,6 +248,10 @@ public:
   // Frees all unused regions
   void free_unused_regions(void);
 
+  // TeraH2AllocatorStats: at the end of a young or mixed pause, print the
+  // allocator statistics to the TeraHeap log; `tag` is YOUNG or MIXED
+  void print_h2_alloc_stats(const char *tag);
+
   // Prints all the region groups
   void print_region_groups(void);
 
@@ -279,6 +298,11 @@ public:
   // Check if the object with `addr` span multiple regions
   int h2_continuous_regions(HeapWord *addr);
 
+  // Cards per stripe when GC workers scan the H2 card table in parallel:
+  // one stripe per region, so that a stripe times h2_continuous_regions()
+  // covers whole regions
+  size_t h2_stripe_cards() const { return _h2_stripe_cards; }
+
   // Check where the object starts
   bool h2_object_starts_in_region(HeapWord *obj);
 
@@ -313,7 +337,7 @@ public:
 
   // TeraH2Shadow: true if H2 address `addr` is in a pool chunk (DRAM)
   bool h2_shadow_is_chunk(HeapWord* addr) const {
-    return _shadow_on && shadow_is_attached((char*) addr);
+    return _shadow_on && ::h2_shadow_is_attached((char*) addr);
   }
 
   // After the evacuation and update_allocator_state(): hand the filled

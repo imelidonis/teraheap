@@ -941,6 +941,10 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, TeraHeapStatistics, false,                                  \
           "Print TeraHeap statistics")                                      \
                                                                             \
+  product(bool, TeraH2AllocatorStats, false,                                \
+          "Print H2 allocator statistics (regions, dependencies) to the "  \
+          "TeraHeap log (-Xlogth) after each young and mixed GC")          \
+                                                                            \
   product(uintx, TeraH2CostPercentile, 90,                                  \
           "Percentile of the recent H2 (SH) copy costs per byte that G1 "  \
           "uses to choose the initial old regions of a mixed GC, so that " \
@@ -953,6 +957,12 @@ const intx ObjectAlignmentInBytes = 8;
           "Number of recent mixed GCs whose H2 copy cost per byte "        \
           "TeraH2CostPercentile is computed from")                          \
           range(8, 256)                                                     \
+                                                                            \
+  product(bool, TeraH2GroupByGCThread, true,                                \
+          "Group the H2 regions by the GC thread that moves the objects "  \
+          "instead of by the object label, so that each H2 region has "    \
+          "one allocating GC thread. TeraH2Shadow needs it, and the Full " \
+          "GC promotion buffers need it to see contiguous addresses")      \
                                                                             \
   product(bool, TeraH2Shadow, false,                                        \
           "Mixed GCs copy objects to H2 into DRAM chunks mapped at their "  \
@@ -1006,11 +1016,13 @@ const intx ObjectAlignmentInBytes = 8;
   product(uintx, TeraHeapSize, 0,                                           \
           "(depricated?)Initial TeraHeap total size(in bytes)")             \
                                                                             \
-  product(uintx, TeraStripeSize, 512,                                       \
-          "Size of TeraHeap stripe size (e.g 128)")                         \
-                                                                            \
   product(uintx, H2FileSize, 0,						                        \
           "H2 file size (bytes e.g 20GB=21474836480")			            \
+                                                                            \
+  product(size_t, H2RegionSize, 256*M,                                      \
+          "Size of an H2 region (bytes): a power of two and a multiple "   \
+          "of 32MB (the heap one page of H2 cards covers). "              \
+          "The H2 card-table stripe is one region")                         \
                                                                             \
   product(ccstr, AllocateH2At, NULL,					                    \
           "Path to the directory where the H2 file will be created")	    \

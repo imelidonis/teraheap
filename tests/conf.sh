@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-H2_REGION_SIZE=$((256 * 1024 * 1024))
-H2_CARD_SEGMENT_SIZE=$((8 * 1024))
-STRIPE_SIZE=$(( H2_REGION_SIZE / H2_CARD_SEGMENT_SIZE ))
 H2_SIZE_IN_BYTES=$(echo "700 * 1024 * 1024 * 1024" | bc)
 JAVA="../jdk17/build/linux-x86_64-server-release/jdk/bin/java"
 H2_MOUNT_POINT="/mnt/fmap/"
@@ -85,7 +82,6 @@ DEFAULT_FLAGS=(
   -XX:-ClassUnloading
   -XX:+UseG1GC
   -XX:+EnableTeraHeap 
-  -XX:TeraStripeSize=${STRIPE_SIZE}
   -XX:+TeraHeapStatistics
   -XX:AllocateH2At=${H2_MOUNT_POINT}
   -XX:H2FileSize=${H2_SIZE_IN_BYTES}

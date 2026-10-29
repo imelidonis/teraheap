@@ -363,7 +363,7 @@ void PSCardTable::h2_scavenge_contents_parallel(
 
   assert(space_top != NULL, "snapshot of the teraheap top should have been taken");
   
-	int ssize = TeraStripeSize; // Naked constant!  Default work unit = 8M
+	int ssize = (int) Universe::teraHeap()->h2_stripe_cards(); // the cards of one H2 region
 	int dirty_card_count = 0;
 	oop* sp_top = (oop *) space_top;
 	CardValue* start_card = byte_for(Universe::teraHeap()->h2_start_addr());

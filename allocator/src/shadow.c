@@ -14,9 +14,9 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "../include/shadow.h"
-#include "../include/sharedDefines.h"
-#include "../include/segments.h"
+#include "shadow.h"
+#include "sharedDefines.h"
+#include "h2_config.h"
 
 #define CHUNK SHADOW_CHUNK
 #define PAGE 4096UL
@@ -44,6 +44,8 @@ static uint8_t *s_state;          // per chunk of [s_h2_start, s_h2_end)
 static uint64_t s_nchunks;
 static uint16_t *s_region_busy;   // attached chunks per allocator region
 static uint64_t s_nregions;
+static uint64_t s_region_size;   // allocator region size (shadow_init())
+static unsigned s_region_shift;   // log2(s_region_size)
 
 static char *s_slots;             // reserved, 2 MB aligned pool area
 static uint32_t s_pool_cap, s_pool_n, s_nfree;
@@ -54,7 +56,7 @@ static int s_nthreads;
 static uint64_t s_seq;
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
-static struct shadow_stats s_st;
+static struct h2_shadow_stats s_st;
 
 // Writer thread
 static pthread_t s_writer;
@@ -64,6 +66,10 @@ static bool s_wake_pending;
 
 static bool s_verify;
 static char *s_verify_buf;
+
+// Region queries (see shadow_init())
+static void (*s_region_info)(char *addr, char **top, bool *active);
+static int (*s_region_free_prot)(char *addr);
 
 static double now_ms(void) {
   struct timespec t;
@@ -75,7 +81,7 @@ static inline uint64_t chunk_idx(const char *a) { return (uint64_t) (a - s_h2_st
 static inline char *chunk_addr(uint64_t i) { return s_h2_start + i * CHUNK; }
 static inline char *slot_addr(uint32_t s) { return s_slots + (uint64_t) s * CHUNK; }
 static inline off_t file_off(const char *a) { return (off_t) (a - s_map_start); }
-static inline uint64_t region_of(uint64_t i) { return i * CHUNK / REGION_SIZE; }
+static inline uint64_t region_of(uint64_t i) { return (i * CHUNK) >> s_region_shift; }
 static inline uint8_t get_state(uint64_t i) { return __atomic_load_n(&s_state[i], __ATOMIC_ACQUIRE); }
 static inline void set_state(uint64_t i, uint8_t v) { __atomic_store_n(&s_state[i], v, __ATOMIC_RELEASE); }
 
@@ -164,7 +170,7 @@ static void map_file(uint64_t i, uint64_t n, int prot) {
 static void detach_unused_locked(uint32_t s) {
   uint64_t i = s_recs[s].idx;
   detach_pages_locked(s);
-  map_file(i, 1, region_free_prot(chunk_addr(i)));
+  map_file(i, 1, s_region_free_prot(chunk_addr(i)));
 }
 
 // ---- write tracking ----
@@ -194,14 +200,14 @@ static long rewrite_written(char *a, int rearm, long max_pages, bool *written) {
 // ---- API ----
 
 int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
-                size_t pool_bytes, int precopy_rounds, int n_threads) {
-#if ANONYMOUS
-  fprintf(stderr, "[SHADOW] not supported with ANONYMOUS mappings\n");
-  return -1;
-#endif
+                uint64_t region_size, size_t pool_bytes, int precopy_rounds, int n_threads,
+                void (*region_info)(char *addr, char **top, bool *active),
+                int (*region_free_prot)(char *addr)) {
   if (s_on) return 0;
-  if (((uintptr_t) h2_start % CHUNK) != 0 || pool_bytes < CHUNK || n_threads <= 0) {
-    fprintf(stderr, "[SHADOW] bad arguments (H2 start %p must be 2 MB aligned)\n", h2_start);
+  if (((uintptr_t) h2_start % CHUNK) != 0 || pool_bytes < CHUNK || n_threads <= 0 ||
+      region_size < CHUNK || (region_size & (region_size - 1)) != 0) {
+    fprintf(stderr, "[SHADOW] bad arguments (H2 start %p must be 2 MB aligned, region size %lu "
+            "a power of two of at least 2 MB)\n", h2_start, (unsigned long) region_size);
     return -1;
   }
   int uffd = syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY);
@@ -216,10 +222,12 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
   if (pm < 0) { fprintf(stderr, "[SHADOW] /proc/self/pagemap: %s\n", strerror(errno)); close(uffd); return -1; }
 
   s_fd = fd; s_uffd = uffd; s_pagemap = pm;
+  s_region_info = region_info; s_region_free_prot = region_free_prot;
   s_map_start = map_start; s_h2_start = h2_start;
+  s_region_size = region_size; s_region_shift = (unsigned) __builtin_ctzll(region_size);
   s_h2_end = h2_start + ((map_start + map_size - h2_start) / CHUNK) * CHUNK;
   s_nchunks = (s_h2_end - s_h2_start) / CHUNK;
-  s_nregions = (s_h2_end - s_h2_start + REGION_SIZE - 1) / REGION_SIZE;
+  s_nregions = ((uint64_t) (s_h2_end - s_h2_start) + s_region_size - 1) >> s_region_shift;
   s_precopy_rounds = precopy_rounds < 0 ? 0 : precopy_rounds;
   s_state = calloc(s_nchunks, 1);
   s_region_busy = calloc(s_nregions, sizeof *s_region_busy);
@@ -240,9 +248,8 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
   return 0;
 }
 
-bool shadow_enabled(void) { return s_on; }
 
-void shadow_set_active(bool active) {
+void h2_shadow_set_active(bool active) {
   if (!s_on) return;
   if (active) for (int t = 0; t < s_nthreads; t++) s_skip[t] = -1;
   s_active = active;
@@ -271,7 +278,7 @@ int shadow_preattach(char *top, size_t bytes) {
   if (!s_on || top < s_h2_start || top >= s_h2_end) return 0;
   uint64_t i = (uint64_t) (top - s_h2_start + CHUNK - 1) / CHUNK;   // first chunk at or above top
   // Stay inside top's region: the next region has another owner
-  char *region_end = s_h2_start + ((uint64_t) (top - s_h2_start) / REGION_SIZE + 1) * REGION_SIZE;
+  char *region_end = s_h2_start + (((uint64_t) (top - s_h2_start) >> s_region_shift) + 1) * s_region_size;
   char *last = top + bytes - 1 < region_end - 1 ? top + bytes - 1 : region_end - 1;
   if (last >= s_h2_end) last = s_h2_end - 1;
   uint64_t end = chunk_idx(last);
@@ -283,14 +290,14 @@ int shadow_preattach(char *top, size_t bytes) {
   return n;
 }
 
-void shadow_pause_end(void) {
+void h2_shadow_pause_end(void) {
   if (!s_on) return;
   pthread_mutex_lock(&s_lock);
   for (uint32_t s = 0; s < s_pool_n; s++) {
     struct rec *r = &s_recs[s];
     if (!r->used || get_state(r->idx) != CS_OPEN) continue;
     char *c = chunk_addr(r->idx), *top; bool active;
-    region_info(c, &top, &active);
+    s_region_info(c, &top, &active);
     if (top >= c + CHUNK) {
       set_state(r->idx, CS_FULL); r->seq = ++s_seq;
     } else if (!active) {   // retired region: no more allocation will come
@@ -385,7 +392,7 @@ static int cmp_idx(const void *x, const void *y) {
   return a < b ? -1 : a > b;
 }
 
-uint32_t shadow_switch(uint32_t max_chunks, long max_delta_pages) {
+uint32_t h2_shadow_switch(uint32_t max_chunks, long max_delta_pages) {
   if (!s_on) return 0;
   double t0 = now_ms();
   pthread_mutex_lock(&s_lock);
@@ -446,13 +453,13 @@ void shadow_free_range(char *start, size_t len) {
 
 bool shadow_range_busy(char *start, size_t len) {
   if (!s_on || start < s_h2_start || start >= s_h2_end) return false;
-  uint64_t r0 = chunk_idx(start) * CHUNK / REGION_SIZE, r1 = chunk_idx(start + len - 1) * CHUNK / REGION_SIZE;
+  uint64_t r0 = region_of(chunk_idx(start)), r1 = region_of(chunk_idx(start + len - 1));
   for (uint64_t r = r0; r <= r1 && r < s_nregions; r++)
     if (__atomic_load_n(&s_region_busy[r], __ATOMIC_ACQUIRE)) return true;
   return false;
 }
 
-bool shadow_is_attached(char *addr) {
+bool h2_shadow_is_attached(char *addr) {
   return s_on && addr >= s_h2_start && addr < s_h2_end && get_state(chunk_idx(addr)) != CS_FILE;
 }
 
@@ -464,7 +471,7 @@ void shadow_split_write(char *data, char *addr, size_t len,
     char *a = addr + done;
     size_t to_chunk_end = CHUNK - (size_t) ((uintptr_t) (a - s_h2_start) % CHUNK);
     size_t n = len - done < to_chunk_end ? len - done : to_chunk_end;
-    if (shadow_is_attached(a)) {
+    if (h2_shadow_is_attached(a)) {
       if (file_len) { write_file(data + file_from, addr + file_from, file_len); file_len = 0; }
       memcpy(a, data + done, n);
       __atomic_fetch_add(&s_st.redirected_bytes, n, __ATOMIC_RELAXED);
@@ -497,7 +504,7 @@ static void *writer_main(void *arg) {
   return NULL;
 }
 
-int shadow_start_writer(void) {
+int h2_shadow_start_writer(void) {
   if (!s_on) return -1;
   if (pthread_create(&s_writer, NULL, writer_main, NULL)) {
     fprintf(stderr, "[SHADOW] cannot start the writer thread\n");
@@ -506,12 +513,12 @@ int shadow_start_writer(void) {
   return 0;
 }
 
-void shadow_set_verify(bool on) {
+void h2_shadow_set_verify(bool on) {
   if (on && !s_verify_buf) s_verify_buf = malloc(CHUNK);
   s_verify = on && s_verify_buf;
 }
 
-void shadow_get_stats(struct shadow_stats *st) {
+void h2_shadow_get_stats(struct h2_shadow_stats *st) {
   pthread_mutex_lock(&s_lock);
   *st = s_st;
   st->pool_chunks = s_pool_n; st->free_chunks = s_nfree;

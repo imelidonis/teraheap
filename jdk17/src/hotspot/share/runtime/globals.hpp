@@ -941,6 +941,10 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, TeraHeapStatistics, false,                                  \
           "Print TeraHeap statistics")                                      \
                                                                             \
+  product(bool, TeraH2AllocatorStats, false,                                \
+          "Print H2 allocator statistics (regions, dependencies) to the "  \
+          "TeraHeap log (-Xlogth) after each young and mixed GC")          \
+                                                                            \
   product(uintx, TeraH2CostPercentile, 90,                                  \
           "Percentile of the recent H2 (SH) copy costs per byte that G1 "  \
           "uses to choose the initial old regions of a mixed GC, so that " \

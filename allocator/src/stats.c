@@ -6,36 +6,47 @@
 #include "regions.h"
 #include "region_types.h"
 
-#if STATISTICS
-double		  alloc_elapsedtime = 0.0;
-double		  free_elapsedtime = 0.0;
-#endif
-
-#if STATISTICS
-void print_statistics() {
-  uint64_t wasted_space = 0;
-  uint64_t total_regions = 0;
-  int32_t i;
-
-  for(i = 0 ; i < region_array_size ; i++ ) {
-    if (region_array[i % region_array_size].last_allocated_end != region_array[i % region_array_size].start_address ) {
-      total_regions++;
-      if (region_array[i].last_allocated_end <= region_array[i].start_address + region_size) { 
-        wasted_space += (region_array[i].start_address + region_size) - region_array[i].last_allocated_end;
-      }
-    }
-  }
-
-  fprintf(stderr, "Total Wasted Space: %zu MBytes\n", wasted_space / (1024 * 1024));
-  fprintf(stderr, "Total regions: %zu\n", total_regions);
-
-  if (total_regions)
-    fprintf(stderr, "Average wasted space: %zu KBytes\n", wasted_space / (1024 * total_regions));
-
-  fprintf(stderr, "Total time spent in allocate_to_region:%f ms\n", alloc_elapsedtime);
-  fprintf(stderr, "Total time spent in free_regions:%f ms\n", free_elapsedtime);
+/* A region that continues an object which starts in an earlier region */
+static inline bool continues_object(const struct region *r) {
+  return r->first_allocated_start != r->start_address;
 }
-#endif
+
+void h2_get_alloc_stats(struct h2_alloc_stats *s) {
+  *s = (struct h2_alloc_stats) { .regions_total = region_array_size };
+
+  for (uint64_t i = 0; i < region_array_size; i++) {
+    const struct region *r = &region_array[i];
+    if (region_is_empty(r))
+      continue;
+    s->regions_allocated++;
+
+    // Only the last region of an object (or a region of small objects)
+    // ends inside the region
+    char *end = r->start_address + region_size;
+    if (r->last_allocated_end <= end)
+      s->tail_bytes += end - r->last_allocated_end;
+
+    uint64_t deps = region_dep_count(r);
+    if (continues_object(r)) {
+      s->span_links++;
+    } else {
+      // The first region of an object depends on the regions it continues into
+      uint64_t spans = 0;
+      while (i + 1 + spans < region_array_size &&
+             region_array[i + 1 + spans].first_allocated_start == r->start_address)
+        spans++;
+      if (spans > 0)
+        s->span_objects++;
+      deps = (deps > spans) ? deps - spans : 0;
+    }
+
+    s->dep_links += deps;
+    if (deps > s->dep_max)
+      s->dep_max = deps;
+    if (deps > 0)
+      s->regions_with_deps++;
+  }
+}
 
 /*
  * Prints all the allocated regions

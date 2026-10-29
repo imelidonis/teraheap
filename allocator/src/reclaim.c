@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <sys/mman.h>
 #include "regions.h"
 #include "region_types.h"
@@ -61,10 +60,6 @@ static void free_region(struct region *r, h2_region_free_cb cb, void *ctx) {
  * Frees all unused regions
  */
 void h2_free_regions(h2_region_free_cb cb, void *ctx) {
-#if STATISTICS
-  struct timeval t1,t2;
-  gettimeofday(&t1, NULL);
-#endif
   reclaimed_regions_count = 0;
   // At a safepoint: no thread reads the tables replaced by growth any more
   dep_free_retired();
@@ -75,13 +70,6 @@ void h2_free_regions(h2_region_free_cb cb, void *ctx) {
       reclaimed_regions_count++;
     }
   }
-
-#if STATISTICS
-  print_statistics();
-  gettimeofday(&t2, NULL);
-  free_elapsedtime += (t2.tv_sec - t1.tv_sec) * 1000.0;
-  free_elapsedtime += (t2.tv_usec - t1.tv_usec) / 1000.0;
-#endif
 }
 
 /* Returns the number of regions that were reclaimed (i.e., released back

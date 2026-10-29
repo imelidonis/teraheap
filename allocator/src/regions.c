@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/time.h>
 #include <sys/mman.h>
 #include <pthread.h>
 #include "regions.h"
@@ -182,11 +181,6 @@ static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
 }
 
 char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
-#if STATISTICS
-  struct timeval start_time, end_time;
-  gettimeofday(&start_time, NULL);
-#endif
-
   struct id_to_reg_mapping *m = &id_mapping_array[get_id(rdd_id, partition_id)];
   char *res;
 
@@ -203,12 +197,6 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
   }
 
   pthread_mutex_unlock(&m->mapping_lock);
-
-#if STATISTICS
-  gettimeofday(&end_time, NULL);
-  alloc_elapsedtime += (end_time.tv_sec - start_time.tv_sec) * 1000.0;
-  alloc_elapsedtime += (end_time.tv_usec - start_time.tv_usec) / 1000.0;
-#endif
 
 #if DEBUG_PRINT
   printf("Allocating from region %lu until region %lu\n", region_index(res), region_index(res + size));

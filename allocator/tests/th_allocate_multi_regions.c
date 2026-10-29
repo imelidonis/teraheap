@@ -74,7 +74,24 @@ int main(int argc, char **argv) {
 
   obj6 = h2_allocate(10, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj6);
-  
+
+  // A reference from obj1's region to obj4's region
+  h2_references(obj1, obj4);
+
+  // Statistics: obj1, obj6 share a region; obj2 and obj4, obj5 have their
+  // own; obj3 shares obj1's region or, if bigger than a region, takes 2
+  struct h2_alloc_stats st;
+  h2_get_alloc_stats(&st);
+  int spans = obj3_bytes > region;
+  uint64_t bytes = (1 + 200 + SIZE_5MB + SIZE_1MB + 10 + 10) * 8;
+  CHECK(st.regions_allocated == (uint64_t) (spans ? 5 : 3), "regions allocated %lu", st.regions_allocated);
+  CHECK(st.tail_bytes == st.regions_allocated * region - bytes, "tail bytes %lu", st.tail_bytes);
+  CHECK(st.span_objects == (uint64_t) spans && st.span_links == (uint64_t) spans,
+        "span objects %lu, span links %lu", st.span_objects, st.span_links);
+  CHECK(st.dep_links == 1 && st.dep_max == 1 && st.regions_with_deps == 1,
+        "dependencies %lu, max %lu, regions with deps %lu", st.dep_links, st.dep_max,
+        st.regions_with_deps);
+
 
   h2_reset_used();
   h2_mark_used(obj3);

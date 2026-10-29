@@ -73,6 +73,13 @@ TeraHeap::TeraHeap() {
     tera_stats = new TeraStatistics();
   }
 
+  _as_last_allocated = 0;
+  _as_taken_total = 0;
+  _as_freed = 0;
+  _as_freed_total = 0;
+  _as_free_ms = 0.0;
+  _as_free_ms_total = 0.0;
+
   _shadow_on = false;
   _shadow_mixed = false;
   _shadow_switch_skipped = 0;
@@ -402,10 +409,49 @@ void TeraHeap::h2_region_freed(char *region_start, char *last_alloc_start,
 // Frees all unused regions. The allocator protects the freed regions itself
 // when ProtectH2RegionsOnFree is set.
 void TeraHeap::free_unused_regions(void) {
+  double start = TeraH2AllocatorStats ? os::elapsedTime() : 0.0;
+
   ::h2_free_regions(&TeraHeap::h2_region_freed, this);
 
   if (TeraHeapStatistics)
     tera_stats->set_reclaimed_region_count(::h2_num_reclaimed_regions());
+
+  if (TeraH2AllocatorStats) {
+    double ms = (os::elapsedTime() - start) * 1000.0;
+    _as_freed += ::h2_num_reclaimed_regions();
+    _as_free_ms += ms;
+    _as_free_ms_total += ms;
+  }
+}
+
+void TeraHeap::print_h2_alloc_stats(const char *tag) {
+  struct h2_alloc_stats s;
+  ::h2_get_alloc_stats(&s);
+
+  // Regions freed since the last print are counted in _as_freed, so the
+  // regions taken are what the allocated count grew by plus those
+  uint64_t taken = s.regions_allocated + _as_freed - _as_last_allocated;
+  _as_taken_total += taken;
+  _as_freed_total += _as_freed;
+
+  double tail_mb = s.regions_allocated ? (double) s.tail_bytes / s.regions_allocated / M : 0.0;
+  double deps_avg = s.regions_allocated ? (double) s.dep_links / s.regions_allocated : 0.0;
+
+  outputStream *out = thlog_or_tty;
+  out->print_cr("[%s] | H2_ALLOC REGIONS_ALLOCATED = %lu / %lu", tag, s.regions_allocated, s.regions_total);
+  out->print_cr("[%s] | H2_ALLOC REGIONS_TAKEN = %lu (total %lu)", tag, taken, _as_taken_total);
+  out->print_cr("[%s] | H2_ALLOC REGIONS_FREED = %lu (total %lu)", tag, _as_freed, _as_freed_total);
+  out->print_cr("[%s] | H2_ALLOC TIME_TO_FREE %.3lf ms (total %.3lf ms)", tag, _as_free_ms, _as_free_ms_total);
+  out->print_cr("[%s] | H2_ALLOC TAIL_BYTES = %lu (%.1lf MB per region)", tag, s.tail_bytes, tail_mb);
+  out->print_cr("[%s] | H2_ALLOC DEPENDENCIES avg %.1lf, max %lu, regions with deps %lu / %lu",
+                tag, deps_avg, s.dep_max, s.regions_with_deps, s.regions_allocated);
+  out->print_cr("[%s] | H2_ALLOC SPAN_LINKS %lu (objects larger than a region: %lu)",
+                tag, s.span_links, s.span_objects);
+  out->flush();
+
+  _as_last_allocated = s.regions_allocated;
+  _as_freed = 0;
+  _as_free_ms = 0.0;
 }
 
 // Pop the objects that are in `_th_stack` and mark them as live

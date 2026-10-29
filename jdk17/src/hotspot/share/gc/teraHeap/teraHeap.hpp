@@ -82,6 +82,15 @@ private:
   // Start the shadow chunks if TeraH2Shadow is set and the build and the
   // kernel support them
   void h2_shadow_init();
+
+  // TeraH2AllocatorStats: regions allocated at the last print, and the
+  // regions freed and the time to free them since then and in total
+  uint64_t _as_last_allocated;
+  uint64_t _as_taken_total;
+  uint64_t _as_freed;
+  uint64_t _as_freed_total;
+  double _as_free_ms;
+  double _as_free_ms_total;
 public:
   // True if the GC workers time their H2 (SH) evacuation work and count the
   // bytes they move to H2: for the statistics, or for the H2 copy cost
@@ -238,6 +247,10 @@ public:
 
   // Frees all unused regions
   void free_unused_regions(void);
+
+  // TeraH2AllocatorStats: at the end of a young or mixed pause, print the
+  // allocator statistics to the TeraHeap log; `tag` is YOUNG or MIXED
+  void print_h2_alloc_stats(const char *tag);
 
   // Prints all the region groups
   void print_region_groups(void);

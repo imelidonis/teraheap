@@ -13,8 +13,6 @@
 
 // #define ASSERT                     //< Enable assertf() (make DEBUG=1 sets it)
 
-#define STATISTICS  0                 //< Print allocator statistics
-
 #define DEBUG_PRINT 0                 //< Debug prints
 
 /* ------------------------------------------------------------------ */

@@ -214,6 +214,10 @@ static uint64_t dep_set_count(struct dep_set *s) {
   return __atomic_load_n(&s->count, __ATOMIC_RELAXED);
 }
 
+uint64_t region_dep_count(const struct region *r) {
+  return dep_set_count(r->deps);
+}
+
 /* At a safepoint: free the set of a region (its current table chain) */
 void dep_set_free(struct dep_set *s) {
   while (s != NULL) {

@@ -78,12 +78,6 @@ extern uint64_t region_array_size;
 /* Defined in reclaim.c */
 extern int protect_regions_on_free;
 
-#if STATISTICS
-/* Defined in stats.c */
-extern double alloc_elapsedtime;
-extern double free_elapsedtime;
-#endif
-
 /* Index of the region that contains addr (not checked: an address outside
  * H2 gives an index >= region_array_size) */
 static inline uint64_t region_index(const char *addr) {

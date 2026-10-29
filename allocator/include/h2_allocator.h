@@ -126,6 +126,25 @@ H2_API void h2_free_regions(h2_region_free_cb cb, void *ctx);
 /* Number of regions freed by the last h2_free_regions() */
 H2_API unsigned int h2_num_reclaimed_regions(void);
 
+/*
+ * Allocator statistics (-XX:+TeraH2AllocatorStats). A region continues an
+ * object when the object starts in an earlier region; the object's first
+ * region depends on each such region (a span link).
+ */
+struct h2_alloc_stats {
+  uint64_t regions_total;      // regions in the H2 file
+  uint64_t regions_allocated;  // regions that hold objects
+  uint64_t tail_bytes;         // unused bytes at the end of allocated regions
+  uint64_t dep_links;          // region dependencies, span links excluded
+  uint64_t dep_max;            // most dependencies of one region (no span links)
+  uint64_t regions_with_deps;  // allocated regions with at least one dependency
+  uint64_t span_links;         // links from an object's first region to the others
+  uint64_t span_objects;       // objects larger than a region
+};
+
+/* At a safepoint: fill `s` with a scan of the region array */
+H2_API void h2_get_alloc_stats(struct h2_alloc_stats *s);
+
 /* 1: freed regions are protected (PROT_NONE); their protection is removed on reuse */
 H2_API void h2_protect_regions_on_free(int should_protect);
 

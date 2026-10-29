@@ -73,11 +73,10 @@ void dep_set_free(struct dep_set *s);
 /* At a safepoint (h2_free_regions()): free the tables replaced by growth */
 void dep_free_retired(void);
 
-/* ---- stats.c ---- */
+/* At a safepoint: number of regions in the dependency set of a region */
+uint64_t region_dep_count(const struct region *r);
 
-#if STATISTICS
-void print_statistics();
-#endif
+/* ---- stats.c ---- */
 
 /**
  * Get the total number of allocated regions

@@ -5,6 +5,7 @@
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
 #include "oops/oop.hpp"
+#include "runtime/atomic.hpp"
 
 #ifdef RUSAGE_MUTATOR
   #include <sys/resource.h>
@@ -99,8 +100,8 @@ private:
   size_t total_objects_moved;
   size_t total_objects_size;
 
-  // Total humongous transferred (Full GC, worker 0 only)
-  size_t total_h2_humongous;
+  // Total humongous objects transferred to H2 (Full GC, all workers)
+  volatile size_t total_h2_humongous;
 
   // time to scan h2 card table
   double h2_card_table_scan_time_ms;
@@ -164,9 +165,11 @@ public:
     if (to_young) w.back_refs_young++; else w.back_refs_old++;
   }
 
-  // Increase the number of humongous objects transferred to H2
+  // Increase the number of humongous objects transferred to H2. Full GC
+  // workers move them in parallel; one atomic add per humongous object
+  // (each a multi-MB copy) costs nothing
   void add_h2_humongous() {
-    total_h2_humongous++;
+    Atomic::inc(&total_h2_humongous);
   }
 
   // Get the number of humongous objects transferred to H2

@@ -218,6 +218,8 @@ void G1FullCollector::prepare_collection() {
     Universe::teraHeap()->h2_reset_used_field();
     // Start with empty backward reference and humongous stacks
     Universe::teraHeap()->h2_clear_fgc_stacks();
+    assert(Universe::teraHeap()->humongous_to_verify_empty(),
+           "Humongous verify stacks must be empty: checked at the end of the previous Full GC");
   }
 
   if (EnableTeraHeap && TeraHeapStatistics) {

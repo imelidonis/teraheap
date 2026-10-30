@@ -27,9 +27,8 @@ private:
    *---------------------------------------------*/
   // Full GC stacks of one GC thread. A thread pushes only to its own
   // stacks, so pushes take no lock. Each stack is filled by one Full GC
-  // task and drained by a later one: the backward references by all
-  // threads in parallel (thread w drains stacks w, w + n, ...), the
-  // humongous regions by thread 0.
+  // task and drained by a later one, by all threads in parallel: thread
+  // w drains stacks w, w + n, ... (n = active threads).
   struct H2FullGCStacks {
     // H2 fields with backward references (H2 to H1) found by the H2 card
     // scan: the H1 objects are marked live in phase 1 (marking) ...
@@ -39,13 +38,13 @@ private:
     // First regions of humongous objects to move to H2: pushed in phase 2
     // (prepare compaction), moved in phase 4 (compaction)
     Stack<HeapRegion *, mtGC> humongous;
+#ifdef ASSERT
+    // H1 regions freed after moving their humongous object to H2 in
+    // phase 4, checked to be on the free list at the end of Full GC
+    Stack<HeapRegion *, mtGC> humongous_to_verify;
+#endif // ASSERT
   };
   PaddedEnd<H2FullGCStacks>* _fgc_stacks;   // one per GC thread
-
-#ifdef ASSERT
-  // Stack to keep moved h2 regions to verify they are free after Full GC
-  static Stack<HeapRegion *, mtGC> _th_humongous_to_verify_stack;
-#endif // ASSERT
 
   /*---------------------------------------------*/
 
@@ -194,9 +193,12 @@ public:
   void h2_push_humongous_start(uint worker_id, HeapRegion *hr);
 
 #ifdef ASSERT
-  // Push a humongous region to a stack to verify that they are on the 
-  // free-list after Full GC.
-  void push_humongous_to_verify(HeapRegion *hr);
+  // Push a freed humongous region to the verify stack of thread
+  // `worker_id`, to check that it is on the free list after Full GC
+  void push_humongous_to_verify(uint worker_id, HeapRegion *hr);
+
+  // True if all humongous verify stacks are empty
+  bool humongous_to_verify_empty();
 #endif // ASSERT
 
   // Pop a backward reference from adjust stack `stack_id`, or NULL if it
@@ -208,7 +210,8 @@ public:
   HeapRegion *h2_pop_humongous_start(uint stack_id);
 
   #ifdef ASSERT
-  // Get the next humongous region to verify it is on the free list (only for debugging)
+  // Pop the next humongous region to verify it is on the free list from
+  // any verify stack, or NULL if all are empty (only for debugging)
   HeapRegion *verify_next_humongous();
   #endif // ASSERT
 

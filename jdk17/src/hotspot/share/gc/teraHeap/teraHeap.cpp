@@ -18,10 +18,6 @@
 char *TeraHeap::_start_addr = NULL;
 char *TeraHeap::_stop_addr = NULL;
 
-#ifdef ASSERT
-Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_to_verify_stack;
-#endif // ASSERT
-
 // Constructor of TeraHeap
 TeraHeap::TeraHeap() {
   uint64_t align = CardTable::th_ct_max_alignment_constraint();
@@ -343,10 +339,18 @@ void TeraHeap::h2_push_humongous_start(uint worker_id, HeapRegion *hr) {
 }
 
 #ifdef ASSERT
-void TeraHeap::push_humongous_to_verify(HeapRegion *hr) {
-  // Called by a single thread, does not need lock
-  _th_humongous_to_verify_stack.push(hr);
-  assert(!_th_humongous_to_verify_stack.is_empty(), "Sanity Check");
+void TeraHeap::push_humongous_to_verify(uint worker_id, HeapRegion *hr) {
+  assert(worker_id < h2_num_fgc_stacks(), "worker %u out of range", worker_id);
+  _fgc_stacks[worker_id].humongous_to_verify.push(hr);
+}
+
+bool TeraHeap::humongous_to_verify_empty() {
+  for (uint i = 0; i < h2_num_fgc_stacks(); i++) {
+    if (!_fgc_stacks[i].humongous_to_verify.is_empty()) {
+      return false;
+    }
+  }
+  return true;
 }
 #endif // ASSERT
 
@@ -486,7 +490,14 @@ HeapRegion *TeraHeap::h2_pop_humongous_start(uint stack_id) {
 #ifdef ASSERT
 // Get the next humongous region to verify it is on the free list (only for debugging)
 HeapRegion *TeraHeap::verify_next_humongous() {
-  return (!_th_humongous_to_verify_stack.is_empty() ? _th_humongous_to_verify_stack.pop() : NULL);
+  // Called by the VM thread after the Full GC tasks
+  for (uint i = 0; i < h2_num_fgc_stacks(); i++) {
+    Stack<HeapRegion *, mtGC>& s = _fgc_stacks[i].humongous_to_verify;
+    if (!s.is_empty()) {
+      return s.pop();
+    }
+  }
+  return NULL;
 }
 #endif // ASSERT
 

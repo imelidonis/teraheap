@@ -204,7 +204,7 @@ char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t 
 
   assertf(size > 0, "Object should be > 0");
 
-  alloc_ptr = allocate_to_region(size * HeapWordSize, rdd_id, partition_id);
+  alloc_ptr = allocate_to_region(size * HeapWordSize, rdd_id, partition_id, thread_id);
 
   if (alloc_ptr == NULL) {
     perror("[Error] - H2 Allocator is full");
@@ -214,9 +214,6 @@ char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t 
   assertf(alloc_ptr >= h2_start_addr_mem_pool() && alloc_ptr < h2_stop_addr_mem_pool(),
           "[ERROR] out of bounds allocation! %p !E [%p, %p)",
           alloc_ptr, h2_start_addr_mem_pool(), h2_stop_addr_mem_pool());
-
-  // Back new SH space with shadow chunks during mixed GCs (shadow.h)
-  shadow_ensure(alloc_ptr, size * HeapWordSize, thread_id);
 
   char *cur_allocation_ptr = (char *) (((uint64_t) alloc_ptr) + size * HeapWordSize);
 
@@ -290,11 +287,6 @@ void h2_shutdown(void) {
 }
 
 int h2_shadow_init(size_t pool_bytes, int precopy_rounds) {
-  // A shadow chunk is attached only by its region's owner (shadow.h)
-  if (!group_by_gc_thread) {
-    fprintf(stderr, "[SHADOW] needs regions grouped by GC thread (h2_init)\n");
-    return -1;
-  }
   return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
                      region_size, pool_bytes, precopy_rounds, n_gc_threads,
                      region_info, region_free_prot);

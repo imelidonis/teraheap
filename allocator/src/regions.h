@@ -45,7 +45,8 @@ void init_regions(uint64_t partitions);
  * - rdd_id: The id of the rdd which the object belongs
  * - part_id: The id of the partition that the object belongs
  */
-char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id);
+char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id,
+                         uint64_t thread_id);
 
 uint64_t get_id(uint64_t rdd_id, uint64_t partition_id);
 

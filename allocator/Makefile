@@ -68,6 +68,12 @@ test: tests
 	else \
 		printf '%b %s\n' '[$(BRED)FAIL$(RESET)]' "$$name (see $(BINDIR)/$$name.log)"; fail=1; \
 	fi; \
+	name=th_shadow_label; \
+	if $(BINDIR)/th_shadow.bin $(TEST_H2_DIR) 40 label > $(BINDIR)/$$name.log 2>&1; then \
+		printf '%b %s\n' '[$(BGREEN)PASS$(RESET)]' $$name; \
+	else \
+		printf '%b %s\n' '[$(BRED)FAIL$(RESET)]' "$$name (see $(BINDIR)/$$name.log)"; fail=1; \
+	fi; \
 	exit $$fail
 
 install: $(LIBRARY)

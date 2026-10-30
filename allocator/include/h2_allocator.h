@@ -37,7 +37,7 @@ extern "C" {
  * `total_gc_threads`: number of GC threads that call h2_allocate().
  * `group_by_gc_thread`: group regions by the allocating GC thread
  * (h2_allocate()'s thread_id) instead of by rdd_id; then each region has
- * one allocating thread. h2_shadow_init() needs it.
+ * one allocating thread.
  */
 H2_API void h2_init(uint64_t alignment, const char *h2_file_path, uint64_t h2_file_size,
              uint64_t region_size, uint64_t partitions, int total_gc_threads,

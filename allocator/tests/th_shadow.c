@@ -17,6 +17,9 @@
 * objects in switched chunks, through the file with pread().
 *
 * Usage: th_shadow.bin [H2 dir (default /mnt/fmap/)] [cycles (default 40)]
+*                      [thread|label (default thread)]
+* With "label" the regions are grouped by label and all GC threads allocate
+* with the same label, so they share regions and attach chunks in them.
 ***************************************************/
 #define _GNU_SOURCE
 #include <inttypes.h>
@@ -36,6 +39,8 @@
 #define NPARTS 2
 #define POOL (64 * MB)               // small, so the fallback to the file is used too
 #define PER_PAUSE (24 * MB)          // bytes per GC thread per mixed GC
+#define PER_PAUSE_LABEL (12 * MB)     // with one shared label: 2 active regions, so
+                                     // less per pause keeps their top chunks in the pool
 #define MAX_OBJS (1 << 20)
 
 extern int fd;                       // mem_pool.c: the H2 file
@@ -48,6 +53,11 @@ struct obj {
   int mutated;
   int live;
 };
+
+static int share_label;             // all GC threads use label 0 (regions grouped by label)
+
+// Label of GC thread t's objects
+static inline uint64_t label_of(int t) { return share_label ? 0 : (uint64_t) t; }
 
 static struct obj *objs;
 static volatile long nobjs;
@@ -90,9 +100,10 @@ struct gc_arg { int t; uint64_t gen; };
 static void *gc_thread(void *a) {
   struct gc_arg *g = a;
   uint64_t s = 0x1234567ULL * (g->t + 1) + g->gen;
-  for (size_t done = 0; done < PER_PAUSE;) {
+  size_t per_pause = share_label ? PER_PAUSE_LABEL : PER_PAUSE;
+  for (size_t done = 0; done < per_pause;) {
     size_t w = obj_words(&s);
-    char *p = h2_allocate(w, g->t, rnd(&s) % NPARTS, g->t);
+    char *p = h2_allocate(w, label_of(g->t), rnd(&s) % NPARTS, g->t);
     uint64_t *q = (uint64_t *) p;
     for (size_t i = 0; i < w; i++) q[i] = pattern(p + i * 8, g->gen);
     add_obj(p, w, g->gen);
@@ -212,7 +223,7 @@ static void full_gc_writes(uint64_t gen) {
   for (int k = 0; k < 64; k++) {
     int t = rnd(&s) % NTHREADS;
     size_t w = 2 + rnd(&s) % 4096;
-    char *p = h2_allocate(w, t, rnd(&s) % NPARTS, t);
+    char *p = h2_allocate(w, label_of(t), rnd(&s) % NPARTS, t);
     for (size_t i = 0; i < w; i++) src[i] = pattern(p + i * 8, gen);
     h2_buffer_insert((char *) src, p, w);   // copies src into the buffer
     add_obj(p, w, gen);
@@ -255,9 +266,11 @@ static int free_one_region(uint64_t *s, int shadow_only) {
 int main(int argc, char **argv) {
   const char *dir = argc > 1 ? argv[1] : "/mnt/fmap/";
   int cycles = argc > 2 ? atoi(argv[2]) : 40;
+  share_label = argc > 3 && strcmp(argv[3], "label") == 0;
   objs = calloc(MAX_OBJS, sizeof *objs);
 
-  h2_init(SHADOW_CHUNK, dir, 8 * GB, 256 * MB, NPARTS, NTHREADS, true);   // shadow needs grouping by GC thread
+  h2_init(SHADOW_CHUNK, dir, 8 * GB, 256 * MB, NPARTS, NTHREADS, !share_label);
+  printf("regions grouped by %s\n", share_label ? "label (all GC threads share label 0)" : "GC thread");
   if (h2_shadow_init(POOL, 3)) { fprintf(stderr, "FAIL: shadow_init\n"); return 1; }
 
   pthread_t wt, mt;

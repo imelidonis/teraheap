@@ -94,11 +94,6 @@ TeraHeap::TeraHeap() {
 void TeraHeap::h2_shadow_init() {
   if (!TeraH2Shadow)
     return;
-  if (!TeraH2GroupByGCThread) {
-    // A shadow chunk is attached only by the GC thread that owns its region
-    warning("TeraH2Shadow needs -XX:+TeraH2GroupByGCThread; disabled");
-    return;
-  }
 #if defined(SYNC) || defined(FMAP) || defined(ASYNC) || defined(FMAP_HYBRID)
   // These builds write H2 with explicit I/O or change the huge page advice
   // of the whole H2 range in young GCs

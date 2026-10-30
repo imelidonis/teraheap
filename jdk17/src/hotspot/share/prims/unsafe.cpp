@@ -884,6 +884,11 @@ UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject 
   if (Universe::teraHeap()->is_in_h2(o))
     return;
 
+  // Class mirrors, Reference objects, class loaders (and arrays of them)
+  // stay in H1, as for the objects that the GCs mark for H2
+  if (Universe::teraHeap()->is_metadata(o))
+    return;
+
   // Initialize object's teraflag
   o->mark_move_h2(label, 0);
 

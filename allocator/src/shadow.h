@@ -25,8 +25,10 @@
  *
  * Rules:
  *  - Only empty chunks are attached (no object allocated in them yet).
- *  - Only the region's owner attaches during a pause (regions grouped by GC
- *    thread, h2_init(): one allocating GC worker per region).
+ *  - Chunks are attached during a pause, under the lock of the region's
+ *    allocation (allocate_to_region()): no other GC thread can place an
+ *    object in the chunk before it is attached, also when several GC
+ *    threads share a region (regions grouped by label).
  *  - Write-protect is armed before the writer's first copy of a chunk.
  *  - h2_shadow_switch() runs only in young/mixed GC pauses (mutators stopped,
  *    no JNI critical region active).
@@ -67,14 +69,14 @@ int  shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
                  void (*region_info)(char *addr, char **top, bool *active),
                  int (*region_free_prot)(char *addr));
 
-// Called by h2_allocate() for the object [pos, pos + bytes) of GC thread
-// `thread_id`: attaches the empty chunks it covers. Cheap when nothing to do.
+// Called by allocate_to_region(), with the region's mapping lock held, for
+// the object [pos, pos + bytes) of GC thread `thread_id`: attaches the empty
+// chunks it covers. Cheap when nothing to do.
 void shadow_ensure(char *pos, size_t bytes, uint64_t thread_id);
 
-// Attach the empty chunks of [top, top + bytes) ahead of a region's top, up
-// to the region's end, outside pauses (the region's owner must not allocate
-// concurrently).
-// Returns the chunks attached.
+// Tests only: attach the empty chunks of [top, top + bytes) ahead of a
+// region's top, up to the region's end, outside pauses (no GC thread
+// allocates). Returns the chunks attached.
 int  shadow_preattach(char *top, size_t bytes);
 
 // Writer thread: one unit of work: detach DEAD chunks, write back one FULL

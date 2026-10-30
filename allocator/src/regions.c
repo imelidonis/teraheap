@@ -180,7 +180,8 @@ static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
   return res;
 }
 
-char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
+char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id,
+                         uint64_t thread_id) {
   struct id_to_reg_mapping *m = &id_mapping_array[get_id(rdd_id, partition_id)];
   char *res;
 
@@ -195,6 +196,12 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
     r->last_allocated_end = r->last_allocated_start + size;
     res = r->last_allocated_start;
   }
+
+  // Back new SH space with shadow chunks during mixed GCs (shadow.h). Under
+  // the mapping lock: every object reserved before this one in the region
+  // ends at or before res, and no other GC thread can reserve space after
+  // it until the lock is released, so a chunk at or above res is empty
+  shadow_ensure(res, size, thread_id);
 
   pthread_mutex_unlock(&m->mapping_lock);
 

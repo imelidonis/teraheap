@@ -277,7 +277,7 @@ void shadow_ensure(char *pos, size_t bytes, uint64_t thread_id) {
 int shadow_preattach(char *top, size_t bytes) {
   if (!s_on || top < s_h2_start || top >= s_h2_end) return 0;
   uint64_t i = (uint64_t) (top - s_h2_start + CHUNK - 1) / CHUNK;   // first chunk at or above top
-  // Stay inside top's region: the next region has another owner
+  // Stay inside top's region: the next region belongs to other objects
   char *region_end = s_h2_start + (((uint64_t) (top - s_h2_start) >> s_region_shift) + 1) * s_region_size;
   char *last = top + bytes - 1 < region_end - 1 ? top + bytes - 1 : region_end - 1;
   if (last >= s_h2_end) last = s_h2_end - 1;

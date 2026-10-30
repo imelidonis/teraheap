@@ -238,7 +238,7 @@ void mutex_init() {
 
 #ifdef TERA_MAINTENANCE
   if (EnableTeraHeap) {
-    def(tera_heap_lock              , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for Teraheap backward reference stacks
+    def(tera_heap_lock              , Mutex  , leaf    ,    true, _safepoint_check_always); // TeraHeap: H2 allocation with ENABLE_SINGLE_THREAD_ALLOCATION
     def(tera_heap_evac_lock         , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for TeraHeap when G1 Evacuates
     def(tera_heap_humongous_lock    , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for Teraheap humongous objects
     def(tera_heap_group_lock        , Mutex  , leaf    ,    true, _safepoint_check_always); // Used for TeraHeap region groupping

@@ -25,19 +25,22 @@ private:
   /*-----------------------------------------------
    * Stacks
    *---------------------------------------------*/
-  // Stack to keep back pointers (Objects that are pointed out of
-  // TeraHeap objects) to mark them as alive durin mark_and_push phase of
-  // the Full GC.
-  static Stack<oop *, mtGC> _th_stack;
-
-  // Stack to keep the element addresses of objects that are located in
-  // TeraHeap and point to objects in the heap. We adjust these pointers
-  // during adjust phase of the Full GC.
-  static Stack<oop *, mtGC> _th_adjust_stack;
-
-  // Stack to keep the humongous objects that are marked to move to H2.
-  // We drain this stack in the compaction phase of a Full GC.
-  static Stack<HeapRegion *, mtGC> _th_humongous_stack;
+  // Full GC stacks of one GC thread. A thread pushes only to its own
+  // stacks, so pushes take no lock. Each stack is filled by one Full GC
+  // task and drained by a later one: the backward references by all
+  // threads in parallel (thread w drains stacks w, w + n, ...), the
+  // humongous regions by thread 0.
+  struct H2FullGCStacks {
+    // H2 fields with backward references (H2 to H1) found by the H2 card
+    // scan: the H1 objects are marked live in phase 1 (marking) ...
+    Stack<oop *, mtGC> mark;
+    // ... and the fields are adjusted in phase 3 (adjust pointers)
+    Stack<oop *, mtGC> adjust;
+    // First regions of humongous objects to move to H2: pushed in phase 2
+    // (prepare compaction), moved in phase 4 (compaction)
+    Stack<HeapRegion *, mtGC> humongous;
+  };
+  PaddedEnd<H2FullGCStacks>* _fgc_stacks;   // one per GC thread
 
 #ifdef ASSERT
   // Stack to keep moved h2 regions to verify they are free after Full GC
@@ -141,11 +144,15 @@ public:
   // Check if a pointer belongs to the TeraHeap.
   bool is_in_h2(const void* p);
 
-  // Deallocate the backward references stacks
-  void h2_clear_back_ref_stacks();
+  // Number of Full GC stacks of each kind (one per GC thread)
+  uint h2_num_fgc_stacks() const { return ParallelGCThreads; }
 
-  // Deallocate the humongous region stack
-  void h2_clear_humongous_stack();
+  // Empty the Full GC stacks and free their memory: at the start of a
+  // Full GC, and at its end after checking that they were drained
+  void h2_clear_fgc_stacks();
+
+  // True if all Full GC stacks are empty
+  bool h2_fgc_stacks_empty();
 
   // Give advise to kernel to expect page references in sequential order
   void h2_enable_seq_faults();
@@ -173,19 +180,18 @@ public:
   // Add new object in the region
   char *h2_add_object(oop obj, size_t size, size_t worker_id);
 
-  // Pop the objects that are in `_th_stack`. These objects are
-  // located in the Java Heap and we need to ensure that they will be
-  // kept alive.
-  oop* h2_get_next_back_reference();
+  // Pop a backward reference from mark stack `stack_id`, or NULL if it is
+  // empty. The H1 object it points to must be kept alive.
+  oop* h2_pop_back_ref_to_mark(uint stack_id);
 
-  // Update backward reference stacks that we use in marking and
-  // pointer adjustment phases of major GC.
-  void h2_push_backward_reference(void *p, oop o, bool to_young);
+  // Push a backward reference (H2 field `p` to H1 object `o`) found by
+  // thread `worker_id` to its mark and adjust stacks
+  void h2_push_backward_reference(uint worker_id, void *p, oop o, bool to_young);
 
-  // Add the first humongous region of a humongous object
-  // that is marked to move to H2 in a seperate stack to
-  // move them during the compaction phase.
-  void h2_push_humongous_start(void *p);
+  // Push the first region of a humongous object that is marked to move
+  // to H2 to the humongous stack of thread `worker_id`, to move it during
+  // the compaction phase
+  void h2_push_humongous_start(uint worker_id, HeapRegion *hr);
 
 #ifdef ASSERT
   // Push a humongous region to a stack to verify that they are on the 
@@ -193,11 +199,13 @@ public:
   void push_humongous_to_verify(HeapRegion *hr);
 #endif // ASSERT
 
-  // Get the next backward reference from the stack to adjust
-  oop* h2_adjust_next_back_reference();
+  // Pop a backward reference from adjust stack `stack_id`, or NULL if it
+  // is empty
+  oop* h2_pop_back_ref_to_adjust(uint stack_id);
 
-  // Get the next humongous starting region from the stack to move the whole object to H2
-  HeapRegion *h2_get_next_humongous_start();
+  // Pop the first region of a humongous object to move to H2 from
+  // humongous stack `stack_id`, or NULL if it is empty
+  HeapRegion *h2_pop_humongous_start(uint stack_id);
 
   #ifdef ASSERT
   // Get the next humongous region to verify it is on the free list (only for debugging)
@@ -271,9 +279,6 @@ public:
   // This function is for debugging purposes to understand and fix the
   // locality in regions
   void h2_print_objects_per_region(void);
-
-  // Check if backward adjust stack is empty
-  bool h2_is_empty_back_ref_stacks();
 
   // Get the group Id of the objects that belongs to this region. We
   // locate the objects of the same group to the same region. We use the

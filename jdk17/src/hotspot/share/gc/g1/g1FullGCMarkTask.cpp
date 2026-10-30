@@ -47,29 +47,33 @@ void G1FullGCMarkTask::work(uint worker_id) {
   G1FullGCMarker* marker = collector()->marker(worker_id);
   MarkingCodeBlobClosure code_closure(marker->mark_closure(), !CodeBlobToOopClosure::FixRelocations);
 
-  // Drain backward references
-  if (EnableTeraHeap && worker_id == 0 && !Universe::teraHeap()->h2_is_empty()) {
-    oop *obj = Universe::teraHeap()->h2_get_next_back_reference();
+  // Drain backward references: each worker drains the mark stacks
+  // worker_id, worker_id + n, ... (one stack per thread of the H2 card scan)
+  if (EnableTeraHeap && !Universe::teraHeap()->h2_is_empty()) {
+    TeraHeap* th = Universe::teraHeap();
+    for (uint s = worker_id; s < th->h2_num_fgc_stacks(); s += collector()->workers()) {
+      oop *obj = th->h2_pop_back_ref_to_mark(s);
 
-    while (obj) {
+      while (obj) {
 
 #ifdef TERA_DBG_PHASES
-      {
-        stdprint << "### Phase 1 mark backward obj: " << *obj << "\n";
-        stdprint << (*obj)->klass()->internal_name() << "\n";
-      }
+        {
+          stdprint << "### Phase 1 mark backward obj: " << *obj << "\n";
+          stdprint << (*obj)->klass()->internal_name() << "\n";
+        }
 #endif // DEBUG
 
-      // Mark backward references to transfer them to H2
-      if (!(*obj)->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(*obj)) {
-        (*obj)->mark_move_h2(Universe::teraHeap()->h2_get_region_groupId(obj),
-                             Universe::teraHeap()->h2_get_region_partId(obj));
+        // Mark backward references to transfer them to H2
+        if (!(*obj)->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(*obj)) {
+          (*obj)->mark_move_h2(Universe::teraHeap()->h2_get_region_groupId(obj),
+                               Universe::teraHeap()->h2_get_region_partId(obj));
+        }
+
+        // Mark object as live and add it to the stack.
+        marker->mark_closure()->do_oop(obj);
+
+        obj = th->h2_pop_back_ref_to_mark(s);
       }
-
-      // Mark object as live and add it to the stack.
-      marker->mark_closure()->do_oop(obj);
-
-      obj = Universe::teraHeap()->h2_get_next_back_reference();
     }
   }
 

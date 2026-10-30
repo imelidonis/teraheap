@@ -357,7 +357,7 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   if (in_full_gc) {
     // During full GC we scan all the H2 cards to find the backward references and put them
     // in the stacks to process them later.
-    G1FullCollector::h2_should_trace(p);
+    G1FullCollector::h2_should_trace(p, _worker_id);
     return;
   }
 

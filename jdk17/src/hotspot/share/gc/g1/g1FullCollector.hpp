@@ -124,7 +124,7 @@ public:
   inline void update_from_compacting_to_skip_compacting(uint region_idx);
   inline void set_compacting_for_humongous(HeapRegion* hum_start);
 
-  template<class T> static inline bool h2_should_trace(T* p);
+  template<class T> static inline bool h2_should_trace(T* p, uint worker_id);
 
 private:
   void phase1_mark_live_objects();

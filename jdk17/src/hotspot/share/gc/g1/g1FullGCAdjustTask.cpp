@@ -179,28 +179,33 @@ void G1FullGCAdjustTask::work(uint worker_id) {
 
   G1AdjustClosure _adjust_cl(collector(), worker_id);
 
-  if (EnableTeraHeap && worker_id == 0) {
-    oop *obj = Universe::teraHeap()->h2_adjust_next_back_reference();
+  // Adjust backward references: each worker drains the adjust stacks
+  // worker_id, worker_id + n, ...
+  if (EnableTeraHeap) {
+    TeraHeap* th = Universe::teraHeap();
+    for (uint s = worker_id; s < th->h2_num_fgc_stacks(); s += collector()->workers()) {
+      oop *obj = th->h2_pop_back_ref_to_adjust(s);
 
-    while (obj != NULL) {
-    #ifdef TERA_DBG_PHASES
-      {
-        stdprint << "### Phase 3 Adjusting backrefs obj " << *obj << "\n";
+      while (obj != NULL) {
+      #ifdef TERA_DBG_PHASES
+        {
+          stdprint << "### Phase 3 Adjusting backrefs obj " << *obj << "\n";
+        }
+      #endif // DEBUG
+        
+        // The H2 field with a backward reference to H1 is in a reclaimed
+        // region with dead objects so skip it.  
+        if (th->is_in_reclaimed_region((char *) obj)) {
+          obj = th->h2_pop_back_ref_to_adjust(s);
+          continue;
+        }
+
+        th->thread_enable_groups(worker_id, NULL, (HeapWord*) obj);
+        _adjust_cl.do_oop(obj);
+        th->thread_disable_groups(worker_id);
+
+        obj = th->h2_pop_back_ref_to_adjust(s);
       }
-    #endif // DEBUG
-      
-      // The H2 field with a backward reference to H1 is in a reclaimed
-      // region with dead objects so skip it.  
-      if (Universe::teraHeap()->is_in_reclaimed_region((char *) obj)) {
-        obj = Universe::teraHeap()->h2_adjust_next_back_reference();
-        continue;
-      }
-
-      Universe::teraHeap()->thread_enable_groups(worker_id, NULL, (HeapWord*) obj);
-      _adjust_cl.do_oop(obj);
-      Universe::teraHeap()->thread_disable_groups(worker_id);
-
-      obj = Universe::teraHeap()->h2_adjust_next_back_reference();
     }
   }
 

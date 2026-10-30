@@ -91,8 +91,9 @@ inline bool G1FullCollector::h2_should_trace(T* p) {
   assert(g1h->is_in_young(cast_to_oop(heap_oop)) ||
          Universe::teraHeap()->is_in_h2(p), "Error in h2_should_trace");
 
-  Universe::teraHeap()->h2_push_backward_reference((void *)p, obj);
-  g1h->th_card_table()->inline_write_ref_field_gc((void *) p, obj, !(g1h->is_in_young(obj) || g1h->heap_region_containing(obj)->is_humongous()));
+  const bool to_young = g1h->is_in_young(obj);
+  Universe::teraHeap()->h2_push_backward_reference((void *)p, obj, to_young);
+  g1h->th_card_table()->inline_write_ref_field_gc((void *) p, obj, !(to_young || g1h->heap_region_containing(obj)->is_humongous()));
 
   return false;
 }

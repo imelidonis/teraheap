@@ -180,7 +180,7 @@ public:
 
   // Update backward reference stacks that we use in marking and
   // pointer adjustment phases of major GC.
-  void h2_push_backward_reference(void *p, oop o);
+  void h2_push_backward_reference(void *p, oop o, bool to_young);
 
   // Add the first humongous region of a humongous object
   // that is marked to move to H2 in a seperate stack to

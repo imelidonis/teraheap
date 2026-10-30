@@ -953,6 +953,14 @@ const intx ObjectAlignmentInBytes = 8;
           "average cost for all regions")                                   \
           range(0, 100)                                                     \
                                                                             \
+  product(uintx, TeraH2CompactLabeledPercent, 25,                           \
+          "How a Full GC treats a region with a high live ratio, which "   \
+          "G1 skips (MarkSweepDeadRatio), to move its objects labeled for "\
+          "H2 (SH) to H2. 0 skips it as G1 does; 1-99 compacts it if at "  \
+          "least this percent of its live words are labeled; 100 "         \
+          "compacts it if it has any labeled object")                      \
+          range(0, 100)                                                     \
+                                                                            \
   product(uintx, TeraH2CostSamples, 32,                                     \
           "Number of recent mixed GCs whose H2 copy cost per byte "        \
           "TeraH2CostPercentile is computed from")                          \

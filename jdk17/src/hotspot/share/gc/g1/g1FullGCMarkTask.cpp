@@ -63,14 +63,10 @@ void G1FullGCMarkTask::work(uint worker_id) {
         }
 #endif // DEBUG
 
-        // Mark backward references to transfer them to H2
-        if (!(*obj)->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(*obj)) {
-          (*obj)->mark_move_h2(Universe::teraHeap()->h2_get_region_groupId(obj),
-                               Universe::teraHeap()->h2_get_region_partId(obj));
-        }
-
-        // Mark object as live and add it to the stack.
-        marker->mark_closure()->do_oop(obj);
+        // Label the object to transfer it to H2, mark it as live and add
+        // it to the stack
+        marker->h2_mark_back_ref_target(obj, th->h2_get_region_groupId(obj),
+                                        th->h2_get_region_partId(obj));
 
         obj = th->h2_pop_back_ref_to_mark(s);
       }

@@ -118,20 +118,34 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
 
   dev_size = h2_file_size;
   create_file(h2_file_path, dev_size);
-  // Memory-mapped a file over a storage device
-  th_mem_pool.mmap_start = mmap(0, dev_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  // The card table in the JVM needs an aligned start address. Reserve
+  // address space (no memory) for the file plus the alignment, map the file
+  // at the aligned address inside it and release the unused ends, so the
+  // whole file is used: H2 has exactly h2_file_size / region_bytes regions
+  char *resv = mmap(0, dev_size + align, PROT_NONE,
+                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+  if (resv == MAP_FAILED)
+    init_failed("reserving the H2 address range failed, errno", (uint64_t) errno);
+  char *aligned = (char *) align_ptr_up(resv, align);
 
-  assertf(th_mem_pool.mmap_start != MAP_FAILED, "Mapping Failed");
+  th_mem_pool.mmap_start = mmap(aligned, dev_size, PROT_READ | PROT_WRITE,
+                                MAP_SHARED | MAP_FIXED, fd, 0);
+  if (th_mem_pool.mmap_start != aligned)
+    init_failed("mapping the H2 file failed, errno", (uint64_t) errno);
 
-  // Card table in JVM needs the start address of TeraHeap to be align up
-  th_mem_pool.start_address = (char *) align_ptr_up(th_mem_pool.mmap_start, align);
+  if (aligned > resv)
+    munmap(resv, aligned - resv);
+  if (resv + dev_size + align > aligned + dev_size)
+    munmap(aligned + dev_size, (resv + dev_size + align) - (aligned + dev_size));
+
+  th_mem_pool.start_address = th_mem_pool.mmap_start;
   th_mem_pool.cur_alloc_ptr = th_mem_pool.start_address;
   th_mem_pool.size = 0;
 
   th_mem_pool.stop_address = th_mem_pool.mmap_start + dev_size;
 
-  // Regions start at start_address (aligned up), so only whole regions
-  // between start_address and stop_address are inside the mapping
+  // Only whole regions are used (the file size may not be a multiple of the
+  // region size); the JVM checks the same count at startup
   region_array_size = (uint64_t) (th_mem_pool.stop_address - th_mem_pool.start_address) / region_size;
 
   if (region_array_size < partitions)

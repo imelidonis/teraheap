@@ -1029,8 +1029,9 @@ const intx ObjectAlignmentInBytes = 8;
                                                                             \
   product(size_t, H2RegionSize, 256*M,                                      \
           "Size of an H2 region (bytes): a power of two and a multiple "   \
-          "of 32MB (the heap one page of H2 cards covers). "              \
-          "The H2 card-table stripe is one region")                         \
+          "of the heap one page of H2 cards covers (32MB with 4KB pages, " \
+          "512MB with 64KB pages). The default grows to that size if it "  \
+          "is larger. The H2 card-table stripe is one region")             \
                                                                             \
   product(ccstr, AllocateH2At, NULL,					                    \
           "Path to the directory where the H2 file will be created")	    \

@@ -8,6 +8,7 @@
 #include "memory/sharedDefines.h"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
@@ -28,7 +29,12 @@ TeraHeap::TeraHeap() {
 
   // The allocator needs a power of two (region index = shift) that is a
   // multiple of the H2 card-table alignment: the heap one page of cards
-  // covers (32MB with 8KB cards and 4KB pages)
+  // covers (32MB with 8KB cards and 4KB pages, 512MB with 64KB pages).
+  // The default grows to the alignment on systems with large pages, so
+  // the same command line works everywhere
+  if (FLAG_IS_DEFAULT(H2RegionSize) && H2RegionSize < align) {
+    FLAG_SET_ERGO(H2RegionSize, (size_t) align);
+  }
   if (!is_power_of_2(H2RegionSize) || H2RegionSize < align || H2RegionSize % align != 0) {
     vm_exit_during_initialization(err_msg("H2RegionSize (" SIZE_FORMAT ") must be a power of two "
                                           "and a multiple of " UINT64_FORMAT " bytes",

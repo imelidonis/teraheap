@@ -583,7 +583,8 @@ void ReservedHeapSpace::initialize_compressed_heap(const size_t size, size_t ali
   }
 }
 
-ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, size_t page_size, const char* heap_allocation_directory) : ReservedSpace() {
+ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, size_t page_size, const char* heap_allocation_directory,
+                                     char* requested_address) : ReservedSpace() {
 
   if (size == 0) {
     return;
@@ -606,6 +607,8 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, size_t page_
   // Heap size should be aligned to alignment, too.
   guarantee(is_aligned(size, alignment), "set by caller");
 
+  assert(requested_address == NULL || !UseCompressedOops,
+         "a requested address is only supported without compressed oops");
   if (UseCompressedOops) {
     initialize_compressed_heap(size, alignment, page_size);
     if (_size > size) {
@@ -615,7 +618,7 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, size_t page_
       establish_noaccess_prefix();
     }
   } else {
-    initialize(size, alignment, page_size, NULL, false);
+    initialize(size, alignment, page_size, requested_address, false);
   }
 
   assert(markWord::encode_pointer_as_mark(_base).decode_pointer() == _base,

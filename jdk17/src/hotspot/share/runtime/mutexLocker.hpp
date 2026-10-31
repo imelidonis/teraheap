@@ -147,7 +147,7 @@ extern Mutex*   UnsafeJlong_lock;                // provides Unsafe atomic updat
 #endif
 
 #ifdef TERA_MAINTENANCE
-extern Mutex*   tera_heap_lock;                 // Protects backward reference stacks
+extern Mutex*   tera_heap_lock;                 // TeraHeap: H2 allocation with ENABLE_SINGLE_THREAD_ALLOCATION
 extern Mutex*   tera_heap_evac_lock;            // Protects double evacuation
 extern Mutex*   tera_heap_humongous_lock;       // Used for Teraheap humongous objects
 extern Mutex*   tera_heap_group_lock;           // Protects region grouping in H2

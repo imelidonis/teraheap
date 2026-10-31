@@ -70,14 +70,23 @@ void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
     drain_stack();
     ObjArrayTask steal_array;
     if (array_stacks->steal(_worker_id, steal_array)) {
+      // The children of a stolen array get its H2 label, as in drain_stack()
+      set_h2_candidate_flags(steal_array.obj());
       follow_array_chunk(objArrayOop(steal_array.obj()), steal_array.index());
     } else {
       oop steal_oop;
       if (oop_stacks->steal(_worker_id, steal_oop)) {
+        set_h2_candidate_flags(steal_oop);
         follow_object(steal_oop);
       }
     }
   } while (!is_empty() || !terminator->offer_termination());
+
+  // Later marking (reference processing) must not label objects with the
+  // label of the last object followed here
+  _is_h2_candidate = false;
+  _h2_group_id = 0;
+  _h2_part_id = 0;
 }
 
 void G1FullGCMarker::flush_mark_stats_cache() {

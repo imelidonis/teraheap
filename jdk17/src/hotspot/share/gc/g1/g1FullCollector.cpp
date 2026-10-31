@@ -216,6 +216,10 @@ void G1FullCollector::prepare_collection() {
   // Reset to find unused regions in H2.
   if (EnableTeraHeap) {
     Universe::teraHeap()->h2_reset_used_field();
+    // Start with empty backward reference and humongous stacks
+    Universe::teraHeap()->h2_clear_fgc_stacks();
+    assert(Universe::teraHeap()->humongous_to_verify_empty(),
+           "Humongous verify stacks must be empty: checked at the end of the previous Full GC");
   }
 
   if (EnableTeraHeap && TeraHeapStatistics) {
@@ -271,6 +275,12 @@ void G1FullCollector::complete_collection() {
 
   if (EnableTeraHeap) {
     Universe::teraHeap()->h2_complete_transfers();  
+
+    // Marking, pointer adjustment and compaction drained all stacks; free
+    // the segments the stacks keep for reuse
+    assert(Universe::teraHeap()->h2_fgc_stacks_empty(),
+           "Full GC backward reference and humongous stacks must be empty");
+    Universe::teraHeap()->h2_clear_fgc_stacks();
   }
   
 #ifdef RUSAGE_MUTATOR

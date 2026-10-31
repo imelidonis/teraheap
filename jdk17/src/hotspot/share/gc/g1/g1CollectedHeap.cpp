@@ -2506,7 +2506,7 @@ void G1CollectedHeap::verify(VerifyOption vo) {
 }
 
 #ifdef ASSERT
-void G1CollectedHeap::verify_humongous_free_after_h2_transfer(HeapRegion *hum_region) {
+void G1CollectedHeap::verify_humongous_free_after_h2_transfer(HeapRegion *hum_region, uint worker_id) {
   assert(EnableTeraHeap, "TeraHeap should be enabled!");
   assert(hum_region->is_free(), "Region must be free after H2 transfer!");
   assert(hum_region->top() == hum_region->bottom(), "Region must be empty after H2 transfer!");
@@ -2516,7 +2516,7 @@ void G1CollectedHeap::verify_humongous_free_after_h2_transfer(HeapRegion *hum_re
 
   // This region will be checked after rebuilding the free-list at the end of
   // Full GC
-  Universe::teraHeap()->push_humongous_to_verify(hum_region);
+  Universe::teraHeap()->push_humongous_to_verify(worker_id, hum_region);
 }
 
 void G1CollectedHeap::verify_transfered_humongous_are_on_free_list() {

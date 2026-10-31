@@ -4,6 +4,7 @@
 //#include "gc/parallel/psCompactionManager.hpp"
 //#include "memory/card.hpp"
 #include "memory/memRegion.hpp"
+#include "memory/padded.inline.hpp"
 #include "memory/sharedDefines.h"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
@@ -16,14 +17,6 @@
 
 char *TeraHeap::_start_addr = NULL;
 char *TeraHeap::_stop_addr = NULL;
-
-Stack<oop *, mtGC> TeraHeap::_th_stack;
-Stack<oop *, mtGC> TeraHeap::_th_adjust_stack;
-Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_stack;
-
-#ifdef ASSERT
-Stack<HeapRegion *, mtGC> TeraHeap::_th_humongous_to_verify_stack;
-#endif // ASSERT
 
 // Constructor of TeraHeap
 TeraHeap::TeraHeap() {
@@ -65,6 +58,9 @@ TeraHeap::TeraHeap() {
 
   obj_h1_addr = NULL;
   obj_h2_addr = NULL;
+
+  // NOTE: not freed as the destructor is never called
+  _fgc_stacks = PaddedArray<H2FullGCStacks, mtGC>::create_unfreeable(ParallelGCThreads);
 
   // G1 learns the H2 copy cost from the per-worker H2 times and bytes,
   // also without the statistics
@@ -213,13 +209,22 @@ bool TeraHeap::is_in_h2(const void* p) {
 	return cp >= _start_addr && cp < _stop_addr;
 }
 
-void TeraHeap::h2_clear_back_ref_stacks() {
-  _th_adjust_stack.clear(true);
-  _th_stack.clear(true);
+void TeraHeap::h2_clear_fgc_stacks() {
+  for (uint i = 0; i < h2_num_fgc_stacks(); i++) {
+    _fgc_stacks[i].mark.clear(true);
+    _fgc_stacks[i].adjust.clear(true);
+    _fgc_stacks[i].humongous.clear(true);
+  }
 }
 
-void TeraHeap::h2_clear_humongous_stack() {
-  _th_humongous_stack.clear(true);
+bool TeraHeap::h2_fgc_stacks_empty() {
+  for (uint i = 0; i < h2_num_fgc_stacks(); i++) {
+    if (!_fgc_stacks[i].mark.is_empty() || !_fgc_stacks[i].adjust.is_empty() ||
+        !_fgc_stacks[i].humongous.is_empty()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Give advise to kernel to expect page references in sequential order
@@ -309,38 +314,43 @@ void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2) {
   ::h2_references((char*) obj1, (char*) obj2);
 }
 
-// Update backward reference stacks that we use in marking and pointer
-// adjustment phases of major GC.
-void TeraHeap::h2_push_backward_reference(void *p, oop o, bool to_young) {
-	MutexLocker x(tera_heap_lock);
+// Push a backward reference to the mark and adjust stacks of thread
+// `worker_id`, which we use in the marking and pointer adjustment phases of
+// the Full GC. Only this thread pushes to its stacks: no lock.
+void TeraHeap::h2_push_backward_reference(uint worker_id, void *p, oop o, bool to_young) {
+  assert(worker_id < h2_num_fgc_stacks(), "worker %u out of range", worker_id);
 
 #ifdef TERA_DBG_PHASES
   stdprint << "BACKREF: pushing reference " << p << "\n";
 #endif // TERA_DBG_PHASES
 
   if (TeraHeapStatistics)
-    tera_stats->add_back_ref_locked(to_young);
+    tera_stats->add_back_ref(worker_id, to_young);
 
-  _th_stack.push((oop *)p);
-  _th_adjust_stack.push((oop *)p);
-
-  assert(!_th_stack.is_empty(), "Sanity Check");
-  assert(!_th_adjust_stack.is_empty(), "Sanity Check");
+  _fgc_stacks[worker_id].mark.push((oop *)p);
+  _fgc_stacks[worker_id].adjust.push((oop *)p);
 }
 
-// Add humongous region that are marked to move to H2 in a
-// seperate stack to move them during the compaction phase.
-void TeraHeap::h2_push_humongous_start(void *p) {
-  MutexLocker x(tera_heap_lock);
-  _th_humongous_stack.push((HeapRegion *)p);
-  assert(!_th_humongous_stack.is_empty(), "Sanity Check");
+// Push a humongous region that is marked to move to H2 to the humongous
+// stack of thread `worker_id`, to move it during the compaction phase.
+void TeraHeap::h2_push_humongous_start(uint worker_id, HeapRegion *hr) {
+  assert(worker_id < h2_num_fgc_stacks(), "worker %u out of range", worker_id);
+  _fgc_stacks[worker_id].humongous.push(hr);
 }
 
 #ifdef ASSERT
-void TeraHeap::push_humongous_to_verify(HeapRegion *hr) {
-  // Called by a single thread, does not need lock
-  _th_humongous_to_verify_stack.push(hr);
-  assert(!_th_humongous_to_verify_stack.is_empty(), "Sanity Check");
+void TeraHeap::push_humongous_to_verify(uint worker_id, HeapRegion *hr) {
+  assert(worker_id < h2_num_fgc_stacks(), "worker %u out of range", worker_id);
+  _fgc_stacks[worker_id].humongous_to_verify.push(hr);
+}
+
+bool TeraHeap::humongous_to_verify_empty() {
+  for (uint i = 0; i < h2_num_fgc_stacks(); i++) {
+    if (!_fgc_stacks[i].humongous_to_verify.is_empty()) {
+      return false;
+    }
+  }
+  return true;
 }
 #endif // ASSERT
 
@@ -451,11 +461,12 @@ void TeraHeap::print_h2_alloc_stats(const char *tag) {
   _as_free_ms = 0.0;
 }
 
-// Pop the objects that are in `_th_stack` and mark them as live
-// object. These objects are located in the Java Heap and we need to
-// ensure that they will be kept alive.
-oop* TeraHeap::h2_get_next_back_reference() {
-  return (_th_stack.is_empty() ? NULL : _th_stack.pop());
+// Pop a backward reference from mark stack `stack_id`. The object it
+// points to is located in the Java Heap and we need to ensure that it will
+// be kept alive.
+oop* TeraHeap::h2_pop_back_ref_to_mark(uint stack_id) {
+  Stack<oop *, mtGC>& s = _fgc_stacks[stack_id].mark;
+  return s.is_empty() ? NULL : s.pop();
 }
 
 // Prints all active regions
@@ -463,20 +474,30 @@ void TeraHeap::print_h2_active_regions(void) {
   ::h2_print_used_regions();
 }
 
-// Get the next backward reference from the stack to adjust
-oop* TeraHeap::h2_adjust_next_back_reference() {
-  return (!_th_adjust_stack.is_empty() ? _th_adjust_stack.pop() : NULL);
+// Pop a backward reference from adjust stack `stack_id`
+oop* TeraHeap::h2_pop_back_ref_to_adjust(uint stack_id) {
+  Stack<oop *, mtGC>& s = _fgc_stacks[stack_id].adjust;
+  return s.is_empty() ? NULL : s.pop();
 }
 
-// Get the next humongous starting region from the stack to move the whole object to H2
-HeapRegion *TeraHeap::h2_get_next_humongous_start() {
-  return (!_th_humongous_stack.is_empty() ? _th_humongous_stack.pop() : NULL);
+// Pop the first region of a humongous object to move to H2 from humongous
+// stack `stack_id`
+HeapRegion *TeraHeap::h2_pop_humongous_start(uint stack_id) {
+  Stack<HeapRegion *, mtGC>& s = _fgc_stacks[stack_id].humongous;
+  return s.is_empty() ? NULL : s.pop();
 }
 
 #ifdef ASSERT
 // Get the next humongous region to verify it is on the free list (only for debugging)
 HeapRegion *TeraHeap::verify_next_humongous() {
-  return (!_th_humongous_to_verify_stack.is_empty() ? _th_humongous_to_verify_stack.pop() : NULL);
+  // Called by the VM thread after the Full GC tasks
+  for (uint i = 0; i < h2_num_fgc_stacks(); i++) {
+    Stack<HeapRegion *, mtGC>& s = _fgc_stacks[i].humongous_to_verify;
+    if (!s.is_empty()) {
+      return s.pop();
+    }
+  }
+  return NULL;
 }
 #endif // ASSERT
 
@@ -534,11 +555,6 @@ int TeraHeap::h2_areq_completed() {
 // We need to make an fsync when we use fastmap
 void TeraHeap::h2_fsync() {
 	::h2_fsync();
-}
-
-// Check if backward adjust stack is empty
-bool TeraHeap::h2_is_empty_back_ref_stacks() {
-  return _th_adjust_stack.is_empty();
 }
 
 // Get the group Id of the objects that belongs to this region. We

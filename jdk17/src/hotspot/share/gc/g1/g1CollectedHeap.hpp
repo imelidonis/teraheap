@@ -1464,7 +1464,7 @@ public:
   // full GC.
   void verify(VerifyOption vo);
 
-  void verify_humongous_free_after_h2_transfer(HeapRegion *hum_region) NOT_DEBUG_RETURN;
+  void verify_humongous_free_after_h2_transfer(HeapRegion *hum_region, uint worker_id) NOT_DEBUG_RETURN;
   void verify_transfered_humongous_are_on_free_list() NOT_DEBUG_RETURN;
 
   // WhiteBox testing support.

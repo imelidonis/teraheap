@@ -103,6 +103,10 @@ public:
 
   // Marking entry points
   template <class T> inline void mark_and_push(T* p);
+
+  // TeraHeap: label the H1 object of backward reference *p for H2 (unless
+  // it is labeled or metadata), mark it live and count its H2 live words
+  inline void h2_mark_back_ref_target(oop* p, uint64_t group_id, uint64_t part_id);
   inline void follow_klass(Klass* k);
   inline void follow_cld(ClassLoaderData* cld);
 

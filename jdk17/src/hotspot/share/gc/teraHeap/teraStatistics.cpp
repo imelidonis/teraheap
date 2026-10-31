@@ -84,8 +84,6 @@ void TeraStatistics::reset_counters(void) {
     memset((TeraWorkerStats*) &_workers[i], 0, sizeof(TeraWorkerStats));
   }
 
-  fgc_back_refs_young = 0;
-  fgc_back_refs_old = 0;
   reclaimed_regions_count = 0;
   h2_card_table_scan_time_ms = 0;
 
@@ -119,9 +117,6 @@ void TeraStatistics::print_gc_stats() {
     regions_scanned += w.fgc_regions_scanned;
     regions_skipped += w.fgc_regions_skipped;
   }
-  back_young += fgc_back_refs_young;
-  back_old += fgc_back_refs_old;
-
   total_objects_moved += objects;
   total_objects_size += objects_bytes;
 

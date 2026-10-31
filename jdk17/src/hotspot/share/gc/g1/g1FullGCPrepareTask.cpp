@@ -162,13 +162,23 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::should_compact(HeapRegion*
   size_t h2_live_words = _collector->h2_live_words(hr->hrm_index());
   size_t live_words_threshold = _collector->scope()->region_compaction_threshold();
 
-  // High live ratio region will not be compacted.
-  if (EnableTeraHeap) {
-    // If the region however has h2 candidates, it is better to compact
-    return live_words <= live_words_threshold || h2_live_words > 0;
-  } else {
-    return live_words <= live_words_threshold;
+  // G1 compacts regions below the MarkSweepDeadRatio threshold
+  if (live_words <= live_words_threshold) {
+    return true;
   }
+
+  // A dense region, which G1 skips. TeraHeap compacts it to move its
+  // H2-labeled objects to H2, depending on TeraH2CompactLabeledPercent:
+  // 0 skips it as G1 does, 100 compacts it if it has any labeled object,
+  // and 1-99 compacts it if at least that percent of its live words are
+  // labeled
+  if (!EnableTeraHeap || TeraH2CompactLabeledPercent == 0 || h2_live_words == 0) {
+    return false;
+  }
+  if (TeraH2CompactLabeledPercent == 100) {
+    return true;
+  }
+  return h2_live_words * 100 >= TeraH2CompactLabeledPercent * live_words;
 }
 
 void G1FullGCPrepareTask::G1CalculatePointersClosure::reset_region_metadata(HeapRegion* hr) {
@@ -292,7 +302,7 @@ void G1FullGCPrepareTask::G1CalculatePointersClosure::prepare_humongous_for_h2(H
   guarantee(!obj->is_forwarded(), "Object already forwarded humongous to h2 from fgc!\n");
 
   obj->forward_to(cast_to_oop(h2_address));
-  Universe::teraHeap()->h2_push_humongous_start((void *)hr);
+  Universe::teraHeap()->h2_push_humongous_start(_worker_id, hr);
 }
 
 void G1FullGCPrepareTask::prepare_serial_compaction() {

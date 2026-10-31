@@ -72,7 +72,7 @@ void G1FullCollector::set_compacting_for_humongous(HeapRegion* hum_region) {
 }
 
 template<class T>
-inline bool G1FullCollector::h2_should_trace(T* p) {
+inline bool G1FullCollector::h2_should_trace(T* p, uint worker_id) {
   T heap_oop = RawAccess<>::oop_load(p);
 
   if (CompressedOops::is_null(heap_oop))
@@ -92,7 +92,7 @@ inline bool G1FullCollector::h2_should_trace(T* p) {
          Universe::teraHeap()->is_in_h2(p), "Error in h2_should_trace");
 
   const bool to_young = g1h->is_in_young(obj);
-  Universe::teraHeap()->h2_push_backward_reference((void *)p, obj, to_young);
+  Universe::teraHeap()->h2_push_backward_reference(worker_id, (void *)p, obj, to_young);
   g1h->th_card_table()->inline_write_ref_field_gc((void *) p, obj, !(to_young || g1h->heap_region_containing(obj)->is_humongous()));
 
   return false;

@@ -161,32 +161,43 @@ void G1FullGCCompactTask::work(uint worker_id) {
     compact_region(*it, worker_id);
   }
 
-  // Drain stack to move humongous
-  if (EnableTeraHeap && worker_id == 0) {
-    HeapRegion *hum_region =
-        Universe::teraHeap()->h2_get_next_humongous_start();
-    while (hum_region) {
-      if (TeraHeapStatistics)
-        Universe::teraHeap()->get_tera_stats()->add_h2_humongous();
+  // Move the humongous objects to H2 and free their H1 regions. All
+  // workers drain the humongous stacks in parallel: worker w drains stacks
+  // w, w + n, ... (n = active workers), so each stack has one drainer.
+  // Stack w holds the objects worker w allocated H2 space for in phase 2.
+  // This is safe in parallel: the copy locks the destination H2 region's
+  // promotion buffer; freeing a region touches only that region (stock G1
+  // also frees humongous regions in parallel, with no free list); these
+  // regions are compacting, so G1ResetSkipCompactingClosure skips them;
+  // and walking an object's regions stops at its own last region, as the
+  // next one starts another object or is free
+  if (EnableTeraHeap) {
+    TeraHeap* th = Universe::teraHeap();
+    for (uint s = worker_id; s < th->h2_num_fgc_stacks(); s += collector()->workers()) {
+      HeapRegion *hum_region = th->h2_pop_humongous_start(s);
+      while (hum_region) {
+        if (TeraHeapStatistics)
+          Universe::teraHeap()->get_tera_stats()->add_h2_humongous();
 
-      h2_move_humongous(hum_region, worker_id);
+        h2_move_humongous(hum_region, worker_id);
 
-      G1CollectedHeap* g1h = G1CollectedHeap::heap();
+        G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
-      // Iterate and free humongous regions of obj
-      do {
-        HeapRegion *next = g1h->next_region_in_humongous(hum_region);
-        hum_region->set_containing_set(nullptr);
-        g1h->free_humongous_region(hum_region, nullptr);
-        collector()->set_invalid(hum_region->hrm_index());
+        // Iterate and free humongous regions of obj
+        do {
+          HeapRegion *next = g1h->next_region_in_humongous(hum_region);
+          hum_region->set_containing_set(nullptr);
+          g1h->free_humongous_region(hum_region, nullptr);
+          collector()->set_invalid(hum_region->hrm_index());
 
-        // Called only in debug mode
-        g1h->verify_humongous_free_after_h2_transfer(hum_region);
+          // Called only in debug mode
+          g1h->verify_humongous_free_after_h2_transfer(hum_region, worker_id);
 
-        hum_region = next;
-      } while (hum_region != nullptr);
+          hum_region = next;
+        } while (hum_region != nullptr);
 
-      hum_region = Universe::teraHeap()->h2_get_next_humongous_start();
+        hum_region = th->h2_pop_humongous_start(s);
+      }
     }
   }
 

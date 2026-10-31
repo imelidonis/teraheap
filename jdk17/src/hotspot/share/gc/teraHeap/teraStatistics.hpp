@@ -5,6 +5,7 @@
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
 #include "oops/oop.hpp"
+#include "runtime/atomic.hpp"
 
 #ifdef RUSAGE_MUTATOR
   #include <sys/resource.h>
@@ -99,13 +100,8 @@ private:
   size_t total_objects_moved;
   size_t total_objects_size;
 
-  // Total humongous transferred (Full GC, worker 0 only)
-  size_t total_h2_humongous;
-
-  // Full GC: backward references pushed to the marking stacks; counted
-  // under tera_heap_lock, which protects those stacks
-  size_t fgc_back_refs_young;
-  size_t fgc_back_refs_old;
+  // Total humongous objects transferred to H2 (Full GC, all workers)
+  volatile size_t total_h2_humongous;
 
   // time to scan h2 card table
   double h2_card_table_scan_time_ms;
@@ -162,22 +158,18 @@ public:
     w.objects_bytes += bytes;
   }
 
-  // Count a backward reference (H2 to H1) found by a young/mixed GC thread;
+  // Count a backward reference (H2 to H1) found by GC thread 'worker_id';
   // 'to_young' if the H1 object is in a young region
   void add_back_ref(uint worker_id, bool to_young) {
     TeraWorkerStats& w = worker(worker_id);
     if (to_young) w.back_refs_young++; else w.back_refs_old++;
   }
 
-  // Count a backward reference found by a Full GC; the caller holds
-  // tera_heap_lock
-  void add_back_ref_locked(bool to_young) {
-    if (to_young) fgc_back_refs_young++; else fgc_back_refs_old++;
-  }
-
-  // Increase the number of humongous objects transferred to H2
+  // Increase the number of humongous objects transferred to H2. Full GC
+  // workers move them in parallel; one atomic add per humongous object
+  // (each a multi-MB copy) costs nothing
   void add_h2_humongous() {
-    total_h2_humongous++;
+    Atomic::inc(&total_h2_humongous);
   }
 
   // Get the number of humongous objects transferred to H2

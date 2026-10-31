@@ -81,10 +81,33 @@ inline bool G1FullGCMarker::mark_object(oop obj) {
     _string_dedup_requests.add(obj);
   }
 
-  // Collect live words.
+  // Collect live words; and the H2 live words of objects labeled for H2,
+  // however they got their label, for should_compact() in the prepare phase
   _mark_stats_cache.add_live_words(obj);
+  if (EnableTeraHeap && obj->is_marked_move_h2()) {
+    _mark_stats_cache.add_h2_live_words(obj);
+  }
 
   return true;
+}
+
+inline void G1FullGCMarker::h2_mark_back_ref_target(oop* p, uint64_t group_id, uint64_t part_id) {
+  oop obj = RawAccess<>::oop_load(p);
+  assert(obj != NULL && !Universe::teraHeap()->is_in_h2(obj), "backward reference to H1 expected");
+
+  // Label the object for H2, unless it is labeled or metadata
+  bool labeled = false;
+  if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
+    obj->mark_move_h2(group_id, part_id);
+    labeled = true;
+  }
+
+  if (mark_object(obj)) {
+    _oop_stack.push(obj);
+  } else if (labeled) {
+    // Marked live by another worker before the label: count it here
+    _mark_stats_cache.add_h2_live_words(obj);
+  }
 }
 
 template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
@@ -98,11 +121,12 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
       return;
     }
 
+    bool labeled = false;
     if (_is_h2_candidate) {
       // Object is an H2 candidate
       if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
         obj->mark_move_h2(_h2_group_id, _h2_part_id);
-        _mark_stats_cache.add_h2_live_words(obj); // estimation: may double calculate an object
+        labeled = true;
       }
 #ifdef TERA_DBG_PHASES
       if (Universe::teraHeap()->is_metadata(obj))
@@ -113,6 +137,10 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
     if (mark_object(obj)) {
       _oop_stack.push(obj);
       assert(_bitmap->is_marked(obj), "Must be marked now - map self");
+    } else if (labeled) {
+      // Marked live by another worker before the label: count it here
+      // (estimation: two workers may count it)
+      _mark_stats_cache.add_h2_live_words(obj);
     } else {
       assert(_bitmap->is_marked(obj) || _collector->is_skip_marking(obj),
              "Must be marked by other or object in skip marking region");

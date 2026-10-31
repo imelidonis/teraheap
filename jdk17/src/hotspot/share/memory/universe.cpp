@@ -794,20 +794,14 @@ jint universe_init() {
   return JNI_OK;
 }
 
-#if defined (__aarch64__)
-void Universe::initialize_teraHeap() {
-  _teraHeap = new TeraHeap();
-}
-#endif
-
 jint Universe::initialize_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
   _collectedHeap = GCConfig::arguments()->create_heap();
-#if !defined (__aarch64__)
+  // Map H2 before the Java heap (H1) is reserved: reserve_heap() places
+  // H1 below H2, as the H2 barriers expect (see reserve_heap_below_h2())
   if ( UseG1GC && EnableTeraHeap ) {
     _teraHeap = new TeraHeap();
   }
-#endif
   log_info(gc)("Using %s", _collectedHeap->name());
   return _collectedHeap->initialize();
 }
@@ -817,6 +811,50 @@ void Universe::initialize_tlab() {
   if (UseTLAB) {
     ThreadLocalAllocBuffer::startup_initialization();
   }
+}
+
+// TeraHeap: reserve the Java heap (H1) below H2, which TeraHeap mapped
+// before. The H2 barriers in the interpreter, C1 and C2 test only
+// "address >= H2 start", so all of H1 must be below H2. Neither the kernel
+// layout (top-down or legacy) nor ASLR guarantees it, so try exact
+// addresses: the highest aligned base whose heap ends at or below the H2
+// start, then lower ones, one step at a time. Each attempt reserves
+// exactly at that address or not at all (it never maps over existing
+// mappings), so it works on any platform, page size and kernel.
+static const size_t H1_BELOW_H2_STEP   = 1 * G;   // distance between attempts
+static const size_t H1_BELOW_H2_LOWEST = 4 * G;   // lowest base to try
+
+static ReservedHeapSpace reserve_heap_below_h2(size_t total_reserved, size_t alignment, size_t page_size) {
+  char* const h2_start = Universe::teraHeap()->h2_start_addr();
+  const size_t step = align_up(H1_BELOW_H2_STEP, alignment);
+  char* const lowest = align_up((char*) H1_BELOW_H2_LOWEST, alignment);
+
+  if ((uintptr_t) h2_start < (uintptr_t) lowest + total_reserved) {
+    vm_exit_during_initialization(
+      err_msg("Not enough address space below H2 (start " PTR_FORMAT ") for a " SIZE_FORMAT "MB Java heap",
+              p2i(h2_start), total_reserved / M));
+  }
+
+  uint attempts = 0;
+  for (char* base = align_down(h2_start - total_reserved, alignment); base >= lowest; base -= step) {
+    attempts++;
+    ReservedHeapSpace rs(total_reserved, alignment, page_size, AllocateHeapAt, base);
+    if (rs.is_reserved()) {
+      assert(rs.base() == base && rs.end() <= h2_start, "must be exactly at the requested address, below H2");
+      log_info(gc, heap)("TeraHeap: H1 [" PTR_FORMAT ", " PTR_FORMAT "), H2 [" PTR_FORMAT ", " PTR_FORMAT "), "
+                         "%u attempt(s)", p2i(rs.base()), p2i(rs.end()), p2i(h2_start),
+                         p2i(Universe::teraHeap()->h2_end_addr()), attempts);
+      return rs;
+    }
+    if ((uintptr_t) base < (uintptr_t) lowest + step) {
+      break;   // the next base would be below the lowest one
+    }
+  }
+
+  vm_exit_during_initialization(
+    err_msg("Could not reserve a " SIZE_FORMAT "MB Java heap below H2 (start " PTR_FORMAT ") after %u attempts",
+            total_reserved / M, p2i(h2_start), attempts));
+  return ReservedHeapSpace(0, 0, os::vm_page_size());   // not reached
 }
 
 ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
@@ -838,8 +876,11 @@ ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
     assert(!UseLargePages || UseParallelGC , "Wrong alignment to use large pages");
   }
 
-  // Now create the space.
-  ReservedHeapSpace total_rs(total_reserved, alignment, page_size, AllocateHeapAt);
+  // Now create the space. With TeraHeap (and no compressed oops, whose heap
+  // is low anyway) place it below H2.
+  ReservedHeapSpace total_rs = (EnableTeraHeap && Universe::teraHeap() != NULL && !UseCompressedOops) ?
+    reserve_heap_below_h2(total_reserved, alignment, page_size) :
+    ReservedHeapSpace(total_reserved, alignment, page_size, AllocateHeapAt);
 
   if (total_rs.is_reserved()) {
     assert((total_reserved == total_rs.size()) && ((uintptr_t)total_rs.base() % alignment == 0),

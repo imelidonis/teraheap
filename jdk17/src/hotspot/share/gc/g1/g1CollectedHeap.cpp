@@ -1685,9 +1685,6 @@ jint G1CollectedHeap::initialize() {
                                                      HeapAlignment);
 
   initialize_reserved_region(heap_rs);
-#if defined (__aarch64__)
-  CollectedHeap::initialize();
-#endif
   //G1 card table
   G1CardTable* ct = new G1CardTable(heap_rs.region());
   ct->initialize(); 
@@ -1697,16 +1694,17 @@ jint G1CollectedHeap::initialize() {
 #ifdef TERA_CARDS
   //tera card table
   if (EnableTeraHeap) {
-#if defined (__aarch64__)
-    Universe::initialize_teraHeap();
-#endif
     _tera_heap_reserved = MemRegion(
       (HeapWord*)Universe::teraHeap()->h2_start_addr(),
       (HeapWord*)Universe::teraHeap()->h2_end_addr());
 
+    // The H2 barriers test only "address >= H2 start": all of H1 must be
+    // below H2. Universe::reserve_heap() ensures it; this is a safety net
     if (!(_tera_heap_reserved.start() >= _reserved.end()))
-      vm_shutdown_during_initialization(
-        "H2 should be in greater addresses than H1");
+      vm_exit_during_initialization(
+        err_msg("H2 [" PTR_FORMAT ", " PTR_FORMAT ") must be above H1 [" PTR_FORMAT ", " PTR_FORMAT ")",
+                p2i(_tera_heap_reserved.start()), p2i(_tera_heap_reserved.end()),
+                p2i(_reserved.start()), p2i(_reserved.end())));
 
     _th_card_table = new PSCardTable(MemRegion(), _tera_heap_reserved);
     _th_card_table->th_card_table_initialize();  

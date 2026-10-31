@@ -33,6 +33,15 @@
 class instanceOopDesc : public oopDesc {
  public:
   // aligned header size.
+#ifdef TERA_FLAG
+  static int header_size() { return oopDesc::header_size(); }
+
+  // Fields start after the header. With compressed class pointers the
+  // TeraFlag word takes the klass gap, so the fields start at 16.
+  static int base_offset_in_bytes() {
+    return header_size() * HeapWordSize;
+  }
+#else
   static int header_size() { return sizeof(instanceOopDesc)/HeapWordSize; }
 
   // If compressed, the offset of the fields of the instance may not be aligned.
@@ -42,6 +51,7 @@ class instanceOopDesc : public oopDesc {
             sizeof(instanceOopDesc);
 
   }
+#endif // TERA_FLAG
 };
 
 #endif // SHARE_OOPS_INSTANCEOOP_HPP

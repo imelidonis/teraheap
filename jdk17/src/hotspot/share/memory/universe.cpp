@@ -800,6 +800,11 @@ jint Universe::initialize_heap() {
   // Map H2 before the Java heap (H1) is reserved: reserve_heap() places
   // H1 below H2, as the H2 barriers expect (see reserve_heap_below_h2())
   if ( UseG1GC && EnableTeraHeap ) {
+    // TeraHeap supports compressed class pointers but not compressed oops
+    if (UseCompressedOops) {
+      vm_exit_during_initialization("TeraHeap does not support compressed oops",
+                                    "Run with -XX:-UseCompressedOops");
+    }
     _teraHeap = new TeraHeap();
   }
   log_info(gc)("Using %s", _collectedHeap->name());
@@ -876,9 +881,8 @@ ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
     assert(!UseLargePages || UseParallelGC , "Wrong alignment to use large pages");
   }
 
-  // Now create the space. With TeraHeap (and no compressed oops, whose heap
-  // is low anyway) place it below H2.
-  ReservedHeapSpace total_rs = (EnableTeraHeap && Universe::teraHeap() != NULL && !UseCompressedOops) ?
+  // Now create the space. With TeraHeap place it below H2.
+  ReservedHeapSpace total_rs = (EnableTeraHeap && Universe::teraHeap() != NULL) ?
     reserve_heap_below_h2(total_reserved, alignment, page_size) :
     ReservedHeapSpace(total_reserved, alignment, page_size, AllocateHeapAt);
 

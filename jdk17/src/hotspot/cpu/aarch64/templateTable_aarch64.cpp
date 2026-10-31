@@ -3538,12 +3538,12 @@ void TemplateTable::_new() {
     // The object is initialized before the header.  If the object size is
     // zero, go directly to the header initialization.
     __ bind(initialize_object);
-    __ sub(r3, r3, sizeof(oopDesc));
+    __ sub(r3, r3, oopDesc::header_size() * HeapWordSize);
     __ cbz(r3, initialize_header);
 
     // Initialize object fields
     {
-      __ add(r2, r0, sizeof(oopDesc));
+      __ add(r2, r0, oopDesc::header_size() * HeapWordSize);
       Label loop;
       __ bind(loop);
       __ str(zr, Address(__ post(r2, BytesPerLong)));
@@ -3562,9 +3562,16 @@ void TemplateTable::_new() {
     __ store_klass_gap(r0, zr);  // zero klass gap for compressed oops
     __ store_klass(r0, r4);      // store klass last
 #ifdef TERA_FLAG
-    if (EnableTeraHeap){
-      __ mov(rscratch1, (int32_t)(intptr_t)INIT_TF_HEX);// Load the teraflag value into r1
-      __ str(rscratch1, Address(r0, oopDesc::teraflag_offset_in_bytes()));// Store the teraflag in the object header 
+    // After store_klass_gap: with compressed class pointers the TeraFlag
+    // word is the klass gap
+    if (EnableTeraHeap) {
+      if (UseCompressedClassPointers) {
+        __ mov(rscratch1, (int32_t) INIT_TF32);
+        __ strw(rscratch1, Address(r0, oopDesc::teraflag_offset_in_bytes()));
+      } else {
+        __ mov(rscratch1, (int32_t)(intptr_t)INIT_TF_HEX);
+        __ str(rscratch1, Address(r0, oopDesc::teraflag_offset_in_bytes()));
+      }
     }
 #endif //TERA_FLAG
 

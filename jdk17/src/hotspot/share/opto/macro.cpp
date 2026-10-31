@@ -1677,8 +1677,14 @@ PhaseMacroExpand::initialize_object(AllocateNode* alloc,
 
 #ifdef TERA_FLAG 
   if (EnableTeraHeap) {
-    Node* tf_node = makecon(TypeLong::make((intptr_t) INIT_TF_HEX));
-    rawmem = make_store(control, rawmem, object, oopDesc::teraflag_offset_in_bytes(), tf_node, T_LONG);
+    // With compressed class pointers the TeraFlag word is the 32-bit klass gap
+    if (UseCompressedClassPointers) {
+      Node* tf_node = intcon((jint) INIT_TF32);
+      rawmem = make_store(control, rawmem, object, oopDesc::teraflag_offset_in_bytes(), tf_node, T_INT);
+    } else {
+      Node* tf_node = makecon(TypeLong::make((intptr_t) INIT_TF_HEX));
+      rawmem = make_store(control, rawmem, object, oopDesc::teraflag_offset_in_bytes(), tf_node, T_LONG);
+    }
   }
 #endif
 

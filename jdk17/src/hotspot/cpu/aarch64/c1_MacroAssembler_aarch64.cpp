@@ -194,17 +194,24 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   } else {
     str(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
   }
-#ifdef TERA_FLAG
-    if (EnableTeraHeap){
-      mov(t1, (int32_t)(intptr_t)INIT_TF_HEX);// Load the teraflag constant into t1
-      str(t1, Address(obj, oopDesc::teraflag_offset_in_bytes()));// Store it at the teraflag offset in the object header 
-    }
-#endif //TERA_FLAG
   if (len->is_valid()) {
     strw(len, Address(obj, arrayOopDesc::length_offset_in_bytes()));
   } else if (UseCompressedClassPointers) {
     store_klass_gap(obj, zr);
   }
+#ifdef TERA_FLAG
+  // After store_klass_gap: with compressed class pointers the TeraFlag
+  // word is the klass gap
+  if (EnableTeraHeap) {
+    if (UseCompressedClassPointers) {
+      mov(t1, (int32_t) INIT_TF32);
+      strw(t1, Address(obj, oopDesc::teraflag_offset_in_bytes()));
+    } else {
+      mov(t1, (int32_t)(intptr_t)INIT_TF_HEX);
+      str(t1, Address(obj, oopDesc::teraflag_offset_in_bytes()));
+    }
+  }
+#endif // TERA_FLAG
 }
 
 // preserves obj, destroys len_in_bytes

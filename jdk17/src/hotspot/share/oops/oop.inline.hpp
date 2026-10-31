@@ -54,77 +54,108 @@ markWord* oopDesc::mark_addr() const {
 }
 
 #ifdef TERA_FLAG
-  // Mark an object with 'id' to be moved in H2. H2 allocator uses the
-  // 'id' to locate objects with the same 'id' by to the same region.
-  // 'id' is defined by the application.
-void oopDesc::mark_move_h2(uint64_t rdd_id, uint64_t part_id) {   
+volatile uint32_t* oopDesc::tera_flag32_addr() const {
+  assert(UseCompressedClassPointers, "32-bit TeraFlag only with compressed class pointers");
+  return (volatile uint32_t*)((address)this + teraflag_offset_in_bytes());
+}
+
+volatile uint64_t* oopDesc::tera_flag64_addr() const {
+  assert(!UseCompressedClassPointers, "64-bit TeraFlag only without compressed class pointers");
+  return (volatile uint64_t*)((address)this + teraflag_offset_in_bytes());
+}
+
+void oopDesc::set_tera_flag(uint64_t state, uint64_t group_id, uint64_t part_id) {
+  if (UseCompressedClassPointers) {
+    assert(group_id <= TF32_ID_MASK, "group id " UINT64_FORMAT " does not fit in 12 bits", group_id);
+    assert(part_id <= TF32_ID_MASK, "partition id " UINT64_FORMAT " does not fit in 12 bits", part_id);
+    *tera_flag32_addr() = (uint32_t)(((part_id & TF32_ID_MASK) << TF32_PART_SHIFT) |
+                                     ((group_id & TF32_ID_MASK) << TF32_GROUP_SHIFT) |
+                                     (state & TF32_STATE_MASK));
+  } else {
+    *tera_flag64_addr() = (part_id << 48) | (group_id << 32) | state;
+  }
+}
+
+// Mark an object with 'id' to be moved in H2. H2 allocator uses the
+// 'id' to locate objects with the same 'id' by to the same region.
+// 'id' is defined by the application.
+void oopDesc::mark_move_h2(uint64_t rdd_id, uint64_t part_id) {
 #ifdef TERA_DBG_PHASES
   {
     stdprint << "### Phase 1 marking for H2 obj " << this <<
                  " (" << rdd_id << "-" << part_id << ")" << "\n";
     stdprint << this->klass()->internal_name() << "\n";
-    // stdprint << obj->print_string() << "\n";
   }
 #endif // DEBUG
 
-  _tera_flag = (part_id << 48);
-  _tera_flag |= (rdd_id << 32);
-  _tera_flag |= MOVE_TO_TERA;
+  set_tera_flag(MOVE_TO_TERA, rdd_id, part_id);
 }
 
 // Check if an object is marked to be moved in H2
-bool oopDesc::is_marked_move_h2() { 
+bool oopDesc::is_marked_move_h2() {
   if (!EnableTeraHeap)
     return false;
-  // return (_tera_flag & 0xffffffff) == MOVE_TO_TERA ;
-  return (_tera_flag & 0xff) == MOVE_TO_TERA ;
+  // MOVE_TO_TERA is 0xff, so the low byte is enough in both word sizes
+  if (UseCompressedClassPointers)
+    return (*tera_flag32_addr() & 0xff) == MOVE_TO_TERA;
+  return (*tera_flag64_addr() & 0xff) == MOVE_TO_TERA;
 }
 
 // NOTE: will be removed
 void oopDesc::dummy_give_h2_address() {
-  _tera_flag |= DUMMY_H2_ADDRESS;
+  // The 32-bit word has no free bit for this
+  if (!UseCompressedClassPointers)
+    *tera_flag64_addr() |= DUMMY_H2_ADDRESS;
 }
 
 bool oopDesc::dummy_has_h2_address() {
-  return (_tera_flag & 0xf00) == DUMMY_H2_ADDRESS;
+  if (UseCompressedClassPointers)
+    return false;
+  return (*tera_flag64_addr() & 0xf00) == DUMMY_H2_ADDRESS;
 }
 
 // Mark this object that is located in TeraHeap
-void oopDesc::set_in_h2() { 
-  uint64_t part_id = (_tera_flag >> 48);
-  uint64_t rdd_id  = (_tera_flag >> 32) & 0xffff;
-  uint64_t state   = _tera_flag & 0xffffffff;
-
-  _tera_flag = (part_id << 48);
-  _tera_flag |= (rdd_id << 32);
-  _tera_flag |= IN_TERA_CACHE;
+void oopDesc::set_in_h2() {
+  set_tera_flag(IN_TERA_CACHE, get_obj_group_id(), get_obj_part_id());
 }
 
 // Get the state of the object
-uint64_t oopDesc::get_obj_state() { 
-  // Get the object state. The state is saved in the lowes 32bit 
-  return (_tera_flag & 0xffffffff);
+uint64_t oopDesc::get_obj_state() {
+  if (UseCompressedClassPointers) {
+    // Map the 8-bit codes back to the full state constants
+    uint64_t code = *tera_flag32_addr() & TF32_STATE_MASK;
+    if (code == (INIT_TF & TF32_STATE_MASK))       return INIT_TF;
+    if (code == (IN_TERA_CACHE & TF32_STATE_MASK)) return IN_TERA_CACHE;
+    return code;
+  }
+  // The state is saved in the lowest 32 bits
+  return *tera_flag64_addr() & 0xffffffff;
 }
 
-// Init the object state 
-void oopDesc::init_obj_state() { 
-  _tera_flag = INIT_TF;
+// Init the object state
+void oopDesc::init_obj_state() {
+  set_tera_flag(INIT_TF, 0, 0);
 }
 
 // Get the object group id
 int oopDesc::get_obj_group_id() {
-  return ((_tera_flag >> 32) & 0xffff) ;
+  if (UseCompressedClassPointers)
+    return (*tera_flag32_addr() >> TF32_GROUP_SHIFT) & TF32_ID_MASK;
+  return (*tera_flag64_addr() >> 32) & 0xffff;
 }
 
 // Get object partition Id
 uint64_t oopDesc::get_obj_part_id() {
-  return _tera_flag >> 48;
+  if (UseCompressedClassPointers)
+    return (*tera_flag32_addr() >> TF32_PART_SHIFT) & TF32_ID_MASK;
+  return *tera_flag64_addr() >> 48;
 }
 
 bool oopDesc::is_live() {
-  return (get_obj_state() == LIVE_TERA_OBJ || 
-  get_obj_state() == VISITED_TERA_OBJ || 
-  get_obj_state() == MOVE_TO_TERA);
+  uint64_t state = get_obj_state();
+  return (state == LIVE_TERA_OBJ ||
+          state == VISITED_TERA_OBJ ||
+          state == MOVE_TO_TERA);
 }
 
 void oopDesc::reset_live() {
@@ -132,23 +163,11 @@ void oopDesc::reset_live() {
 }
 
 void oopDesc::set_live() {
-  uint64_t part_id = (_tera_flag >> 48);
-  uint64_t rdd_id  = (_tera_flag >> 32) & 0xffff;
-  uint64_t state   = _tera_flag & 0xffffffff;
-
-  _tera_flag = (part_id << 48);
-  _tera_flag |= (rdd_id << 32);
-  _tera_flag |= LIVE_TERA_OBJ;
+  set_tera_flag(LIVE_TERA_OBJ, get_obj_group_id(), get_obj_part_id());
 }
 
 void oopDesc::set_visited() {
-  uint64_t part_id = (_tera_flag >> 48);
-  uint64_t rdd_id  = (_tera_flag >> 32) & 0xffff;
-  uint64_t state   = _tera_flag & 0xffffffff;
-
-  _tera_flag = (part_id << 48);
-  _tera_flag |= (rdd_id << 32);
-  _tera_flag |= VISITED_TERA_OBJ;
+  set_tera_flag(VISITED_TERA_OBJ, get_obj_group_id(), get_obj_part_id());
 }
 
 bool oopDesc::is_visited() {

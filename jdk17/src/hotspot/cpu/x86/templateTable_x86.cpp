@@ -3993,7 +3993,7 @@ void TemplateTable::_new() {
     // The object is initialized before the header.  If the object size is
     // zero, go directly to the header initialization.
     __ bind(initialize_object);
-    __ decrement(rdx, sizeof(oopDesc));
+    __ decrement(rdx, oopDesc::header_size() * HeapWordSize);
     __ jcc(Assembler::zero, initialize_header);
 
     // Initialize topmost object field, divide rdx by 8, check if odd and
@@ -4015,8 +4015,8 @@ void TemplateTable::_new() {
     // initialize remaining object fields: rdx was a multiple of 8
     { Label loop;
     __ bind(loop);
-    __ movptr(Address(rax, rdx, Address::times_8, sizeof(oopDesc) - 1*oopSize), rcx);
-    NOT_LP64(__ movptr(Address(rax, rdx, Address::times_8, sizeof(oopDesc) - 2*oopSize), rcx));
+    __ movptr(Address(rax, rdx, Address::times_8, oopDesc::header_size() * HeapWordSize - 1*oopSize), rcx);
+    NOT_LP64(__ movptr(Address(rax, rdx, Address::times_8, oopDesc::header_size() * HeapWordSize - 2*oopSize), rcx));
     __ decrement(rdx);
     __ jcc(Assembler::notZero, loop);
     }
@@ -4039,8 +4039,14 @@ void TemplateTable::_new() {
     Register tmp_store_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
     __ store_klass(rax, rcx, tmp_store_klass);  // klass
 #ifdef TERA_FLAG
-    if (EnableTeraHeap)
-      __ movptr(Address(rax, oopDesc::teraflag_offset_in_bytes()), (intptr_t) INIT_TF_HEX);
+    // After store_klass_gap: with compressed class pointers the TeraFlag
+    // word is the klass gap
+    if (EnableTeraHeap) {
+      if (UseCompressedClassPointers)
+        __ movl(Address(rax, oopDesc::teraflag_offset_in_bytes()), (int32_t) INIT_TF32);
+      else
+        __ movptr(Address(rax, oopDesc::teraflag_offset_in_bytes()), (intptr_t) INIT_TF_HEX);
+    }
 #endif //TERA_FLAG
 
     {

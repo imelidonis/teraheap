@@ -661,7 +661,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   // ----------------------------------
 
   if (TeraHeapStatistics) {
-    Universe::teraHeap()->get_tera_stats()->add_object( obj->size()*HeapWordSize );
+    Universe::teraHeap()->get_tera_stats()->add_object(_worker_id, word_sz * HeapWordSize);
   }
 
   double h2_alloc_s = 0.0;   // for the per-destination time below
@@ -697,7 +697,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     G1CollectedHeap::heap()->fill_with_dummy_object(h2_obj_addr, h2_obj_addr + word_sz, true);
 
     if (TeraHeapStatistics)
-      Universe::teraHeap()->get_tera_stats()->add_h2_waste(word_sz);
+      Universe::teraHeap()->get_tera_stats()->add_h2_waste(_worker_id, word_sz);
 
   #ifdef TERA_DEBUG
     fprintf(stderr, "[INFO] filled with dummy object\n");
@@ -790,8 +790,10 @@ void G1ParScanThreadState::th_ref_update(T*p, oop obj, G1HeapRegionAttr region_a
     return;
   }
 
+  // A field of an H2 object (found by the H2 card scan or in an object just
+  // moved to H2) whose object was in the collection set and stays in H1
   if (TeraHeapStatistics) {
-    Universe::teraHeap()->get_tera_stats()->add_back_ref();
+    Universe::teraHeap()->get_tera_stats()->add_back_ref(_worker_id, _g1h->is_in_young(obj));
   }
 
   //p (h2) -> obj (h1)

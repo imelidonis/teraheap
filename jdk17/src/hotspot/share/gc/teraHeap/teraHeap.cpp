@@ -214,9 +214,6 @@ bool TeraHeap::is_in_h2(const void* p) {
 }
 
 void TeraHeap::h2_clear_back_ref_stacks() {
-	// if (TeraHeapStatistics)
-	// 	back_ptrs_per_mgc = 0;
-
   _th_adjust_stack.clear(true);
   _th_stack.clear(true);
 }
@@ -314,7 +311,7 @@ void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2) {
 
 // Update backward reference stacks that we use in marking and pointer
 // adjustment phases of major GC.
-void TeraHeap::h2_push_backward_reference(void *p, oop o) {
+void TeraHeap::h2_push_backward_reference(void *p, oop o, bool to_young) {
 	MutexLocker x(tera_heap_lock);
 
 #ifdef TERA_DBG_PHASES
@@ -322,7 +319,7 @@ void TeraHeap::h2_push_backward_reference(void *p, oop o) {
 #endif // TERA_DBG_PHASES
 
   if (TeraHeapStatistics)
-    tera_stats->add_back_ref();
+    tera_stats->add_back_ref_locked(to_young);
 
   _th_stack.push((oop *)p);
   _th_adjust_stack.push((oop *)p);
@@ -408,8 +405,13 @@ void TeraHeap::free_unused_regions(void) {
 
   ::h2_free_regions(&TeraHeap::h2_region_freed, this);
 
-  if (TeraHeapStatistics)
-    tera_stats->set_reclaimed_region_count(::h2_num_reclaimed_regions());
+  if (TeraHeapStatistics) {
+    if (tera_stats->is_in_full_gc()) {
+      tera_stats->set_reclaimed_region_count(::h2_num_reclaimed_regions());
+    } else {
+      thlog_or_tty->print_cr("[REMARK] | RECLAIMED_REGIONS = " SIZE_FORMAT, (size_t) ::h2_num_reclaimed_regions());
+    }
+  }
 
   if (TeraH2AllocatorStats) {
     double ms = (os::elapsedTime() - start) * 1000.0;

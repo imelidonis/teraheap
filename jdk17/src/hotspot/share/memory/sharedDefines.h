@@ -53,9 +53,6 @@
 
 #define DISABLE_TRAVERSE_OLD_GEN  // Enables CT optimization to avoid scanning H2 regions with pointers to Old Gen during Young GC
 
-// #define BACK_REF_STAT            //< Collect statistics for backward
-                                    //refenrences. Works only with -XX:GCThreads=1
-
 //#define FMAP_HYBRID				       //< When we use fastmap hybrid version we
                                    // employ huge pages for mutator threads and
                                    // regular pages for GC 
@@ -108,11 +105,6 @@
                                 // will be flushed to the device because the
                                 // memory of fast map is different from
                                 // buffer cache. 
-
-/**********************************
- * Statistics
- **********************************/
- // #define FWD_REF_STAT               //< Collect statistics for class object
 
  /**********************************
   * States of TeraFlag

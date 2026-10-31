@@ -93,6 +93,9 @@ size_t G1FullGCCompactTask::G1CompactRegionClosure::apply(oop obj) {
     Copy::aligned_conjoint_words(obj_addr, destination, size);
     cast_to_oop(destination)->init_mark();
     assert(cast_to_oop(destination)->klass() != NULL, "should have a class");
+
+    if (EnableTeraHeap && TeraHeapStatistics)
+      Universe::teraHeap()->get_tera_stats()->thr_add_fgc_h1_bytes(_worker_id, size * HeapWordSize);
   }
 
   return size;

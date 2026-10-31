@@ -3296,10 +3296,8 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
         if (EnableTeraHeap) {
           // Wait to complete all the transfers to H2 and then continue
           // TODO: uncomment
-          // Universe::teraHeap()->h2_complete_transfers();  
+          // Universe::teraHeap()->h2_complete_transfers();
 
-          // if (collector_state()->in_young_gc_before_mixed())
-          //   Universe::teraHeap()->free_unused_regions();
           Universe::teraHeap()->update_allocator_state(); 
 
           // TeraH2Shadow: hand the filled chunks to the writer thread

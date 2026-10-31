@@ -169,13 +169,13 @@ inline void ScanH2ObjClosure::do_oop_work(T* p) {
   }
 
   // HERE : h2 -> (h1 in or out the cset)
-  if (TeraHeapStatistics)
-    Universe::teraHeap()->get_tera_stats()->add_back_ref();
-
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
+    // Backward reference counted in th_ref_update(), once obj is evacuated
     prefetch_and_push(p, obj); 
   } else {
+    if (TeraHeapStatistics)
+      Universe::teraHeap()->get_tera_stats()->add_back_ref(_par_scan_state->worker_id(), _g1h->is_in_young(obj));
 #ifdef TERA_CARDS
     // h2 -> (h1 out of cset) : Update h2 card table flag
    handle_non_cset_obj_common_tera(region_attr, p, obj);      
@@ -376,11 +376,13 @@ inline void H2ToH1Closure::do_oop_work(T* p) {
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   
   if (region_attr.is_in_cset()) {
-    // h2->h1 (in cset)   
+    // h2->h1 (in cset): backward reference counted in th_ref_update()
     prefetch_and_push(p, obj);
   } else {
     // h2->h1 (out of cset)
     // meaning obj is not in young (bcs its excluded from the cset)    
+    if (TeraHeapStatistics)
+      Universe::teraHeap()->get_tera_stats()->add_back_ref(_worker_id, _g1h->is_in_young(obj));
     handle_non_cset_obj_common_tera(region_attr, p, obj);
 	
     if (should_mark) {

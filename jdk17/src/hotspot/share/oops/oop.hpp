@@ -60,20 +60,25 @@ class oopDesc {
   } _metadata;
 
 #ifdef TERA_FLAG
-  // TeraFlag word is used by the TeraHeap. TeraFlag is a 64-bit word and is
-  // divided in three parts:
+  // The TeraFlag word marks objects for TeraHeap. It is not a C++ field
+  // because its place and width depend on UseCompressedClassPointers:
   //
+  // Without compressed class pointers: 64 bits at offset 16, after the
+  // klass. The object header is 24 bytes.
   //+-------+----------------------------------------------------------------+
-  //| Bits  | Description                                                    |
+  //| 63-48 | Partition id                                                   |
+  //| 47-32 | Group id                                                       |
+  //| 31-0  | State of the object                                            |
   //+-------+----------------------------------------------------------------+
-  //| 63-48 | Represent the RDD partition Id                                 |
+  //
+  // With compressed class pointers: 32 bits in the klass gap at offset 12.
+  // The object header is 16 bytes, as in stock HotSpot. The state keeps
+  // only the low 8 bits of the state constants (see sharedDefines.h).
   //+-------+----------------------------------------------------------------+
-  //| 32-47 | Represent the RDD Id											 |
+  //| 31-20 | Partition id                                                   |
+  //| 19-8  | Group id                                                       |
+  //| 7-0   | State of the object                                            |
   //+-------+----------------------------------------------------------------+
-  //| 31-0  | Represent the state of the object                              |
-  //+-------+----------------------------------------------------------------+
-
-  volatile int64_t _tera_flag;      //< MarkTeraHeap objects
 #endif // TERA_FLAG
 
  public:
@@ -120,6 +125,14 @@ class oopDesc {
   inline void set_visited();
 
   inline bool is_visited();
+
+ private:
+  inline volatile uint32_t* tera_flag32_addr() const;
+  inline volatile uint64_t* tera_flag64_addr() const;
+  // Write the whole TeraFlag word with one store
+  inline void set_tera_flag(uint64_t state, uint64_t group_id, uint64_t part_id);
+
+ public:
 #endif // TERA_FLAG
 
 
@@ -150,7 +163,14 @@ class oopDesc {
   static inline void set_klass_gap(HeapWord* mem, int z);
 
   // size of object header, aligned to platform wordSize
+#ifdef TERA_FLAG
+  // Without compressed class pointers the TeraFlag word adds one word
+  static int header_size() {
+    return sizeof(oopDesc)/HeapWordSize + (UseCompressedClassPointers ? 0 : 1);
+  }
+#else
   static int header_size() { return sizeof(oopDesc)/HeapWordSize; }
+#endif // TERA_FLAG
 
   // Returns whether this is an instance of k or an instance of a subclass of k
   inline bool is_a(Klass* k) const;
@@ -369,11 +389,7 @@ class oopDesc {
   static int klass_offset_in_bytes()     { return offset_of(oopDesc, _metadata._klass); }
   static int klass_gap_offset_in_bytes() {
     assert(has_klass_gap(), "only applicable to compressed klass pointers");
-#ifdef TERA_FLAG
-	return klass_offset_in_bytes() + sizeof(narrowKlass) + sizeof(int64_t);
-#else
-	return klass_offset_in_bytes() + sizeof(narrowKlass);
-#endif
+    return klass_offset_in_bytes() + sizeof(narrowKlass);
   }
 
   // for error reporting
@@ -385,14 +401,12 @@ class oopDesc {
   DEBUG_ONLY(bool get_UseG1GC();)
 
 #ifdef TERA_FLAG
-	  // 0 +-----------+
-	  //   | _mark     |
-	  // 8 +-----------+
-	  //   | _klass    |
-	  // 16+-----------+
-	  //   | _tera_flag|
-	  //   +-----------+
-	  static long teraflag_offset_in_bytes() { return offset_of(oopDesc, _tera_flag); }
+  // Offset of the TeraFlag word: 12 (klass gap, 32 bits) with compressed
+  // class pointers, 16 (64 bits) without
+  static int teraflag_offset_in_bytes() {
+    return UseCompressedClassPointers ? klass_gap_offset_in_bytes()
+                                      : klass_offset_in_bytes() + (int)sizeof(Klass*);
+  }
 #endif // TERA_FLAG
 };
 

@@ -28,8 +28,10 @@
 #include "gc/shared/oopStorageSet.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/weakProcessorTimes.hpp"
+#include "gc/teraHeap/teraStatistics.hpp"
 #include "logging/logLevel.hpp"
 #include "memory/allocation.hpp"
+#include "memory/sharedDefines.h"
 #include "utilities/enumIterator.hpp"
 #include "utilities/macros.hpp"
 

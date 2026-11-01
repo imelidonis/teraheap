@@ -26,6 +26,7 @@
 #define SHARE_GC_G1_G1ANALYTICS_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/sharedDefines.h"
 #include "utilities/globalDefinitions.hpp"
 
 class TruncatedSeq;

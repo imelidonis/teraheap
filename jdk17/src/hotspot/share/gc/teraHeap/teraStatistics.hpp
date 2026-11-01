@@ -4,6 +4,7 @@
 #include "gc/shared/gc_globals.hpp"
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
+#include "memory/sharedDefines.h"
 #include "oops/oop.hpp"
 #include "runtime/atomic.hpp"
 

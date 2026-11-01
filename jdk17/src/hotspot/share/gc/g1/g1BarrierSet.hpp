@@ -30,6 +30,8 @@
 #include "gc/g1/g1SharedDirtyCardQueue.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
+#include "memory/sharedDefines.h"
 
 class G1CardTable;
 
@@ -83,7 +85,7 @@ class G1BarrierSet: public CardTableBarrierSet {
 
   void write_ref_array_work(MemRegion mr) {
 #ifdef TERA_INTERPRETER
-    if (EnableTeraHeap && Universe::is_in_h2(mr.start())) {
+    if (EnableTeraHeap && TeraHeap::is_in_h2(mr.start())) {
       CardValue* cur  = _th_card_table->byte_for(mr.start());
       CardValue* last = _th_card_table->byte_after(mr.last());
       while (cur < last) {

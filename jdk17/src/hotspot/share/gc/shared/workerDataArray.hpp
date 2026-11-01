@@ -25,7 +25,9 @@
 #ifndef SHARE_GC_SHARED_WORKERDATAARRAY_HPP
 #define SHARE_GC_SHARED_WORKERDATAARRAY_HPP
 
+#include "gc/teraHeap/teraStatistics.hpp"
 #include "memory/allocation.hpp"
+#include "memory/sharedDefines.h"
 #include "utilities/debug.hpp"
 
 class outputStream;

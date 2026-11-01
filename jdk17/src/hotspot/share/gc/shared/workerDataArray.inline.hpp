@@ -27,7 +27,9 @@
 
 #include "gc/shared/workerDataArray.hpp"
 
+#include "gc/teraHeap/teraHeap.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/universe.hpp"
 #include "utilities/ostream.hpp"
 
 template <typename T>

@@ -961,6 +961,13 @@ const intx ObjectAlignmentInBytes = 8;
           "compacts it if it has any labeled object")                      \
           range(0, 100)                                                     \
                                                                             \
+  product(ccstr, TeraH2FullGCWriteMode, "buffer-async",                     \
+          "How a Full GC writes the objects it moves to H2 (SH): "        \
+          "buffer-async (promotion buffers written with async I/O), "     \
+          "async (async I/O per object), sync (pwrite per object), "      \
+          "memcpy (copy into the H2 mapping). Young and mixed GCs always " \
+          "use memcpy")                                                     \
+                                                                            \
   product(uintx, TeraH2CostSamples, 32,                                     \
           "Number of recent mixed GCs whose H2 copy cost per byte "        \
           "TeraH2CostPercentile is computed from")                          \

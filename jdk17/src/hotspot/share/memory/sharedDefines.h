@@ -86,25 +86,7 @@
 
 
 
-/**********************************
- * Write Mode to H2
- **********************************/
-// #define SYNC				            //< Enable explicit I/O path for the writes
-                                // in TeraHeap during major GC
-
-
-// #define ASYNC				          //< Asynchronous I/O path for the writes in
-#define PR_BUFFER			          //< Enable promotion buffer for async I/O to
-                                // reduce the number of system calls. The H2
-                                // allocator always has promotion buffers
-                                // (h2_buffer_insert()).
-
-
-// #define FMAP				            //< When we use fastmap we need to ensure
-                                // that all the writes in buffered cached
-                                // will be flushed to the device because the
-                                // memory of fast map is different from
-                                // buffer cache. 
+// How a Full GC writes objects to H2 is the TeraH2FullGCWriteMode flag
 
  /**********************************
   * States of TeraFlag

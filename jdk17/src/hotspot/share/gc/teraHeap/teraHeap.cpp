@@ -82,6 +82,8 @@ TeraHeap::TeraHeap() {
   _as_free_ms = 0.0;
   _as_free_ms_total = 0.0;
 
+  _fgc_write_mode = parse_fgc_write_mode(TeraH2FullGCWriteMode);
+
   _shadow_on = false;
   _shadow_mixed = false;
   _shadow_switch_skipped = 0;
@@ -96,9 +98,9 @@ TeraHeap::TeraHeap() {
 void TeraHeap::h2_shadow_init() {
   if (!TeraH2Shadow)
     return;
-#if defined(SYNC) || defined(FMAP) || defined(ASYNC) || defined(FMAP_HYBRID)
-  // These builds write H2 with explicit I/O or change the huge page advice
-  // of the whole H2 range in young GCs
+#if defined(FMAP_HYBRID)
+  // This build changes the huge page advice of the whole H2 range in young
+  // GCs
   warning("TeraH2Shadow needs the default H2 write path (memcpy); disabled");
   return;
 #else
@@ -525,7 +527,6 @@ void TeraHeap::thread_disable_groups(uint thread_id) {
 	h2_addr_arr[thread_id] = NULL;
 }
 
-#ifdef PR_BUFFER
 // Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is
 // used to know where the object will move to H2. We use promotion buffer to
 // reduce the number of system calls for small sized objects.
@@ -537,7 +538,6 @@ void  TeraHeap::h2_promotion_buffer_insert(char* obj, char* new_adr, size_t size
 void TeraHeap::h2_free_promotion_buffers() {
 	::h2_free_all_buffers();
 }
-#endif
 
 // Explicit (using systemcall) write 'data' with 'size' to the specific
 // 'offset' in the file.
@@ -692,19 +692,21 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_in
   assert(size > 0, "Size should not be zero");
 
   if (is_in_fgc) {
-    h2_promotion_buffer_insert((char *)src, (char *)dst, size);
-    return;
+    switch (_fgc_write_mode) {
+      case H2_WRITE_BUFFER_ASYNC:
+        h2_promotion_buffer_insert((char *)src, (char *)dst, size);
+        return;
+      case H2_WRITE_ASYNC:
+        h2_awrite((char *)src, (char *)dst, size);
+        return;
+      case H2_WRITE_SYNC:
+        h2_write((char *)src, (char *)dst, size);
+        return;
+      case H2_WRITE_MEMCPY:
+        break;
+    }
   }
 
-#if defined(SYNC)
-  h2_write((char *)src, (char *)dst, size);
-#elif defined(FMAP)
-  h2_write((char *)src, (char *)dst, size);
-#elif defined(ASYNC) && defined(PR_BUFFER)
-  h2_promotion_buffer_insert((char *)src, (char *)dst, size);
-#elif defined(ASYNC) && !defined(PR_BUFFER)
-  h2_awrite((char *)src, (char *)dst, size);
-#else
   // We use memcpy instead of memmove to avoid the extra copy of the
   // data in the buffer.
   memcpy(dst, src, size * 8);
@@ -713,8 +715,6 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_in
   //bcs the obj left behind in h1, must still have the forwarding ptr in its header
   //for the pointer adjustment (when other obj point to this obj during evac, they will be dereferenced based on that ptr)
 //   cast_to_oop(dst)->init_mark(); 
-
-#endif // SYNC
 
 #ifdef TERA_DBG_PHASES
   {
@@ -725,17 +725,39 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_in
 
 // Complete the transfer of the objects in H2
 void TeraHeap::h2_complete_transfers() {
-  h2_free_promotion_buffers();
-  while(!h2_areq_completed());
+  switch (_fgc_write_mode) {
+    case H2_WRITE_BUFFER_ASYNC:
+      // Write the objects left in the buffers, then wait for all writes
+      h2_free_promotion_buffers();
+      while(!h2_areq_completed());
+      break;
+    case H2_WRITE_ASYNC:
+      while(!h2_areq_completed());
+      break;
+    case H2_WRITE_SYNC:     // pwrite returned: nothing in flight
+    case H2_WRITE_MEMCPY:   // already in the H2 mapping
+      break;
+  }
+}
 
-#if defined(ASYNC) && defined(PR_BUFFER)
-  h2_free_promotion_buffers();
-  while(!h2_areq_completed());
-#elif defined(ASYNC) && !defined(PR_BUFFER)
-  while(!h2_areq_completed());
-#elif defined(FMAP)
-  th_fsync();
-#endif
+TeraHeap::H2FullGCWriteMode TeraHeap::parse_fgc_write_mode(const char* mode) {
+  H2FullGCWriteMode m;
+  if (mode != NULL && strcmp(mode, "buffer-async") == 0) {
+    m = H2_WRITE_BUFFER_ASYNC;
+  } else if (mode != NULL && strcmp(mode, "async") == 0) {
+    m = H2_WRITE_ASYNC;
+  } else if (mode != NULL && strcmp(mode, "sync") == 0) {
+    m = H2_WRITE_SYNC;
+  } else if (mode != NULL && strcmp(mode, "memcpy") == 0) {
+    m = H2_WRITE_MEMCPY;
+  } else {
+    vm_exit_during_initialization(err_msg("Unknown TeraH2FullGCWriteMode '%s'",
+                                          mode == NULL ? "" : mode),
+                                  "Use buffer-async, async, sync or memcpy");
+    return H2_WRITE_BUFFER_ASYNC;
+  }
+  log_info(gc, init)("TeraHeap: Full GC write mode %s", mode);
+  return m;
 }
   
 // Check if the group of regions in H2 is enabled

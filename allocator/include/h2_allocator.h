@@ -204,7 +204,8 @@ H2_API void h2_free_all_buffers(void);
 /* I/O and kernel hints                                                */
 /* ------------------------------------------------------------------ */
 
-/* Write `size` HeapWords from data to the H2 address `offset` (pwrite) */
+/* Write `size` HeapWords from data to the H2 address `offset` (pwrite; parts
+   in shadow chunks are copied into them) */
 H2_API void h2_write(char *data, char *offset, size_t size);
 
 /* Same with asynchronous I/O; do not mix with h2_write() */

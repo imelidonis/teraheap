@@ -176,27 +176,27 @@ void TeraHeap::h2_shadow_pause_end() {
 
 // Return H2 start address
 char* TeraHeap::h2_start_addr(void) {
-	assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
-	return _start_addr;
+  assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
+  return _start_addr;
 }
 
 // Return H2 stop address
 char* TeraHeap::h2_end_addr(void) {
-	assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
-	assert((char *)(_stop_addr) != NULL, "H2 allocator is not initialized");
-	return _stop_addr;
+  assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
+  assert((char *)(_stop_addr) != NULL, "H2 allocator is not initialized");
+  return _stop_addr;
 }
 
 // Get the top allocated address of the H2. This address depicts the
 // end address of the last allocated object in the last region of
 // H2.
 char* TeraHeap::h2_top_addr(void) {
-	return ::h2_cur_alloc_ptr();
+  return ::h2_cur_alloc_ptr();
 }
 
 // Check if the TeraHeap is empty. If yes, return 'true', 'false' otherwise
 bool TeraHeap::h2_is_empty() {
-	return ::h2_is_empty();
+  return ::h2_is_empty();
 }
 
 void TeraHeap::h2_clear_fgc_stacks() {
@@ -221,9 +221,9 @@ bool TeraHeap::h2_fgc_stacks_empty() {
 void TeraHeap::h2_enable_rand_faults() {
   const jlong t0 = os::javaTimeNanos();
 #if defined(FMAP_HYBRID)
-	::h2_enable_regular_flts();
+  ::h2_enable_regular_flts();
 #elif defined(MADVISE_ON)
-	::h2_enable_rand();
+  ::h2_enable_rand();
 #endif
   _rand_faults_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
 }
@@ -240,31 +240,31 @@ bool TeraHeap::check_if_valid_h2() {
     return true;
   }
 
-	HeapWord *next_region;
-	HeapWord *obj_addr;
-	oop obj;
+  HeapWord *next_region;
+  HeapWord *obj_addr;
+  oop obj;
 
-	::h2_start_iterate_regions();
+  ::h2_start_iterate_regions();
 
-	next_region = (HeapWord *) ::h2_get_next_region();
+  next_region = (HeapWord *) ::h2_get_next_region();
 
-	while(next_region != NULL) {
-		obj_addr = next_region;
+  while(next_region != NULL) {
+    obj_addr = next_region;
 
-		while (1) {
-			obj = cast_to_oop(obj_addr);
+    while (1) {
+      obj = cast_to_oop(obj_addr);
 
       // crash if not valid
       oopDesc::verify(obj);
 
-			if (!check_if_valid_object(obj_addr + obj->size()))
-				break;
+      if (!check_if_valid_object(obj_addr + obj->size()))
+        break;
 
-			obj_addr += obj->size();
-		}
+      obj_addr += obj->size();
+    }
 
-		next_region = (HeapWord *) ::h2_get_next_region();
-	}
+    next_region = (HeapWord *) ::h2_get_next_region();
+  }
 
   return true;
 }
@@ -396,16 +396,16 @@ char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
   MutexLocker x(tera_heap_lock);
 #endif // ENABLE_SINGLE_THREAD_ALLOCATION
 
-	char *pos;			// Allocation position
+  char *pos;  // Allocation position
 
-	pos = ::h2_allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
-	
-	// `size` is in words: the object must end at or before the end of H2
-	assert((HeapWord *) pos + size <= (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
+  pos = ::h2_allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
 
-	_start_array.th_allocate_block((HeapWord *)pos);
+  // `size` is in words: the object must end at or before the end of H2
+  assert((HeapWord *) pos + size <= (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 
-	return pos;
+  _start_array.th_allocate_block((HeapWord *)pos);
+
+  return pos;
 }
 
 int TeraHeap::h2_continuous_regions(HeapWord *addr) {
@@ -414,7 +414,7 @@ int TeraHeap::h2_continuous_regions(HeapWord *addr) {
 }
 
 // Move object with size 'size' from source address 'src' to the h2
-// destination address 'dst' 
+// destination address 'dst'
 void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_in_fgc) {
   assert(src != NULL, "Src address should not be null");
   assert(dst != NULL, "Dst address should not be null");
@@ -443,7 +443,7 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_in
   //you should not do cast_to_oop(src)->init_mark()
   //bcs the obj left behind in h1, must still have the forwarding ptr in its header
   //for the pointer adjustment (when other obj point to this obj during evac, they will be dereferenced based on that ptr)
-//   cast_to_oop(dst)->init_mark(); 
+//   cast_to_oop(dst)->init_mark();
 
 #ifdef TERA_DBG_PHASES
   {
@@ -488,12 +488,12 @@ TeraHeap::H2FullGCWriteMode TeraHeap::parse_fgc_write_mode(const char* mode) {
   log_info(gc, init)("TeraHeap: Full GC write mode %s", mode);
   return m;
 }
-  
+
 void TeraHeap::update_allocator_state() {
   const jlong t0 = os::javaTimeNanos();
   ::h2_update_allocator_global_state();
   _alloc_state_ms = (os::javaTimeNanos() - t0) / (double) NANOSECS_PER_MILLISEC;
-	assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
+  assert((HeapWord *) h2_top_addr() < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 }
 
 // Make every card of H2 dirty
@@ -505,7 +505,7 @@ void TeraHeap::dirty_all_cards() {
   th_card_table()->th_dirty_cards(start, end_excl - 1);
 }
 
-  
+
 void TeraHeap::print_sigsegv_info(void *siginfo) {
   void *addr = ((siginfo_t *)siginfo)->si_addr;
   fprintf(stderr, "SIGSEGV at address %p (si_code=%d)\n", addr, ((siginfo_t *)siginfo)->si_code);
@@ -522,5 +522,5 @@ void TeraHeap::print_sigsegv_info(void *siginfo) {
 
 bool TeraHeap::is_in_reclaimed_region(char *addr) {
   uint64_t region_idx = ::h2_region_containing_addr(addr);
-  return (!::h2_is_used(region_idx)); 
+  return (!::h2_is_used(region_idx));
 }

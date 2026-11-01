@@ -95,11 +95,11 @@ void TeraStatistics::reset_counters(void) {
 }
 
 // Print the statistics of TeraHeap at the end of each GC:
-//	- the backward references (H2 to H1) found in this GC, in total and by
-//	  the region (young, old) of the H1 object
-//	- the objects moved to H2 since the start of the JVM
-//	- the times (ms) of this GC to scan the H2 card table and to allocate
-//	  and copy objects to H2 (highest of the threads)
+// - the backward references (H2 to H1) found in this GC, in total and by
+//   the region (young, old) of the H1 object
+// - the objects moved to H2 since the start of the JVM
+// - the times (ms) of this GC to scan the H2 card table and to allocate
+//   and copy objects to H2 (highest of the threads)
 void TeraStatistics::print_gc_stats() {
   size_t back_young = 0, back_old = 0, objects = 0, objects_bytes = 0;
   size_t waste_words = 0, h2_bytes = 0, fgc_h1_bytes = 0;
@@ -126,34 +126,36 @@ void TeraStatistics::print_gc_stats() {
   thlog_or_tty->print_cr("%s | BACK_PTRS_YOUNG = " SIZE_FORMAT, tag, back_young);
   thlog_or_tty->print_cr("%s | BACK_PTRS_OLD = " SIZE_FORMAT, tag, back_old);
 
-  if (_is_full_gc) {
-    thlog_or_tty->print_cr("[FULL] | TOTAL_OBJECTS  = " SIZE_FORMAT, total_objects_moved);
-    thlog_or_tty->print_cr("[FULL] | TOTAL_OBJECTS_SIZE = " SIZE_FORMAT, total_objects_size);
-    thlog_or_tty->print_cr("[FULL] | RECLAIMED_REGIONS = %u", reclaimed_regions_count);
-    thlog_or_tty->print_cr("[FULL] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
-  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    thlog_or_tty->print_cr("[FULL] | TIME_TO_ALLOC_H2 %.3lf ms", h2_allocate_ms);
-    thlog_or_tty->print_cr("[FULL] | TIME_TO_COPY_H2 %.3lf ms", h2_copy_ms);
-  #endif
-    // H2: objects compaction moved to H2 (with humongous objects); H1:
-    // objects compaction moved inside H1
-    thlog_or_tty->print_cr("[FULL] | BYTES_COPIED_TO_H2 " SIZE_FORMAT " and BYTES_COPIED_TO_H1 " SIZE_FORMAT
-                           " in CONC_MARK_CYCLE_NO " SIZE_FORMAT, h2_bytes, fgc_h1_bytes, conc_cycle_id);
-    thlog_or_tty->print_cr("[FULL] | Regions Scanned = %d", regions_scanned);
-    thlog_or_tty->print_cr("[FULL] | Regions Skipped = %d", regions_skipped);
-  } else if (_is_mixed_gc) {
-    thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS  = " SIZE_FORMAT, total_objects_moved);
-    thlog_or_tty->print_cr("[MIXED] | TOTAL_OBJECTS_SIZE = " SIZE_FORMAT, total_objects_size);
-    thlog_or_tty->print_cr("[MIXED] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
-  #ifdef TWO_FACTOR_COST_MODEL_IN_CSET
-    thlog_or_tty->print_cr("[MIXED] | TIME_TO_ALLOC_H2 %.3lf ms", h2_allocate_ms);
-    thlog_or_tty->print_cr("[MIXED] | TIME_TO_COPY_H2 %.3lf ms", h2_copy_ms);
-  #endif
-    thlog_or_tty->print_cr("[MIXED] | BYTES_COPIED_TO_H2 " SIZE_FORMAT " and BYTES_COPIED_TO_H1 " SIZE_FORMAT
-                           " in CONC_MARK_CYCLE_NO " SIZE_FORMAT, h2_copied_bytes, h1_copied_bytes, conc_cycle_id);
-    thlog_or_tty->print_cr("[MIXED] | WASTE_SPACE = " SIZE_FORMAT, waste_words * HeapWordSize);
-  } else {
-    thlog_or_tty->print_cr("[YOUNG] | TIME_SCAN_H2_CT %.3lf ms", h2_card_table_scan_time_ms);
+  // Young GCs print only the card scan time
+  const bool moves_to_h2 = _is_full_gc || _is_mixed_gc;
+
+  if (moves_to_h2) {
+    thlog_or_tty->print_cr("%s | TOTAL_OBJECTS  = " SIZE_FORMAT, tag, total_objects_moved);
+    thlog_or_tty->print_cr("%s | TOTAL_OBJECTS_SIZE = " SIZE_FORMAT, tag, total_objects_size);
+    if (_is_full_gc) {
+      thlog_or_tty->print_cr("%s | RECLAIMED_REGIONS = %u", tag, reclaimed_regions_count);
+    }
+  }
+
+  thlog_or_tty->print_cr("%s | TIME_SCAN_H2_CT %.3lf ms", tag, h2_card_table_scan_time_ms);
+
+  if (moves_to_h2) {
+#ifdef TWO_FACTOR_COST_MODEL_IN_CSET
+    thlog_or_tty->print_cr("%s | TIME_TO_ALLOC_H2 %.3lf ms", tag, h2_allocate_ms);
+    thlog_or_tty->print_cr("%s | TIME_TO_COPY_H2 %.3lf ms", tag, h2_copy_ms);
+#endif
+    // Full GC: H2 is what compaction moved to H2 (with humongous objects)
+    // and H1 what it moved inside H1. Mixed GC: the evacuation counters.
+    const size_t to_h2 = _is_full_gc ? h2_bytes : h2_copied_bytes;
+    const size_t to_h1 = _is_full_gc ? fgc_h1_bytes : h1_copied_bytes;
+    thlog_or_tty->print_cr("%s | BYTES_COPIED_TO_H2 " SIZE_FORMAT " and BYTES_COPIED_TO_H1 " SIZE_FORMAT
+                           " in CONC_MARK_CYCLE_NO " SIZE_FORMAT, tag, to_h2, to_h1, conc_cycle_id);
+    if (_is_full_gc) {
+      thlog_or_tty->print_cr("%s | Regions Scanned = %d", tag, regions_scanned);
+      thlog_or_tty->print_cr("%s | Regions Skipped = %d", tag, regions_skipped);
+    } else {
+      thlog_or_tty->print_cr("%s | WASTE_SPACE = " SIZE_FORMAT, tag, waste_words * HeapWordSize);
+    }
   }
 
   thlog_or_tty->flush();

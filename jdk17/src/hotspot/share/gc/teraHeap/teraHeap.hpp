@@ -143,7 +143,7 @@ public:
               ::h2_start_addr_mem_pool(), ::h2_stop_addr_mem_pool(), ::h2_cur_alloc_ptr());
     }
 
-    return res; 
+    return res;
   }
 
   // Get object start array for h2

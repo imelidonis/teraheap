@@ -60,8 +60,15 @@ private:
 
   TeraStatistics *tera_stats;
 
-  HeapWord **h1_addr_arr;
-  HeapWord **h2_addr_arr;
+  // Full GC adjust: the object a GC thread is moving to H2, at its H1
+  // address and its new H2 address (NULL when it moves no object to H2).
+  // Each thread writes its own entry for every object it moves, so the
+  // entries are padded to a cache line each to avoid false sharing.
+  struct H2GroupState {
+    HeapWord* h1_addr;
+    HeapWord* h2_addr;
+  };
+  PaddedEnd<H2GroupState>* _group_state;   // one per GC thread
 
   // The H2 card table
   inline CardTable* th_card_table() const;
@@ -254,18 +261,19 @@ public:
   void thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord *new_addr) {
     if (!EnableTeraHeap)
       return;
-    assert(h1_addr_arr[thread_id] == NULL && h2_addr_arr[thread_id] == NULL,
+    H2GroupState& g = _group_state[thread_id];
+    assert(g.h1_addr == NULL && g.h2_addr == NULL,
            "Thread %u corrupted group state.", thread_id);
-    h1_addr_arr[thread_id] = old_addr;
-    h2_addr_arr[thread_id] = new_addr;
+    g.h1_addr = old_addr;
+    g.h2_addr = new_addr;
   }
 
   // Disables region groupping (multi-threaded)
   void thread_disable_groups(uint thread_id) {
     if (!EnableTeraHeap)
       return;
-    h1_addr_arr[thread_id] = NULL;
-    h2_addr_arr[thread_id] = NULL;
+    _group_state[thread_id].h1_addr = NULL;
+    _group_state[thread_id].h2_addr = NULL;
   }
 
   // Add a new entry to `obj1` region dependency list that reference

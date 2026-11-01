@@ -53,15 +53,14 @@ TeraHeap::TeraHeap() {
   _size = _stop_addr - _start_addr;
   _h2_card_table = NULL;
 
-  h1_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
-  h2_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
-
+  // NOTE: not freed, TeraHeap lives until the process ends
+  _group_state = PaddedArray<H2GroupState, mtGC>::create_unfreeable(ParallelGCThreads);
   for (uint i = 0; i < ParallelGCThreads; i++) {
-    h1_addr_arr[i] = NULL;
-    h2_addr_arr[i] = NULL;
+    _group_state[i].h1_addr = NULL;
+    _group_state[i].h2_addr = NULL;
   }
 
-  // NOTE: not freed as the destructor is never called
+  // NOTE: not freed, TeraHeap lives until the process ends
   _fgc_stacks = PaddedArray<H2FullGCStacks, mtGC>::create_unfreeable(ParallelGCThreads);
 
   // G1 learns the H2 copy cost from the per-worker H2 times and bytes,

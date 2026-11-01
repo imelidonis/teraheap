@@ -70,7 +70,7 @@ inline void TeraHeap::mark_used_region(HeapWord *obj) {
 // H2) and/or a cross-H2-region edge during H1->H2 relocation.
 //
 // This helper is only meaningful while the current thread is processing an
-// object that has an H2 destination (h2_addr_arr[thread_id] != NULL). Otherwise
+// object that has an H2 destination (_group_state[thread_id].h2_addr != NULL). Otherwise
 // it is a no-op.
 //
 // Behavior:
@@ -81,31 +81,33 @@ inline void TeraHeap::mark_used_region(HeapWord *obj) {
 //    the H2 copy and mark the H2 card table for that slot as dirty, so the H2
 //    side will rescan/remember this backward (H2->H1) reference.
 //  - In some paths (e.g., backward pointer popped from th_adjust_stack where
-//    h1_addr_arr[thread_id] == NULL), do nothing because the card is already
+//    h1_addr == NULL), do nothing because the card is already
 //    dirty from a prior GC phase.
 inline void TeraHeap::check_for_cross_heap_cross_h2_region_ref(uint thread_id, HeapWord *obj, void *obj_field) {
+  const H2GroupState& g = _group_state[thread_id];
+
   // Object is not going to be moved to TeraHeap
-  if (h2_addr_arr[thread_id] == NULL)
+  if (g.h2_addr == NULL)
     return;
 
   if (is_in_h2(obj)) {
-    group_regions(h2_addr_arr[thread_id], obj);
+    group_regions(g.h2_addr, obj);
     return;
   }
 
   // If it is an already backward pointer popped from th_adjust_stack
   // then do not mark the card as dirty because it is already marked
   // from minor gc.
-  if (h1_addr_arr[thread_id] == NULL)
+  if (g.h1_addr == NULL)
     return;
 
   // Mark the H2 card table as dirty if obj is in H1 (backward
   // reference)
-  size_t diff = (HeapWord *)obj_field - h1_addr_arr[thread_id];
-  assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(h1_addr_arr[thread_id])->size()),
+  size_t diff = (HeapWord *)obj_field - g.h1_addr;
+  assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(g.h1_addr)->size()),
          "Diff out of range: %lu", diff);
-  HeapWord *h2_obj_field = h2_addr_arr[thread_id] + diff;
-  assert(is_in_h2(h2_addr_arr[thread_id]), "Shoud be in H2");
+  HeapWord *h2_obj_field = g.h2_addr + diff;
+  assert(is_in_h2(g.h2_addr), "Shoud be in H2");
 
   th_card_table()->th_write_ref_field(h2_obj_field);
 }

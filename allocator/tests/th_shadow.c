@@ -9,8 +9,9 @@
 *     with read() from a pipe, i.e. kernel-mode writes) while the writer
 *     thread writes chunks back
 *   - each pause starts with h2_shadow_switch() (mutator stopped)
-*   - "Full GCs": objects written through the promotion buffers / r_awrite
-*     with the shadow inactive (redirect into OPEN chunks)
+*   - "Full GCs": objects written with each Full GC write mode in turn
+*     (promotion buffers, h2_awrite, h2_write, memcpy) with the shadow
+*     inactive (redirect into OPEN chunks)
 *   - "remark": regions freed with h2_free_regions() while their chunks are in
 *     any state
 * At the end every word of every live object is checked in memory and, for
@@ -216,8 +217,12 @@ static long verify(int use_file, long *checked_file) {
   return bad;
 }
 
-// ---- "Full GC": objects written through the promotion buffers ----
-static void full_gc_writes(uint64_t gen) {
+// ---- "Full GC": objects written as with each TeraH2FullGCWriteMode ----
+// mode 0: promotion buffers (buffer-async), 1: h2_awrite (async),
+// 2: h2_write (sync), 3: memcpy into the H2 mapping (memcpy)
+static const char *fgc_mode_name[] = {"buffer-async", "async", "sync", "memcpy"};
+
+static void full_gc_writes(uint64_t gen, int mode) {
   uint64_t s = gen * 7 + 3;
   uint64_t *src = malloc(64 * 1024 * 8);
   for (int k = 0; k < 64; k++) {
@@ -225,11 +230,18 @@ static void full_gc_writes(uint64_t gen) {
     size_t w = 2 + rnd(&s) % 4096;
     char *p = h2_allocate(w, label_of(t), rnd(&s) % NPARTS, t);
     for (size_t i = 0; i < w; i++) src[i] = pattern(p + i * 8, gen);
-    h2_buffer_insert((char *) src, p, w);   // copies src into the buffer
+    switch (mode) {
+      case 0: h2_buffer_insert((char *) src, p, w); break;   // copies src into the buffer
+      case 1: h2_awrite((char *) src, p, w); break;          // copies src into the request
+      case 2: h2_write((char *) src, p, w); break;
+      default: memcpy(p, src, w * 8); break;
+    }
     add_obj(p, w, gen);
   }
-  h2_free_all_buffers();
-  while (!h2_areq_completed());
+  if (mode == 0)
+    h2_free_all_buffers();
+  if (mode <= 1)
+    while (!h2_areq_completed());
   h2_update_allocator_global_state();
   free(src);
 }
@@ -285,7 +297,11 @@ int main(int argc, char **argv) {
     struct h2_shadow_stats st; h2_shadow_get_stats(&st);
     sw_ms += st.last_switch_ms;
 
-    if (c % 7 == 6) { full_gc_writes(1000 + c); fulls++; }      // Full GC
+    if (c % 7 == 6) {                                         // Full GC
+      printf("full gc %ld: %s\n", fulls, fgc_mode_name[fulls % 4]);
+      full_gc_writes(1000 + c, (int) (fulls % 4));
+      fulls++;
+    }
     if (c % 5 == 4) { int d = free_one_region(&s, 0); if (d) { frees++; dropped += d; } }   // remark
 
     h2_shadow_set_active(true);

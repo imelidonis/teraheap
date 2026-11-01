@@ -2,6 +2,7 @@
  * Synchronous I/O to the H2 file (pwrite, fsync) and kernel hints (madvise)
  * for the H2 mapping.
  */
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -10,22 +11,30 @@
 #include "h2_allocator.h"
 #include "sharedDefines.h"
 #include "mem_pool.h"
+#include "shadow.h"
 
-// Explicit write 'data' with 'size' in certain 'offset' using system call
-// without memcpy.
+// Write 'bytes' from 'data' to the H2 address 'addr' with pwrite()
+static void pwrite_bytes(char *data, char *addr, size_t bytes) {
+  off_t off = addr - th_mem_pool.mmap_start;
+  while (bytes > 0) {
+    ssize_t n = pwrite(fd, data, bytes, off);
+    if (n < 0 && errno == EINTR)
+      continue;
+    assertf(n > 0, "pwrite to H2 failed: n = %ld", (long) n);
+    if (n <= 0)
+      return;   // as before, product builds do not stop on a failed write
+    data += n;
+    off += n;
+    bytes -= (size_t) n;
+  }
+}
+
+// Explicit write 'data' with 'size' (in HeapWords) to the H2 address
+// 'offset' using system calls. Parts inside shadow chunks are copied into
+// them: a write to the file there would land behind the chunk and be lost
+// (shadow.h)
 void h2_write(char *data, char *offset, size_t size) {
-#ifdef ASSERT
-	ssize_t s_check = 0;
-	uint64_t diff = offset - th_mem_pool.mmap_start;
-
-	s_check = pwrite(fd, data, size * HeapWordSize, diff);
-	assertf(s_check == size * HeapWordSize, "Sanity check: s_check = %ld", s_check);
-#else
-  uint64_t diff = offset - th_mem_pool.mmap_start;
-  // The result is not checked in product builds (as before)
-  ssize_t s_unused = pwrite(fd, data, size * HeapWordSize, diff);
-  (void) s_unused;
-#endif
+  shadow_split_write(data, offset, size * HeapWordSize, pwrite_bytes);
 }
 	
 // We need to ensure that all the writes will be flushed from buffer

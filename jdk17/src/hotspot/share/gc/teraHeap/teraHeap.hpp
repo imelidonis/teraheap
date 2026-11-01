@@ -72,6 +72,18 @@ private:
 
   // TeraH2Shadow (allocator shadow.h): enabled, and the counters at the
   // start of the current pause for the [H2_SHADOW] line
+  // How a Full GC writes objects to H2 (TeraH2FullGCWriteMode)
+  enum H2FullGCWriteMode {
+    H2_WRITE_BUFFER_ASYNC,  // promotion buffers, written with async I/O
+    H2_WRITE_ASYNC,         // async I/O per object
+    H2_WRITE_SYNC,          // pwrite per object
+    H2_WRITE_MEMCPY         // memcpy into the H2 mapping
+  };
+  H2FullGCWriteMode _fgc_write_mode;
+
+  // Parse TeraH2FullGCWriteMode; exits on an unknown value
+  static H2FullGCWriteMode parse_fgc_write_mode(const char* mode);
+
   bool _shadow_on;
   bool _shadow_mixed;
   uint64_t _shadow_switch_skipped;           // READY chunks left by this pause's switch
@@ -228,10 +240,8 @@ public:
   int h2_areq_completed();
 
   // Fsync writes in TeraHeap
-  // We need to make an fsync when we use fastmap
   void h2_fsync();
 
-#ifdef PR_BUFFER
   // Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is
   // used to know where the object will move to H2. We use promotion buffer to
   // reduce the number of system calls for small sized objects.
@@ -240,7 +250,6 @@ public:
   // At the end of the major GC flush and free all the promotion
   // buffers.
   void h2_free_promotion_buffers();
-#endif
 
   // Resets the used field of all regions
   void h2_reset_used_field(void);
@@ -315,10 +324,11 @@ public:
   bool h2_object_starts_in_region(HeapWord *obj);
 
   // Move object with size 'size' from source address 'src' to the h2
-  // destination address 'dst' 
+  // destination address 'dst'. A Full GC (is_fgc) writes it as
+  // TeraH2FullGCWriteMode says; young and mixed GCs use memcpy
   void h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_fgc = false);
 
-  // Complete the transfer of the objects in H2
+  // At the end of a Full GC: complete the writes of the objects moved to H2
   void h2_complete_transfers();
 
   // Check if the group of regions in H2 is enabled

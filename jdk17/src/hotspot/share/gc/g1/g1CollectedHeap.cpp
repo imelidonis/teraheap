@@ -89,6 +89,7 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/workerPolicy.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
@@ -1708,6 +1709,7 @@ jint G1CollectedHeap::initialize() {
 
     _th_card_table = new PSCardTable(MemRegion(), _tera_heap_reserved);
     _th_card_table->th_card_table_initialize();  
+    Universe::teraHeap()->set_h2_card_table(_th_card_table);
 
     //clean all the cards 
     _th_card_table->th_clean_cards(

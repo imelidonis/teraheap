@@ -28,6 +28,7 @@
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/verifyOption.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "memory/iterator.inline.hpp"
 
 G1FullGCMarker::G1FullGCMarker(G1FullCollector* collector,

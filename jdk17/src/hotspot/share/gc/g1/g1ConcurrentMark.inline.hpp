@@ -38,6 +38,7 @@
 #include "gc/g1/heapRegion.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {

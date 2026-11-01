@@ -1,4 +1,4 @@
-#include "gc/teraHeap/teraHeap.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/padded.inline.hpp"
 #include "memory/sharedDefines.h"
@@ -14,6 +14,7 @@
 
 char *TeraHeap::_start_addr = NULL;
 char *TeraHeap::_stop_addr = NULL;
+size_t TeraHeap::_size = 0;
 
 // Constructor of TeraHeap
 TeraHeap::TeraHeap() {
@@ -49,6 +50,8 @@ TeraHeap::TeraHeap() {
 
   _start_addr = ::h2_start_addr_mem_pool();
   _stop_addr = ::h2_stop_addr_mem_pool();
+  _size = _stop_addr - _start_addr;
+  _h2_card_table = NULL;
 
   h1_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
   h2_addr_arr = NEW_C_HEAP_ARRAY(HeapWord*, ParallelGCThreads, mtGC);
@@ -197,12 +200,6 @@ bool TeraHeap::h2_is_empty() {
 	return ::h2_is_empty();
 }
 
-// Check if a pointer belongs to the TeraHeap.
-bool TeraHeap::is_in_h2(const void* p) {
-	const char* cp = (const char *) p;
-	return cp >= _start_addr && cp < _stop_addr;
-}
-
 void TeraHeap::h2_clear_fgc_stacks() {
   for (uint i = 0; i < h2_num_fgc_stacks(); i++) {
     _fgc_stacks[i].mark.clear(true);
@@ -289,40 +286,6 @@ HeapWord *TeraHeap::get_first_object_in_region(HeapWord *addr) {
   return (HeapWord*) ::h2_get_first_object((char*)addr);
 }
 
-// Add a new entry to `obj1` region dependency list that reference
-// `obj2` region
-void TeraHeap::group_regions(HeapWord *obj1, HeapWord *obj2) {
-  // Lock-free: the allocator's dependency sets take parallel inserts
-  // (lookups and inserts use CAS, see add_reference())
-	if (::h2_is_in_the_same_group((char *) obj1, (char *) obj2)) 
-		return;
-  ::h2_references((char*) obj1, (char*) obj2);
-}
-
-// Push a backward reference to the mark and adjust stacks of thread
-// `worker_id`, which we use in the marking and pointer adjustment phases of
-// the Full GC. Only this thread pushes to its stacks: no lock.
-void TeraHeap::h2_push_backward_reference(uint worker_id, void *p, oop o, bool to_young) {
-  assert(worker_id < h2_num_fgc_stacks(), "worker %u out of range", worker_id);
-
-#ifdef TERA_DBG_PHASES
-  stdprint << "BACKREF: pushing reference " << p << "\n";
-#endif // TERA_DBG_PHASES
-
-  if (TeraHeapStatistics)
-    tera_stats->add_back_ref(worker_id, to_young);
-
-  _fgc_stacks[worker_id].mark.push((oop *)p);
-  _fgc_stacks[worker_id].adjust.push((oop *)p);
-}
-
-// Push a humongous region that is marked to move to H2 to the humongous
-// stack of thread `worker_id`, to move it during the compaction phase.
-void TeraHeap::h2_push_humongous_start(uint worker_id, HeapRegion *hr) {
-  assert(worker_id < h2_num_fgc_stacks(), "worker %u out of range", worker_id);
-  _fgc_stacks[worker_id].humongous.push(hr);
-}
-
 #ifdef ASSERT
 void TeraHeap::push_humongous_to_verify(uint worker_id, HeapRegion *hr) {
   assert(worker_id < h2_num_fgc_stacks(), "worker %u out of range", worker_id);
@@ -357,7 +320,7 @@ void TeraHeap::h2_region_freed(char *region_start, char *last_alloc_start,
   th->_start_array.th_region_reset(start, last_start);
 
   // Convert the exclusive end to an inclusive end by subtracting one heap word.
-  th_card_table()->th_clean_cards(start, last_alloc_end_excl - 1, true /* free regions */);
+  th->th_card_table()->th_clean_cards(start, last_alloc_end_excl - 1, true /* free regions */);
 }
 
 // Frees all unused regions. The allocator protects the freed regions itself
@@ -413,27 +376,6 @@ void TeraHeap::print_h2_alloc_stats(const char *tag) {
   _as_free_ms = 0.0;
 }
 
-// Pop a backward reference from mark stack `stack_id`. The object it
-// points to is located in the Java Heap and we need to ensure that it will
-// be kept alive.
-oop* TeraHeap::h2_pop_back_ref_to_mark(uint stack_id) {
-  Stack<oop *, mtGC>& s = _fgc_stacks[stack_id].mark;
-  return s.is_empty() ? NULL : s.pop();
-}
-
-// Pop a backward reference from adjust stack `stack_id`
-oop* TeraHeap::h2_pop_back_ref_to_adjust(uint stack_id) {
-  Stack<oop *, mtGC>& s = _fgc_stacks[stack_id].adjust;
-  return s.is_empty() ? NULL : s.pop();
-}
-
-// Pop the first region of a humongous object to move to H2 from humongous
-// stack `stack_id`
-HeapRegion *TeraHeap::h2_pop_humongous_start(uint stack_id) {
-  Stack<HeapRegion *, mtGC>& s = _fgc_stacks[stack_id].humongous;
-  return s.is_empty() ? NULL : s.pop();
-}
-
 #ifdef ASSERT
 // Get the next humongous region to verify it is on the free list (only for debugging)
 HeapRegion *TeraHeap::verify_next_humongous() {
@@ -447,49 +389,6 @@ HeapRegion *TeraHeap::verify_next_humongous() {
   return NULL;
 }
 #endif // ASSERT
-
-// Enable region groupping (multi-threaded)
-void TeraHeap::thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord* new_addr) {
-  if (!EnableTeraHeap)
-    return;
-  assert(h1_addr_arr[thread_id] == NULL && h2_addr_arr[thread_id] == NULL, "Thread %d corrupted group state.", thread_id);
-
-	h1_addr_arr[thread_id] = old_addr;
-	h2_addr_arr[thread_id] = new_addr;
-}
-
-// Disables region groupping (multi-threaded)
-void TeraHeap::thread_disable_groups(uint thread_id) {
-  if (!EnableTeraHeap)
-    return;
-	h1_addr_arr[thread_id] = NULL;
-	h2_addr_arr[thread_id] = NULL;
-}
-
-// Get the group Id of the objects that belongs to this region. We
-// locate the objects of the same group to the same region. We use the
-// field 'p' of the object to identify in which region the object
-// belongs to.
-uint64_t TeraHeap::h2_get_region_groupId(void* p) {
-	assert((char *) p != NULL, "Sanity check");
-	return ::h2_get_obj_group_id((char *) p);
-}
-
-// Get the partition Id of the objects that belongs to this region. We
-// locate the objects of the same group to the same region. We use the
-// field 'p' of the object to identify in which region the object
-// belongs to.
-uint64_t TeraHeap::h2_get_region_partId(void* p) {
-	assert((char *) p != NULL, "Sanity check");
-	return ::h2_get_obj_part_id((char *) p);
-}
-
-void TeraHeap::mark_used_region(HeapWord *obj) {
-    ::h2_mark_used((char *) obj);
-
-  if (H2LivenessAnalysis)
-    cast_to_oop(obj)->set_live();
-}
 
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
@@ -508,75 +407,6 @@ char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
 	_start_array.th_allocate_block((HeapWord *)pos);
 
 	return pos;
-}
-
-// Check and record metadata for references involving a cross-heap edge (H1 <->
-// H2) and/or a cross-H2-region edge during H1->H2 relocation.
-//
-// This helper is only meaningful while the current thread is processing an
-// object that has an H2 destination (h2_addr_arr[thread_id] != NULL). Otherwise
-// it is a no-op.
-//
-// Behavior:
-//  - If the referenced object (`obj`) is already in H2, record a
-//  cross-H2-region dependency between the destination H2 region of the
-//  relocating object and the H2 region containing `obj` (via group_regions()).
-//  - If the referenced object is in H1, compute the corresponding field slot in
-//    the H2 copy and mark the H2 card table for that slot as dirty, so the H2
-//    side will rescan/remember this backward (H2->H1) reference.
-//  - In some paths (e.g., backward pointer popped from th_adjust_stack where
-//    h1_addr_arr[thread_id] == NULL), do nothing because the card is already
-//    dirty from a prior GC phase.
-void TeraHeap::check_for_cross_heap_cross_h2_region_ref(uint thread_id, HeapWord *obj, void *obj_field) {
-	// Object is not going to be moved to TeraHeap
-	if (h2_addr_arr[thread_id] == NULL) 
-		return;
-
-  if (is_in_h2(obj)) {
-    group_regions(h2_addr_arr[thread_id], obj);
-    return;
-	}
-
-  // If it is an already backward pointer popped from th_adjust_stack
-  // then do not mark the card as dirty because it is already marked
-  // from minor gc.
-	if (h1_addr_arr[thread_id] == NULL) 
-		return;
-
-  // Mark the H2 card table as dirty if obj is in H1 (backward
-  // reference)
-	CardTable* const ct = th_card_table();
-
-	size_t diff =  (HeapWord *)obj_field - h1_addr_arr[thread_id];
-	assert(diff > 0 && (diff <= (uint64_t) cast_to_oop(h1_addr_arr[thread_id])->size()),
-			"Diff out of range: %lu", diff);
-	HeapWord *h2_obj_field = h2_addr_arr[thread_id] + diff;
-	assert(is_in_h2(h2_addr_arr[thread_id]), "Shoud be in H2");
-
-	ct->th_write_ref_field(h2_obj_field);
-}
-
-// Check if the object `obj` is an instance of the following
-// metadata class:
-// - Instance Mirror Klass
-// - Instance Reference Klass
-// - Instance Class Loader Klass
-// If yes return true, otherwise false
-bool TeraHeap::is_metadata(oop obj) {
-  if (obj->klass()->is_instance_klass()) {
-    InstanceKlass *ik = (InstanceKlass *) obj->klass();
-	return (ik->is_mirror_instance_klass() || ik->is_reference_instance_klass() || ik->is_class_loader_instance_klass() );
-  }
-
-  if (obj->is_objArray()) {
-    objArrayOop arr = objArrayOop(obj);
-    if (arr->element_klass()->is_instance_klass()) {
-      InstanceKlass *ik = (InstanceKlass *) arr->element_klass();
-      return (ik->is_mirror_instance_klass() || ik->is_reference_instance_klass() || ik->is_class_loader_instance_klass());
-    }
-  }
-
-  return false;
 }
 
 int TeraHeap::h2_continuous_regions(HeapWord *addr) {
@@ -660,13 +490,6 @@ TeraHeap::H2FullGCWriteMode TeraHeap::parse_fgc_write_mode(const char* mode) {
   return m;
 }
   
-// Tera statistics for objects that we move to H2, forward references,
-// and backward references.
-TeraStatistics* TeraHeap::get_tera_stats() {
-  assert(tera_stats != NULL, "TeraHeapStatistics and TeraH2CostPercentile not enabled!");
-  return tera_stats;
-}
-
 void TeraHeap::update_allocator_state() {
   const jlong t0 = os::javaTimeNanos();
   ::h2_update_allocator_global_state();
@@ -683,11 +506,6 @@ void TeraHeap::dirty_all_cards() {
   th_card_table()->th_dirty_cards(start, end_excl - 1);
 }
 
-CardTable* TeraHeap::th_card_table() {
-  BarrierSet* bs = BarrierSet::barrier_set();
-  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-  return ctbs->th_card_table();
-}
   
 void TeraHeap::print_sigsegv_info(void *siginfo) {
   void *addr = ((siginfo_t *)siginfo)->si_addr;

@@ -29,6 +29,7 @@
 #include "gc/parallel/psPromotionManager.inline.hpp"
 #include "gc/parallel/psScavenge.inline.hpp"
 #include "gc/parallel/psYoungGen.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"

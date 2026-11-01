@@ -53,6 +53,7 @@
 #include "gc/shared/taskqueue.inline.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/workerPolicy.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "include/jvm.h"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"

@@ -29,6 +29,7 @@
 
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/shared/accessBarrierSupport.inline.hpp"
+#include "gc/teraHeap/teraHeap.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.hpp"
@@ -55,12 +56,12 @@ inline void G1BarrierSet::write_ref_field_post(T* field, oop new_val) {
   if (EnableTeraHeap) {
     //h2->h1 : back ref found => dirty h2 card
     //h2->h2 : update dependency list => dirty h2 card, and when we scan it during the gc, dependency list will be updated
-    if (Universe::is_in_h2(field)) {
+    if (TeraHeap::is_in_h2(field)) {
       byte =  _th_card_table->byte_for(field);
       *byte = CardTable::dirty_card_val();
     } else {
       //h1->h2 : forward pointer (no need to dirty any card)
-      if (Universe::is_in_h2(new_val)) return;
+      if (TeraHeap::is_in_h2(new_val)) return;
 
       //h1->h1 : h1 card talbe, dirty card => scan to find outgoing ref and update rem sets
       byte =  _card_table->byte_for(field);

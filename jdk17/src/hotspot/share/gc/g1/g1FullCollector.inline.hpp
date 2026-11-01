@@ -28,7 +28,7 @@
 #include "gc/g1/g1FullCollector.hpp"
 
 #include "gc/g1/g1FullGCHeapRegionAttr.hpp"
-#include "gc/teraHeap/teraHeap.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
 
 bool G1FullCollector::should_compact_humongous(HeapRegion* hr) const {

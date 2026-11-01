@@ -31,6 +31,7 @@
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"

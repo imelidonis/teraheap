@@ -32,7 +32,7 @@
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.inline.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
-#include "gc/teraHeap/teraHeap.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"

@@ -37,7 +37,7 @@
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
-#include "gc/teraHeap/teraHeap.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"

@@ -31,6 +31,7 @@
 #include "gc/g1/g1FullGCOopClosures.inline.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "memory/iterator.inline.hpp"
 
 G1FullGCMarkTask::G1FullGCMarkTask(G1FullCollector* collector) :

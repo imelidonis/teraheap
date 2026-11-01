@@ -34,6 +34,7 @@
 #include "gc/g1/g1RemSet.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"

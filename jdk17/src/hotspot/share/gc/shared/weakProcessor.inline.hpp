@@ -33,7 +33,7 @@
 #include "gc/shared/oopStorageSet.hpp"
 #include "gc/shared/weakProcessorTimes.hpp"
 #include "gc/shared/workgroup.hpp"
-#include "gc/teraHeap/teraHeap.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/enumIterator.hpp"

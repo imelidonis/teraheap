@@ -29,6 +29,7 @@
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "gc/shared/satbMarkQueue.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"

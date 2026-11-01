@@ -49,13 +49,7 @@ class ReferenceProcessor;
 // Full GC the whole heap is subject to discovery.
 class G1FullGCSubjectToDiscoveryClosure: public BoolObjectClosure {
 public:
-  bool do_object_b(oop p) {
-    if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(p)) {
-      Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(p));
-    }
-    assert(p != NULL, "must be");
-    return true;
-  }
+  bool do_object_b(oop p);
 };
 
 // The G1FullCollector holds data associated with the current Full GC.

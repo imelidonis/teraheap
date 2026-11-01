@@ -34,6 +34,7 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/oop.inline.hpp"

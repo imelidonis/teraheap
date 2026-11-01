@@ -43,10 +43,19 @@
 #include "gc/shared/verifyOption.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/workerPolicy.hpp"
+#include "gc/teraHeap/teraHeap.inline.hpp"
 #include "logging/log.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/debug.hpp"
+
+bool G1FullGCSubjectToDiscoveryClosure::do_object_b(oop p) {
+  if (EnableTeraHeap && Universe::teraHeap()->is_in_h2(p)) {
+    Universe::teraHeap()->mark_used_region(cast_from_oop<HeapWord*>(p));
+  }
+  assert(p != NULL, "must be");
+  return true;
+}
 
 static void clear_and_activate_derived_pointers() {
 #if COMPILER2_OR_JVMCI

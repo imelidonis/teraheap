@@ -11,8 +11,6 @@
 // Allocator functions
 #include <h2_allocator.h>
 
-class PSCardTable;
-
 class TeraHeap: public CHeapObj<mtInternal> {
 private:
   static char *_start_addr;       // TeraHeap start address of mmap region
@@ -52,16 +50,6 @@ private:
 
   HeapWord **h1_addr_arr;
   HeapWord **h2_addr_arr;
-
-  HeapWord *obj_h1_addr;  // We need to check this
-                          // object that will be moved
-                          // to H2 if it has back ptrs
-                          // to H1
-
-  HeapWord *obj_h2_addr;  // We need to check this
-                          // object that will be moved
-                          // to H2 if it has back ptrs
-                          // to H1
 
   static CardTable* th_card_table(void);
 
@@ -117,11 +105,9 @@ public:
 #endif
   }
 
-  // Constructor
+  // Created once at startup (Universe). Like the G1 heap, it is never
+  // destroyed: it lives until the process ends
   TeraHeap();
-
-  // Destructor
-  ~TeraHeap();
 
   bool h2_verify_top() {
     bool res = ::h2_verify_top();
@@ -164,9 +150,6 @@ public:
 
   // True if all Full GC stacks are empty
   bool h2_fgc_stacks_empty();
-
-  // Give advise to kernel to expect page references in sequential order
-  void h2_enable_seq_faults();
 
   // Give advise to kernel to expect page references in random order
   void h2_enable_rand_faults();
@@ -227,38 +210,11 @@ public:
   HeapRegion *verify_next_humongous();
   #endif // ASSERT
 
-  // Explicit (using systemcall) write 'data' with 'size' to the specific
-  // 'offset' in the file.
-  void h2_write(char *data, char *offset, size_t size);
-
-  // Explicit (using systemcall) asynchronous write 'data' with 'size' to
-  // the specific 'offset' in the file.
-  void h2_awrite(char *data, char *offset, size_t size);
-
-  // We need to ensure that all the writes in TeraHeap using asynchronous
-  // I/O have been completed succesfully.
-  int h2_areq_completed();
-
-  // Fsync writes in TeraHeap
-  void h2_fsync();
-
-  // Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is
-  // used to know where the object will move to H2. We use promotion buffer to
-  // reduce the number of system calls for small sized objects.
-  void h2_promotion_buffer_insert(char *obj, char *new_adr, size_t size);
-
-  // At the end of the major GC flush and free all the promotion
-  // buffers.
-  void h2_free_promotion_buffers();
-
   // Resets the used field of all regions
   void h2_reset_used_field(void);
 
   // Marks the region containing obj as used
   void mark_used_region(HeapWord *obj);
-
-  // Prints all active regions
-  void print_h2_active_regions(void);
 
   // If the current thread is relocating an object to H2, record cross-heap / cross-H2-region
   // reference metadata (region dependency or H2 card marking) for the reference slot `obj_field`.
@@ -272,25 +228,15 @@ public:
   // allocator statistics to the TeraHeap log; `tag` is YOUNG or MIXED
   void print_h2_alloc_stats(const char *tag);
 
-  // Prints all the region groups
-  void print_region_groups(void);
-
   // Enables groupping with region of obj (multi-threaded)
   void thread_enable_groups(uint thread_id, HeapWord *old_addr, HeapWord *new_addr);
 
   // Disables region groupping (multi-threaded)
   void thread_disable_groups(uint thread_id);
 
-  void print_object_name(HeapWord *obj, const char *name);
-
   // Add a new entry to `obj1` region dependency list that reference
   // `obj2` region
   void group_regions(HeapWord *obj1, HeapWord *obj2);
-
-  // Iterate over all objects in each region and print their states
-  // This function is for debugging purposes to understand and fix the
-  // locality in regions
-  void h2_print_objects_per_region(void);
 
   // Get the group Id of the objects that belongs to this region. We
   // locate the objects of the same group to the same region. We use the
@@ -320,9 +266,6 @@ public:
   // covers whole regions
   size_t h2_stripe_cards() const { return _h2_stripe_cards; }
 
-  // Check where the object starts
-  bool h2_object_starts_in_region(HeapWord *obj);
-
   // Move object with size 'size' from source address 'src' to the h2
   // destination address 'dst'. A Full GC (is_fgc) writes it as
   // TeraH2FullGCWriteMode says; young and mixed GCs use memcpy
@@ -330,9 +273,6 @@ public:
 
   // At the end of a Full GC: complete the writes of the objects moved to H2
   void h2_complete_transfers();
-
-  // Check if the group of regions in H2 is enabled
-  bool is_h2_group_enabled();
 
   // Tera statistics for objects that we move to H2, forward references,
   // and backward references.

@@ -23,7 +23,6 @@
   #include <iostream>
   #define stdprint std::cerr
 
-	#define TERA_REMOVEx(code) 
 	#define TERA_REMOVE(code)
 
   // Debug TeraHeap (REMOVE)----
@@ -34,7 +33,6 @@
 
 
 #else
-	#define TERA_REMOVEx(code)
 	#define TERA_REMOVE(code)
 #endif  // TERA_DEBUG
 
@@ -77,10 +75,6 @@
                                   // card marking are all implemented in the
                                   // make_leaf_call()
 
-//#define FASTMAP                 // Enable this define when you run
-                                  // with fastmap with enabled
-                                  // -XX:AllocateHeapAt="/mnt/dir"
-                                  // or -XX:AllocateOldGenAt="/mnt/dir"
 // #define ENABLE_SINGLE_THREAD_ALLOCATION
 
 
@@ -94,9 +88,6 @@
 #define MOVE_TO_TERA			255	    //< Move this object to tera cache
 #define DUMMY_H2_ADDRESS  256     //< Mark that object took address.
 //                                // NOTE: will be removed.
-
-#define TERA_TO_OLD 	    328     //< Pointer from TeraHeap to Old Gen. Move
-                                  // this object to TeraHeap
 
 #define IN_TERA_CACHE     2147483561  //< This object is located in TeraHeap
 

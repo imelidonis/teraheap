@@ -1,8 +1,4 @@
 #include "gc/teraHeap/teraHeap.hpp"
-#include "gc/parallel/psVirtualspace.hpp"
-#include "gc/parallel/psVirtualspace.hpp"
-//#include "gc/parallel/psCompactionManager.hpp"
-//#include "memory/card.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/padded.inline.hpp"
 #include "memory/sharedDefines.h"
@@ -61,9 +57,6 @@ TeraHeap::TeraHeap() {
     h1_addr_arr[i] = NULL;
     h2_addr_arr[i] = NULL;
   }
-
-  obj_h1_addr = NULL;
-  obj_h2_addr = NULL;
 
   // NOTE: not freed as the destructor is never called
   _fgc_stacks = PaddedArray<H2FullGCStacks, mtGC>::create_unfreeable(ParallelGCThreads);
@@ -179,13 +172,6 @@ void TeraHeap::h2_shadow_pause_end() {
   _shadow_at_last_end = now;
 }
 
-// Destructor of TeraHeap
-TeraHeap::~TeraHeap() {
-  // TODO: not called
-  FREE_C_HEAP_ARRAY(HeapWord*, h1_addr_arr);
-  FREE_C_HEAP_ARRAY(HeapWord*, h2_addr_arr);
-}
-
 // Return H2 start address
 char* TeraHeap::h2_start_addr(void) {
 	assert((char *)(_start_addr) != NULL, "H2 allocator is not initialized");
@@ -233,15 +219,6 @@ bool TeraHeap::h2_fgc_stacks_empty() {
     }
   }
   return true;
-}
-
-// Give advise to kernel to expect page references in sequential order
-void TeraHeap::h2_enable_seq_faults() {
-#if defined(FMAP_HYBRID)
-	::h2_enable_huge_flts();
-#elif defined(MADVISE_ON)
-	::h2_enable_seq();
-#endif
 }
 
 // Give advise to kernel to expect page references in random order
@@ -367,39 +344,6 @@ void TeraHeap::h2_reset_used_field(void) {
   ::h2_reset_used();
 }
 
-// Prints all the region groups
-void TeraHeap::print_region_groups(void) {
-  ::h2_print_groups();
-}
-
-void TeraHeap::h2_print_objects_per_region() {
-	HeapWord *next_region;
-	HeapWord *obj_addr;
-	oop obj;
-
-	::h2_start_iterate_regions();
-
-	next_region = (HeapWord *) ::h2_get_next_region();
-
-	while(next_region != NULL) {
-		obj_addr = next_region;
-
-		while (1) {
-			obj = cast_to_oop(obj_addr);
-
-			fprintf(stderr, "[PLACEMENT] OBJ = %p | RDD = %d | PART_ID = %lu\n", 
-           cast_from_oop<HeapWord *>(obj), obj->get_obj_group_id(), obj->get_obj_part_id());
-
-			if (!check_if_valid_object(obj_addr + obj->size()))
-				break;
-
-			obj_addr += obj->size();
-		}
-
-		next_region = (HeapWord *) ::h2_get_next_region();
-	}
-}
-
 // h2_free_regions() callback: clear the start array and the cards of a freed
 // region. `last_alloc_end` is an exclusive end (one past the last valid heap
 // word).
@@ -477,11 +421,6 @@ oop* TeraHeap::h2_pop_back_ref_to_mark(uint stack_id) {
   return s.is_empty() ? NULL : s.pop();
 }
 
-// Prints all active regions
-void TeraHeap::print_h2_active_regions(void) {
-  ::h2_print_used_regions();
-}
-
 // Pop a backward reference from adjust stack `stack_id`
 oop* TeraHeap::h2_pop_back_ref_to_adjust(uint stack_id) {
   Stack<oop *, mtGC>& s = _fgc_stacks[stack_id].adjust;
@@ -525,42 +464,6 @@ void TeraHeap::thread_disable_groups(uint thread_id) {
     return;
 	h1_addr_arr[thread_id] = NULL;
 	h2_addr_arr[thread_id] = NULL;
-}
-
-// Add an object 'obj' with size 'size' to the promotion buffer. 'New_adr' is
-// used to know where the object will move to H2. We use promotion buffer to
-// reduce the number of system calls for small sized objects.
-void  TeraHeap::h2_promotion_buffer_insert(char* obj, char* new_adr, size_t size) {
-	::h2_buffer_insert(obj, new_adr, size);
-}
-
-// At the end of the major GC flush and free all the promotion buffers.
-void TeraHeap::h2_free_promotion_buffers() {
-	::h2_free_all_buffers();
-}
-
-// Explicit (using systemcall) write 'data' with 'size' to the specific
-// 'offset' in the file.
-void TeraHeap::h2_write(char *data, char *offset, size_t size) {
-	::h2_write(data, offset, size);
-}
-
-// Explicit (using systemcall) asynchronous write 'data' with 'size' to
-// the specific 'offset' in the file.
-void TeraHeap::h2_awrite(char *data, char *offset, size_t size) {
-	::h2_awrite(data, offset, size);
-}
-
-// We need to ensure that all the writes in TeraHeap using asynchronous
-// I/O have been completed succesfully.
-int TeraHeap::h2_areq_completed() {
-	return ::h2_areq_completed();
-}
-
-// Fsync writes in TeraHeap
-// We need to make an fsync when we use fastmap
-void TeraHeap::h2_fsync() {
-	::h2_fsync();
 }
 
 // Get the group Id of the objects that belongs to this region. We
@@ -680,10 +583,6 @@ int TeraHeap::h2_continuous_regions(HeapWord *addr) {
   return ::h2_get_num_of_continuous_regions((char *)addr);
 }
 
-bool TeraHeap::h2_object_starts_in_region(HeapWord *obj) {
-  return ::h2_object_starts_from_region((char *)obj);
-}
-
 // Move object with size 'size' from source address 'src' to the h2
 // destination address 'dst' 
 void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_in_fgc) {
@@ -694,13 +593,13 @@ void TeraHeap::h2_move_obj(HeapWord *src, HeapWord *dst, size_t size, bool is_in
   if (is_in_fgc) {
     switch (_fgc_write_mode) {
       case H2_WRITE_BUFFER_ASYNC:
-        h2_promotion_buffer_insert((char *)src, (char *)dst, size);
+        ::h2_buffer_insert((char *)src, (char *)dst, size);
         return;
       case H2_WRITE_ASYNC:
-        h2_awrite((char *)src, (char *)dst, size);
+        ::h2_awrite((char *)src, (char *)dst, size);
         return;
       case H2_WRITE_SYNC:
-        h2_write((char *)src, (char *)dst, size);
+        ::h2_write((char *)src, (char *)dst, size);
         return;
       case H2_WRITE_MEMCPY:
         break;
@@ -728,11 +627,11 @@ void TeraHeap::h2_complete_transfers() {
   switch (_fgc_write_mode) {
     case H2_WRITE_BUFFER_ASYNC:
       // Write the objects left in the buffers, then wait for all writes
-      h2_free_promotion_buffers();
-      while(!h2_areq_completed());
+      ::h2_free_all_buffers();
+      while (!::h2_areq_completed());
       break;
     case H2_WRITE_ASYNC:
-      while(!h2_areq_completed());
+      while (!::h2_areq_completed());
       break;
     case H2_WRITE_SYNC:     // pwrite returned: nothing in flight
     case H2_WRITE_MEMCPY:   // already in the H2 mapping
@@ -760,11 +659,6 @@ TeraHeap::H2FullGCWriteMode TeraHeap::parse_fgc_write_mode(const char* mode) {
   return m;
 }
   
-// Check if the group of regions in H2 is enabled
-bool TeraHeap::is_h2_group_enabled() {
-  return (obj_h1_addr != NULL  || obj_h2_addr != NULL);
-}
-
 // Tera statistics for objects that we move to H2, forward references,
 // and backward references.
 TeraStatistics* TeraHeap::get_tera_stats() {

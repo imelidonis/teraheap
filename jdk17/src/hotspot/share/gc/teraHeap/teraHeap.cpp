@@ -502,7 +502,8 @@ char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
 
 	pos = ::h2_allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
 	
-	assert((HeapWord *) pos + size * HeapWordSize < (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
+	// `size` is in words: the object must end at or before the end of H2
+	assert((HeapWord *) pos + size <= (HeapWord*) _stop_addr, "H2 is Out of Memory\n");
 
 	_start_array.th_allocate_block((HeapWord *)pos);
 

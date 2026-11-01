@@ -3984,14 +3984,6 @@ public final class Unsafe {
   public native boolean is_marked_move_h2(Object o);
 
   /**
-   * Returns whether an object has h2 address.
-   * NOTE: will be removed
-   *
-   * @param o object/array to check
-   */
-  public native boolean dummy_has_h2_address(Object o);
-
-  /**
    * Returns whether an object is in H2.
    *
    * @param o object/array to check

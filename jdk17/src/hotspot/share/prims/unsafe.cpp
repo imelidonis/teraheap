@@ -914,15 +914,6 @@ UNSAFE_ENTRY(jboolean, Unsafe_is_marked_moved_h2(JNIEnv *env, jobject unsafe, jo
 }
 UNSAFE_END
 
-UNSAFE_ENTRY(jboolean, Unsafe_dummy_has_h2_address(JNIEnv *env, jobject unsafe, jobject obj)) {
-  if (!EnableTeraHeap) return false;
-
-  oop o = JNIHandles::resolve_non_null(obj);
-
-  return o->dummy_has_h2_address();
-}
-UNSAFE_END
-
 UNSAFE_ENTRY(jboolean, Unsafe_is_in_h2(JNIEnv *env, jobject unsafe, jobject obj)) {
   if (!EnableTeraHeap) return false;
 
@@ -977,7 +968,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "h2TagAndMoveRoot",     CC "(" OBJ "JJ)V",  FN_PTR(Unsafe_h2TagAndMoveRoot)},
     {CC "inH2",                 CC "(" OBJ ")Z",    FN_PTR(Unsafe_inH2)},
     {CC "is_marked_move_h2",    CC "(" OBJ ")Z",    FN_PTR(Unsafe_is_marked_moved_h2)},
-    {CC "dummy_has_h2_address", CC "(" OBJ ")Z",    FN_PTR(Unsafe_dummy_has_h2_address)},
     {CC "is_in_h2",             CC "(" OBJ ")Z",    FN_PTR(Unsafe_is_in_h2)},
     
 

@@ -86,8 +86,6 @@
   * States of TeraFlag
   **********************************/
 #define MOVE_TO_TERA			255	    //< Move this object to tera cache
-#define DUMMY_H2_ADDRESS  256     //< Mark that object took address.
-//                                // NOTE: will be removed.
 
 #define IN_TERA_CACHE     2147483561  //< This object is located in TeraHeap
 

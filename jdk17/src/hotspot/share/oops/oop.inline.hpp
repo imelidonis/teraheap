@@ -101,19 +101,6 @@ bool oopDesc::is_marked_move_h2() {
   return (*tera_flag64_addr() & 0xff) == MOVE_TO_TERA;
 }
 
-// NOTE: will be removed
-void oopDesc::dummy_give_h2_address() {
-  // The 32-bit word has no free bit for this
-  if (!UseCompressedClassPointers)
-    *tera_flag64_addr() |= DUMMY_H2_ADDRESS;
-}
-
-bool oopDesc::dummy_has_h2_address() {
-  if (UseCompressedClassPointers)
-    return false;
-  return (*tera_flag64_addr() & 0xf00) == DUMMY_H2_ADDRESS;
-}
-
 // Mark this object that is located in TeraHeap
 void oopDesc::set_in_h2() {
   set_tera_flag(IN_TERA_CACHE, get_obj_group_id(), get_obj_part_id());

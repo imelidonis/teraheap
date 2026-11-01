@@ -1324,18 +1324,6 @@ public final class Unsafe {
   }
 
   /**
-   * Returns whether an object has h2 address.
-   * NOTE: will be removed
-   *
-   * @param o object/array to check
-   */
-  @ForceInline
-  public boolean dummy_has_h2_address(Object o)
-  {
-    return theInternalUnsafe.dummy_has_h2_address(o);
-  }
-
-  /**
    * Returns whether an object is in h2.
    * NOTE: will be removed
    *

@@ -15,12 +15,14 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "../include/sharedDefines.h"
-#include "../include/regions.h"
-#include "../include/segments.h"
+#include <stdlib.h>
+#include <string.h>
+#include "h2_allocator.h"
+#include "test_util.h"
 
 #define CARD_SIZE ((uint64_t) (1 << 9))
 #define PAGE_SIZE ((uint64_t) (1 << 12))
+#define MB (1024LU * 1024)
 #define GB 1024LU * 1024 * 1024
 
 //this test needs 256MB region size
@@ -28,52 +30,54 @@ int main() {
   char *obj1, *obj2, *obj3, *obj4, *obj5, *obj6, *obj7, *obj8, *obj9;
 
   // Init allocator
-  init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 4);
+  // One GC thread per group (thread_id = rdd_id): the regions are the same
+  // whether the allocator groups by GC thread or by rdd
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4, 4, false);
 
   //obj1 should be in region 0
-  obj1 = allocate(1, 0, 0, 0);
+  obj1 = h2_allocate(1, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj1);
-  assertf((obj1 - start_addr_mem_pool()) == 0, "Object start position");
+  CHECK((obj1 - h2_start_addr_mem_pool()) == 0, "Object start position");
 
   //obj2 should be in region 1 
-  obj2 = allocate(200, 1, 0, 0);
+  obj2 = h2_allocate(200, 1, 0, 1);
   fprintf(stderr, "Allocate: %p\n", obj2);
-  assertf((obj2 - obj1)/8 == 33554432, "Object start position %zu", (obj2 - obj1) / 8); 
+  CHECK((obj2 - obj1)/8 == 33554432, "Object start position %zu", (obj2 - obj1) / 8); 
 
   //obj3 should be in region 0
-  obj3 = allocate(12020, 0, 0, 0);
+  obj3 = h2_allocate(12020, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj3);
-  assertf((obj3 - obj1)/8 == 1, "Object start position");
+  CHECK((obj3 - obj1)/8 == 1, "Object start position");
 
   //obj4 should be in region 2 
-  obj4 = allocate(262140, 2, 0, 0);
+  obj4 = h2_allocate(262140, 2, 0, 2);
   fprintf(stderr, "Allocate: %p\n", obj4);
-  assertf((obj4 - obj2)/8 == 33554432, "Object start position %zu", (obj4 - obj2) / 8);
+  CHECK((obj4 - obj2)/8 == 33554432, "Object start position %zu", (obj4 - obj2) / 8);
 
   //obj5 should be in region 1
-  obj5 = allocate(4, 1, 0, 0);
+  obj5 = h2_allocate(4, 1, 0, 1);
   fprintf(stderr, "Allocate: %p\n", obj5);
-  assertf((obj5 - obj2)/8 == 200, "Object start position");
+  CHECK((obj5 - obj2)/8 == 200, "Object start position");
 
   //obj6 should be in region 0 
-  obj6 = allocate(200, 0, 0, 0);
+  obj6 = h2_allocate(200, 0, 0, 0);
   fprintf(stderr, "Allocate: %p\n", obj6);
-  assertf((obj6 - obj3)/8 == 12020, "Object start position");
+  CHECK((obj6 - obj3)/8 == 12020, "Object start position");
 
   //obj7 should be in region 3 
-  obj7 = allocate(262140, 1, 0, 0);
+  obj7 = h2_allocate(262140, 1, 0, 1);
   fprintf(stderr, "Allocate: %p\n", obj7);
-  assertf((obj7 - obj5)/8 == 4, "Object start position %zu", (obj7 - obj5) / 8);
+  CHECK((obj7 - obj5)/8 == 4, "Object start position %zu", (obj7 - obj5) / 8);
 
   //obj8 should be in region 4 
-  obj8 = allocate(500, 3, 0, 0);
+  obj8 = h2_allocate(500, 3, 0, 3);
   fprintf(stderr, "Allocate: %p\n", obj8);
-  assertf((obj8 - obj4)/8 == 33554432, "Object start position");
+  CHECK((obj8 - obj4)/8 == 33554432, "Object start position");
 
   //obj9 should be in region 5 
-  obj9 = allocate(500, 2, 0, 0);
+  obj9 = h2_allocate(500, 2, 0, 2);
   fprintf(stderr, "Allocate: %p\n", obj9);
-  assertf((obj9 - obj4)/8 == 262140, "Object start position");
+  CHECK((obj9 - obj4)/8 == 262140, "Object start position");
 
   printf("--------------------------------------\n");
   printf("TH_Allocate:\t\t\t\033[1;32m[PASS]\033[0m\n");

@@ -44,6 +44,11 @@ public class GC{
     System.out.println("== CM finished");
   }
   
+  // True while a concurrent mark cycle is in progress
+  public static boolean in_cm() {
+    return wb.g1InConcurrentMark();
+  }
+
   public static void young_gc() {
     wb.youngGC();
   }

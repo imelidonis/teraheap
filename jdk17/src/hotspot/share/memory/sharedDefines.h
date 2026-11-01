@@ -97,8 +97,10 @@
 
 
 // #define ASYNC				          //< Asynchronous I/O path for the writes in
-// #define PR_BUFFER			        //< Enable promotion buffer for async I/O to
-                                // reduce the number of system calls 
+#define PR_BUFFER			          //< Enable promotion buffer for async I/O to
+                                // reduce the number of system calls. The H2
+                                // allocator always has promotion buffers
+                                // (h2_buffer_insert()).
 
 
 // #define FMAP				            //< When we use fastmap we need to ensure

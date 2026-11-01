@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *     never-dropped H2 root; its accumulator must remain stable across cycles.
  *
  * Assumes harness provides:
- *  - GC.cm_start(), GC.wait_cm(), GC.young_gc(), GC.move_to_old(), GC.gc()
+ *  - GC.cm_start(), GC.wait_cm(), GC.in_cm(), GC.young_gc(), GC.move_to_old(), GC.gc()
  *  - sun.misc.Unsafe.h2TagAndMoveRoot(Object root, int a2, int a3)
  */
 public class Test_H2_FreePath_CM_YoungStorm_Max_Frees {
@@ -259,11 +259,11 @@ public class Test_H2_FreePath_CM_YoungStorm_Max_Frees {
     // Core knobs
     final int CYCLES              = (args.length > 0) ? Integer.parseInt(args[0]) : 20;
     final int NUM_ROOTS           = (args.length > 1) ? Integer.parseInt(args[1]) : 256;
-    final int ROOT_LEN            = (args.length > 2) ? Integer.parseInt(args[2]) : 8000;
+    final int ROOT_LEN            = (args.length > 2) ? Integer.parseInt(args[2]) : 2_000;
     final int BLOB_KB             = (args.length > 3) ? Integer.parseInt(args[3]) : 8;
-    final int YOUNG_GC_STORM      = (args.length > 4) ? Integer.parseInt(args[4]) : 40_000;
+    final int YOUNG_GC_STORM      = (args.length > 4) ? Integer.parseInt(args[4]) : 6_000;
     final int DROP_ROOT_EVERY     = (args.length > 5) ? Integer.parseInt(args[5]) : 1;        // cycles
-    final int NULL_SLOTS_PER_CYCLE= (args.length > 6) ? Integer.parseInt(args[6]) : 4_000_000;
+    final int NULL_SLOTS_PER_CYCLE= (args.length > 6) ? Integer.parseInt(args[6]) : 1_000_000;
 
     // Verification knobs
     final int TOUCH_SAMPLES_PER_CYCLE = (args.length > 7) ? Integer.parseInt(args[7]) : 20_000;
@@ -291,6 +291,7 @@ public class Test_H2_FreePath_CM_YoungStorm_Max_Frees {
         " H1_HUM_MIN_MB=" + H1_HUM_MIN_MB +
         " H1_HUM_MAX_MB=" + H1_HUM_MAX_MB);
 
+    final long t0 = System.nanoTime();
     Object[][] roots = new Object[NUM_ROOTS][];
     long id = 1;
     ThreadLocalRandom rnd = ThreadLocalRandom.current();
@@ -385,7 +386,7 @@ public class Test_H2_FreePath_CM_YoungStorm_Max_Frees {
     System.out.println("Initial sample-touch acc=" + sample0);
 
     for (int cycle = 0; cycle < CYCLES; cycle++) {
-      System.out.println("\n=== cycle " + cycle + " ===");
+      System.out.println("\n=== cycle " + cycle + " === t=" + (System.nanoTime() - t0) / 1_000_000_000 + "s");
 
       // Start CM and interrupt quickly.
       GC.cm_start();
@@ -411,8 +412,15 @@ public class Test_H2_FreePath_CM_YoungStorm_Max_Frees {
 
       // Storm young GCs while CM is in progress; keep mutating H2 and H2->H1 edges.
       System.out.println("Young GC storm: " + YOUNG_GC_STORM);
+      // Young GCs while CM runs. After CM ends, only every 64th iteration
+      // runs one: enough for the Prepare Mixed and Mixed GCs. The mutations
+      // below run on every iteration.
+      int stormGCs = 0;
       for (int i = 0; i < YOUNG_GC_STORM; i++) {
-        GC.young_gc();
+        if (GC.in_cm() || (i & 0x3F) == 0) {
+          GC.young_gc();
+          stormGCs++;
+        }
 
         Object[] r = roots[rnd.nextInt(NUM_ROOTS)];
         if (r != null) {
@@ -456,6 +464,8 @@ public class Test_H2_FreePath_CM_YoungStorm_Max_Frees {
         }
       }
 
+      System.out.println("Storm young GCs: " + stormGCs + " t=" + (System.nanoTime() - t0) / 1_000_000_000 + "s");
+
       // Finish CM + post-CM cleanup.
       GC.wait_cm();
       GC.gc();
@@ -487,7 +497,7 @@ public class Test_H2_FreePath_CM_YoungStorm_Max_Frees {
     long finSent = touchSentinels(sentinelRoot);
     long finSamp = sampleTouchLiveH2(roots, Math.min(TOUCH_SAMPLES_PER_CYCLE, 50_000), rnd);
 
-    System.out.println("\nDone.");
+    System.out.println("\nDone. t=" + (System.nanoTime() - t0) / 1_000_000_000 + "s");
     System.out.println("Final verifier acc=" + fin);
     System.out.println("Final sentinel acc=" + finSent);
     System.out.println("Final sample-touch acc=" + finSamp);

@@ -3060,8 +3060,11 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
     return false;
   }
 
+  const bool h2_alloc_stats = EnableTeraHeap && TeraH2AllocatorStats;
+  const bool mixed = collector_state()->in_mixed_phase();
+
   if (EnableTeraHeap && TeraHeapStatistics) {
-    Universe::teraHeap()->get_tera_stats()->set_is_in_mix(collector_state()->in_mixed_phase());
+    Universe::teraHeap()->get_tera_stats()->set_is_in_mix(mixed);
 
     do_collection_pause_at_safepoint_helper(target_pause_time_ms); 
 
@@ -3080,6 +3083,10 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_
     if (TeraHeap::h2_cost_timers()) {
       Universe::teraHeap()->get_tera_stats()->reset_counters();
     }
+  }
+
+  if (h2_alloc_stats) {
+    Universe::teraHeap()->print_h2_alloc_stats(mixed ? "MIXED" : "YOUNG");
   }
 
   return true;

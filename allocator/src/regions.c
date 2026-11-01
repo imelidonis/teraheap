@@ -1,413 +1,332 @@
-#include <errno.h>
-#include <stdint.h>
+// The region array and allocation in regions (H2 objects go to the region of their (rdd, partition) id), and the region queries.
+#define _GNU_SOURCE
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <aio.h>
 #include <pthread.h>
+#include "regions.h"
+#include "region_types.h"
+#include "sharedDefines.h"
+#include "shadow.h"
 
-#include "../include/regions.h"
-#include "../include/sharedDefines.h"
-#include "../include/asyncIO.h"
-#include "../include/segments.h"
-#include "../include/shadow.h"
+uint64_t _MAX_PARTITIONS;
 
-#define HEAPWORD (8)      // In the JVM the heap is aligned to 8 words
-#define HEADER_SIZE (32)  // Header size of the Dummy object	
-#define align_size_up_(size, alignment) (((size) + ((alignment) - 1)) & ~((alignment) - 1))
+// Global lock to only allow one thread to request new
+// region and create a new mapping.
+static pthread_mutex_t alloc_region_lock;
 
-static uint64_t _MAX_PARTITIONS;
+struct region *region_array;
 
-struct _mem_pool{
-    char *mmap_start;                                   //< Memory mapped allocation start addresss
-    char* start_address;                                //< Aligned start address of TeraCache
-    char* cur_alloc_ptr;                                //< Current allocation pointer of TeraCache
-    char* stop_address;                                 //< Last address of TeraCache
+// See region_types.h
+char *region_array_base __attribute__((aligned(CACHE_LINE_SIZE)));
+uint64_t region_size;
+unsigned region_shift;
+struct id_to_reg_mapping *id_mapping_array;
 
-    uint64_t size;                                              //< Current allocated bytes in TeraCache
-};
+static int32_t _next_region;
 
-char dev[150] = { '\0' };
+/* An empty region that starts at `start`, with an empty promotion buffer */
+static void init_region(struct region *r, char *start) {
+  r->start_address         = start;
+  r->used                  = 0;
+  r->last_allocated_end    = start;
+  r->last_allocated_start  = NULL;
+  r->first_allocated_start = NULL;
+  r->deps                  = NULL;
+  r->rdd_id                = _MAX_PARTITIONS - 1;
+  r->part_id               = _MAX_PARTITIONS - 1;
 
-uint64_t dev_size = 0;
-uint64_t region_array_size = 0;
-uint64_t max_rdd_id = 0;
-
-// Global lock to prevent multiple threads
-// from updating global variables.
-pthread_mutex_t th_mem_pool_lock;
-volatile struct _mem_pool th_mem_pool;
-int fd;
-
-int n_gc_threads = 0;
-
-// Per-Thread state
-#ifdef LOCKFREE_GLOBAL_UPDATE
-size_t *per_thread_size;
-char **per_thread_alloc_ptr;
-
-// Each GC thread's entry of per_thread_size and per_thread_alloc_ptr is
-// on its own cache line (stride of 8 entries of 8 bytes), so threads that
-// allocate at the same time do not invalidate each other's line.
-#define PER_THREAD_STRIDE 8
-#define PER_THREAD_IDX(i) ((size_t) (i) * PER_THREAD_STRIDE)
-#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
-
-intptr_t align_size_up(intptr_t size, intptr_t alignment) {
-	return align_size_up_(size, alignment);
+  r->pr_buffer = malloc(sizeof(struct pr_buffer));
+  check_allocation_failure(r->pr_buffer, "[ERROR] -- Failed to allocate memory for pr_buffer\n");
+  r->pr_buffer->buffer         = NULL;
+  r->pr_buffer->size           = 0;
+  r->pr_buffer->alloc_ptr      = NULL;
+  r->pr_buffer->first_obj_addr = NULL;
+  pthread_mutex_init(&r->pr_buffer->buffer_lock, NULL);
 }
 
-void* align_ptr_up(void* ptr, size_t alignment) {
-	return (void*)align_size_up((intptr_t)ptr, (intptr_t)alignment);
-}
-
-void create_file(const char *path, uint64_t size) {
-  if (path == NULL || size == 0) {
-    fprintf(stderr, "Cannot create H2 file! Path is [%s], size is [%lu]\n", path, size);
-    return;
-  }
-
-  assertf(size >= 1024*1024*1024LU, "Size should be grater than 1GB");
-  size_t path_size = strlen(path);
-
-  // 142 chars + 7 for the the file name + 1 null-terminator = 150
-  if (path_size > 142) {
-    fprintf(stderr, "Path size is too long!\n");
-    return;
-  }
-
-  // Copy the path and its terminating '\0' (path_size + 1 bytes). memcpy
-  // instead of strncpy: same result, and no -Wstringop-truncation at -O3.
-  memcpy(dev, path, path_size + 1);
-
-  if (dev[path_size + 1] != '\0') {
-    perror("[ERROR] - strncpy failed!");
-    exit(EXIT_FAILURE);
-  }
-
-  // dev --> "/path/to/tempfile/.XXXXXX"
-  strcat(dev, ".XXXXXX");
-
-  fd = mkstemp(dev);
-  unlink(dev);
-
-  assertf(fd >= 1, "temp file was not created!");
-
-  int status = posix_fallocate(fd, 0, size);
-
-  if (status != 0) {
-    fprintf(stderr, "[%s|%s|%d] Fallocate error %d\n",__FILE__,__func__,__LINE__, status);
-    exit(EXIT_FAILURE);
-  }
-}
-
-void reset_per_thread_state() {
-#ifdef LOCKFREE_GLOBAL_UPDATE
-  for (int i = 0; i < n_gc_threads; i++) {
-    per_thread_size[PER_THREAD_IDX(i)] = 0;
-    per_thread_alloc_ptr[PER_THREAD_IDX(i)] = th_mem_pool.cur_alloc_ptr;
-  }
-#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
-}
-
-// Initialize allocator
-void init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t partitions, int total_gc_threads) {
-  fd = -1;
+/*
+ * Initialize region array, tera_group array and their fields
+ */
+void init_regions(uint64_t partitions) {
   _MAX_PARTITIONS = partitions;
 
-#if ANONYMOUS
-  // Anonymous mmap
-  fd = open(DEV, O_RDWR);
-  th_mem_pool.mmap_start = mmap(0, V_SPACE, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0);
-#else
-  dev_size = h2_file_size;
-  create_file(h2_file_path, dev_size);
-  // Memory-mapped a file over a storage device
-  th_mem_pool.mmap_start = mmap(0, dev_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  // Cache-line aligned, so that each region (exactly one cache line, see
+  // struct region) does not share a line with its neighbors: neighboring
+  // regions can be active allocation regions of different labels, written
+  // by other GC threads on every allocation
+  region_array = aligned_alloc(CACHE_LINE_SIZE, region_array_size * sizeof(struct region));
+  check_allocation_failure(region_array, "[ERROR] -- Failed to allocate memory for region_array\n");
+
+  uint64_t n_ids = _MAX_PARTITIONS * max_rdd_id;
+  id_mapping_array = malloc(n_ids * sizeof(struct id_to_reg_mapping));
+  check_allocation_failure(
+      id_mapping_array, "[ERROR] -- Failed to allocate memory for id_mapping_array\n");
+
+#if DEBUG_PRINT 
+  fprintf(stderr, "Total num of regions:%d\n", (int32_t) region_array_size);
 #endif
 
-  assertf(th_mem_pool.mmap_start != MAP_FAILED, "Mapping Failed");
+  region_array_base = h2_start_addr_mem_pool();
+  for (uint64_t i = 0; i < region_array_size; i++)
+    init_region(&region_array[i], region_array_base + i * region_size);
 
-  // Card table in JVM needs the start address of TeraHeap to be align up
-  th_mem_pool.start_address = (char *) align_ptr_up(th_mem_pool.mmap_start, align);
-  th_mem_pool.cur_alloc_ptr = th_mem_pool.start_address;
-  th_mem_pool.size = 0;
+  for (uint64_t i = 0; i < n_ids; i++) {
+    id_mapping_array[i].mapped_region = NULL;
+    pthread_mutex_init(&id_mapping_array[i].mapping_lock, NULL);
+  }
 
-#if ANONYMOUS
-  th_mem_pool.stop_address = th_mem_pool.mmap_start + V_SPACE;
-  printf("Start address: %p\n", th_mem_pool.start_address);
-  printf("Stop address: %p\n", th_mem_pool.stop_address);
-#else
-  th_mem_pool.stop_address = th_mem_pool.mmap_start + dev_size;
-#endif
-
-  region_array_size = dev_size / REGION_SIZE;
-
-  assertf(region_array_size >= _MAX_PARTITIONS,
-          "Device size should be larger, because region_array_size is "
-          "calculated to be smaller than _MAX_PARTITIONS!");
-
-  n_gc_threads = total_gc_threads;
-
-#ifdef CUSTOM_GROUPING
-  fprintf(stderr, "[INFO] custom grouping enabled: using thread id for groups\n");
-  // NOTE: or the number of gc threads
-  max_rdd_id = n_gc_threads;
-#else
-  max_rdd_id = region_array_size / _MAX_PARTITIONS;
-#endif /* ifdef CUSTOM_GROUPING */
-
-  pthread_mutex_init(&th_mem_pool_lock, NULL);
-
-#ifdef LOCKFREE_GLOBAL_UPDATE
-  fprintf(stderr, "[INFO] Lockfree enabled\n");
-  per_thread_size = aligned_alloc(64, PER_THREAD_IDX(n_gc_threads) * sizeof(size_t));
-  per_thread_alloc_ptr = aligned_alloc(64, PER_THREAD_IDX(n_gc_threads) * sizeof(char *));
-
-  reset_per_thread_state();
-#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
-
-  init_regions(_MAX_PARTITIONS);
-  req_init();
+  pthread_mutex_init(&alloc_region_lock, NULL);
 }
 
-// Return the start address of the memory allocation pool
-char* start_addr_mem_pool() {
-  assertf(th_mem_pool.start_address != NULL, "Start address is NULL");
-  return th_mem_pool.start_address;
+/*
+ * Returns the start of cont_regions empty regions
+ */
+static int32_t get_cont_regions(int32_t cont_regions) {
+  static int32_t i = 0;
+  int32_t j, index, end_index = i;
+
+  for(; i < (region_array_size + end_index); i++) {
+    for (j = i; j < (i + cont_regions); j++) {
+      struct region *r = &region_array[j % (int32_t) region_array_size];
+      // A freed region that still has shadow chunks is not reused yet
+      if (!region_is_empty(r) || shadow_range_busy(r->start_address, region_size))
+        break;
+    }
+
+    // Find region
+    if (((j - 1) % (int32_t) region_array_size) == ((i % (int32_t) region_array_size) + cont_regions -1 )) {
+      index = i;
+      i = j % (int32_t) region_array_size;
+      return index;
+    } else {
+      i = j;
+    }
+  }
+
+  return -1;
 }
 
-// Return the last address of the memory allocation pool
-char* stop_addr_mem_pool() {
-  assertf(th_mem_pool.stop_address != NULL, "Stop address is NULL");
-  return th_mem_pool.stop_address;
+/*
+ * Finds an empty region and returns its starting address
+ * Arguments: size is the size of the object we want to allocate (in
+ * Bytes)
+
+ * mark unused
+ *  marking phase
+        mark_used
+   precompaction phase
+      new address
+ */
+static char* new_region(size_t size) {
+  int32_t i;
+  int32_t cont_regions = (size % region_size != 0) ? (size / region_size) + 1 : (size / region_size);
+  int32_t cur_region = get_cont_regions(cont_regions);
+
+  if (cur_region == -1)
+    return NULL;
+
+  for (i = cur_region; i < cur_region + cont_regions; i++) {
+    assertf(region_array[i].used == 0, "Error, write to an already used region");
+    h2_mark_used(region_array[i].start_address);
+    h2_references(region_array[cur_region].start_address, region_array[i].start_address);
+    // h2_references(region_array[i].start_address, region_array[cur_region].start_address);
+    region_array[i].last_allocated_start = region_array[cur_region].start_address;
+    region_array[i].first_allocated_start = region_array[cur_region].start_address;
+    region_array[i].last_allocated_end = region_array[cur_region].start_address + size;
+
+    if (protect_regions_on_free) {
+      // Enable accesses
+      fprintf(stderr, "Enable permissions for region: %u\n", i);
+      if (mprotect(region_array[i].start_address, region_size, PROT_READ | PROT_WRITE) != 0) {
+        fprintf(stderr, "mprotect error\n");
+      }
+    }
+  }
+
+  return region_array[cur_region].start_address;
 }
 
-// Return the `size` of the memory allocation pool
-size_t mem_pool_size() {
-  assertf(th_mem_pool.start_address != NULL, "Start address is NULL");
-#if ANONYMOUS
-  return V_SPACE;
-#else
-  return dev_size;
-#endif
+uint64_t get_id(uint64_t rdd_id, uint64_t partition_id) {
+  return (rdd_id % max_rdd_id) * _MAX_PARTITIONS + partition_id;
 }
 
-char* allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id) {
-  assert(thread_id < n_gc_threads);
+/*
+ * Allocate `size` bytes at the start of new empty regions and, for an
+ * object smaller than a region, make the region that holds its end the
+ * active region of mapping `m`. Called with m->mapping_lock held.
+ */
+static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
+                                    uint64_t rdd_id, uint64_t partition_id) {
+  pthread_mutex_lock(&alloc_region_lock);
+  char *res = new_region(size);
+  pthread_mutex_unlock(&alloc_region_lock);
 
-  char* alloc_ptr = NULL;
-
-#ifdef CUSTOM_GROUPING
-  rdd_id = thread_id;
-#endif /* ifdef CUSTOM_GROUPING */
-
-  assertf(size > 0, "Object should be > 0");
-
-  alloc_ptr = allocate_to_region(size * HEAPWORD, rdd_id, partition_id);
-
-  if (alloc_ptr == NULL) {
+  if (res == NULL) {
     perror("[Error] - H2 Allocator is full");
     exit(EXIT_FAILURE);
   }
 
-  assertf(alloc_ptr >= start_addr_mem_pool() && alloc_ptr < stop_addr_mem_pool(),
-          "[ERROR] out of bounds allocation! %p !E [%p, %p)",
-          alloc_ptr, start_addr_mem_pool(), stop_addr_mem_pool());
-
-  // Back new SH space with shadow chunks during mixed GCs (shadow.h)
-  shadow_ensure(alloc_ptr, size * HEAPWORD, thread_id);
-
-  char *cur_allocation_ptr = (char *) (((uint64_t) alloc_ptr) + size * HEAPWORD);
-
-#ifdef LOCKFREE_GLOBAL_UPDATE
-  per_thread_size[PER_THREAD_IDX(thread_id)] += size;
-
-  if (cur_allocation_ptr > per_thread_alloc_ptr[PER_THREAD_IDX(thread_id)]) {
-    per_thread_alloc_ptr[PER_THREAD_IDX(thread_id)] = cur_allocation_ptr;
-  }
-#else
-  pthread_mutex_lock(&th_mem_pool_lock);
-
-  char *prev_allocation_ptr = th_mem_pool.cur_alloc_ptr;
-
-  th_mem_pool.size += size;
-
-  if (cur_allocation_ptr > prev_allocation_ptr) {
-    th_mem_pool.cur_alloc_ptr = cur_allocation_ptr;
+  // If the object spans more than one region, no other object goes after it
+  if (size < region_size) {
+    m->mapped_region = &region_array[region_index(res + size)];
+    m->mapped_region->rdd_id = rdd_id;
+    m->mapped_region->part_id = partition_id;
   }
 
-  pthread_mutex_unlock(&th_mem_pool_lock);
-#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
-
-
-#ifndef LOCKFREE_GLOBAL_UPDATE
-  // NOTE: no sure if these are necessary.
-  // NOTE: this code is executed in `update_allocator_global_state` once
-  //    after the GC instead of once per allocation
-  assertf(prev_allocation_ptr <= th_mem_pool.cur_alloc_ptr,
-          "Error alloc ptr: Prev = %p, Cur = %p", prev_allocation_ptr,
-          th_mem_pool.cur_alloc_ptr);
-
-  // Alighn to 8 words the pointer (TODO: CHANGE TO ASSERTION)
-  if ((uint64_t)th_mem_pool.cur_alloc_ptr % HEAPWORD != 0) {
-    fprintf(stderr, "[INFO] alignment");
-    th_mem_pool.cur_alloc_ptr =
-        (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HEAPWORD - 1)) &
-                 -HEAPWORD);
-  }
-#endif /* ifndef LOCKFREE_GLOBAL_UPDATE */
-
-  return alloc_ptr;
+  return res;
 }
 
-// Update global variables to avoid locking
-void update_allocator_global_state() {
-#ifdef LOCKFREE_GLOBAL_UPDATE
-  char *prev_allocation_ptr = th_mem_pool.cur_alloc_ptr;
-  for (int i = 0; i < n_gc_threads; i++) {
-    // update_size
-    th_mem_pool.size += per_thread_size[PER_THREAD_IDX(i)];
-    // update_top
-    if (per_thread_alloc_ptr[PER_THREAD_IDX(i)] > th_mem_pool.cur_alloc_ptr) {
-      th_mem_pool.cur_alloc_ptr = per_thread_alloc_ptr[PER_THREAD_IDX(i)];
-    }
+char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id) {
+  struct id_to_reg_mapping *m = &id_mapping_array[get_id(rdd_id, partition_id)];
+  char *res;
+
+  pthread_mutex_lock(&m->mapping_lock);
+
+  struct region *r = m->mapped_region;
+  if (r == NULL || r->last_allocated_end + size > r->start_address + region_size) {
+    res = allocate_in_new_region(m, size, rdd_id, partition_id);
+  } else {
+    h2_mark_used(r->start_address);
+    r->last_allocated_start = r->last_allocated_end;
+    r->last_allocated_end = r->last_allocated_start + size;
+    res = r->last_allocated_start;
   }
 
-  assertf(prev_allocation_ptr <= th_mem_pool.cur_alloc_ptr,
-          "Error alloc ptr: Prev = %p, Cur = %p", prev_allocation_ptr,
-          th_mem_pool.cur_alloc_ptr);
-  (void)prev_allocation_ptr; // NOTE: otherwise compiler complains
+  pthread_mutex_unlock(&m->mapping_lock);
 
-  // Alighn to 8 words the pointer (TODO: CHANGE TO ASSERTION)
-  if ((uint64_t)th_mem_pool.cur_alloc_ptr % HEAPWORD != 0) {
-    fprintf(stderr, "[INFO] alignment");
-    th_mem_pool.cur_alloc_ptr =
-        (char *)((((uint64_t)th_mem_pool.cur_alloc_ptr) + (HEAPWORD - 1)) &
-                 -HEAPWORD);
-  }
-
-  reset_per_thread_state();
-#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
-}
-
-// Return the current allocation pointer
-// NOTE: Does not require lock as it is not called during updates
-char* cur_alloc_ptr() {
-  assertf(th_mem_pool.cur_alloc_ptr >= th_mem_pool.start_address &&
-          th_mem_pool.cur_alloc_ptr < th_mem_pool.stop_address,
-          "Allocation pointer out-of-bound")
-
-#ifdef LOCKFREE_GLOBAL_UPDATE
-  for (int i = 0; i < n_gc_threads; i++) {
-    if (per_thread_alloc_ptr[PER_THREAD_IDX(i)] != th_mem_pool.cur_alloc_ptr) {
-      fprintf(stderr, "[ERROR] Top not updated yet: [%d]:%p != %p\n", i, per_thread_alloc_ptr[PER_THREAD_IDX(i)], th_mem_pool.cur_alloc_ptr);
-      exit(1);
-    }
-  }
-#endif /* ifdef LOCKFREE_GLOBAL_UPDATE */
-
-  return th_mem_pool.cur_alloc_ptr;
-}
-
-// Return 'true' if the allocator is empty, 'false' otherwise.
-// Invariant: Initialize allocator
-// NOTE: Does not require lock as it is not called during updates
-int r_is_empty() {
-	assertf(th_mem_pool.start_address != NULL, "Allocator should be initialized");
-
-  return th_mem_pool.size == 0;
-}
-
-// Close allocator and unmap pages
-void r_shutdown(void) {
-	printf("CALL HERE");
-  munmap(th_mem_pool.mmap_start, dev_size);
-}
-
-// Give advise to kernel to expect page references in sequential order.  (Hence,
-// pages in the given range can be aggressively read ahead, and may be freed
-// soon after they are accessed.)
-void r_enable_seq() {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_SEQUENTIAL);
-}
-
-// Give advise to kernel to expect page references in random order (Hence, read
-// ahead may be less useful than normally.)
-void r_enable_rand() {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_NORMAL);
-}
-
-// Explicit write 'data' with 'size' in certain 'offset' using system call
-// without memcpy.
-void r_write(char *data, char *offset, size_t size) {
-#ifdef ASSERT
-	ssize_t s_check = 0;
-	uint64_t diff = offset - th_mem_pool.mmap_start;
-
-	s_check = pwrite(fd, data, size * HEAPWORD, diff);
-	assertf(s_check == size * HEAPWORD, "Sanity check: s_check = %ld", s_check);
-#else
-  uint64_t diff = offset - th_mem_pool.mmap_start;
-  // The result is not checked in product builds (as before)
-  ssize_t s_unused = pwrite(fd, data, size * HEAPWORD, diff);
-  (void) s_unused;
+#if DEBUG_PRINT
+  printf("Allocating from region %lu until region %lu\n", region_index(res), region_index(res + size));
 #endif
-}
-	
-// Explicit asynchronous write 'data' with 'size' in certain 'offset' using
-// system call without memcpy.
-// Do not use r_awrite with r_write
-static void awrite_bytes(char *data, char *offset, size_t bytes) {
-  req_add(fd, data, bytes, offset - th_mem_pool.mmap_start);
+
+  return res;
 }
 
-void r_awrite(char *data, char *offset, size_t size) {
-  // Parts inside shadow chunks are copied into them: a write to the file
-  // there would land behind the chunk and be lost (shadow.h)
-  shadow_split_write(data, offset, size * HEAPWORD, awrite_bytes);
+void region_info(char *addr, char **top, bool *active) {
+  struct region *r = &region_array[region_index(addr)];
+  *top = r->last_allocated_end;
+  *active = id_mapping_array[get_id(r->rdd_id, r->part_id)].mapped_region == r;
 }
 
-int r_shadow_init(size_t pool_bytes, int precopy_rounds) {
-  return shadow_init(fd, th_mem_pool.mmap_start, dev_size, th_mem_pool.start_address,
-                     pool_bytes, precopy_rounds, n_gc_threads);
-}
-	
-// Check if all the asynchronous requestes have been completed
-// Return 1 on succesfull, and 0 otherwise
-int	r_areq_completed() {
-	return is_all_req_completed();
-}
-	
-// We need to ensure that all the writes will be flushed from buffer
-// cur_alloc_ptrcur_alloc_ptrhe and they will be written to the device.
-void r_fsync() {
-#ifdef ASSERT
-	int check = fsync(fd);
-	assertf(check == 0, "Error in fsync");
-#else
-	fsync(fd);
-#endif
+int region_free_prot(char *addr) {
+  bool is_free = region_is_empty(&region_array[region_index(addr)]);
+  return (protect_regions_on_free && is_free) ? PROT_NONE : (PROT_READ | PROT_WRITE);
 }
 
-// This function if for the FastMap hybrid version. Give advise to kernel to
-// serve all the pagefault using regular pages.
-void r_enable_regular_flts(void) {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_NOHUGEPAGE);
+/*
+ * Checks if obj is before last object of region
+ */
+bool h2_is_before_last_object(char *obj) {
+  return obj < region_of(obj)->last_allocated_end;
 }
 
-// This function if for the FastMap hybrid version. Give advise to kernel to
-// serve all the pagefault using huge pages.
-void r_enable_huge_flts(void) {
-  madvise(th_mem_pool.mmap_start, dev_size, MADV_HUGEPAGE);
+/*
+ * Returns last object of region
+ */
+char* h2_get_last_object(char *obj) {
+  return region_of(obj)->last_allocated_end;
 }
 
-int verify_top(void) {
-  return cur_alloc_ptr() >= top_in_last_region() &&
-         cur_alloc_ptr() >= start_addr_mem_pool() &&
-         cur_alloc_ptr() < stop_addr_mem_pool();
+// Returns true if object is first of its region false otherwise
+bool h2_is_region_start(char *obj) {
+  return region_of(obj)->first_allocated_start == obj;
+}
+
+/*
+ * Start iteration over all active regions to print their object state.
+ */
+void h2_start_iterate_regions() {
+	_next_region = 0;
+}
+
+/*
+ * Return the next active region or NULL if we reached the end of the region
+ * array.
+ */
+char* h2_get_next_region() {
+  char *region_start_addr;
+
+  // Find the next active region
+  while (_next_region < region_array_size &&
+         (region_array[_next_region].used == 0 ||
+          region_array[_next_region].first_allocated_start != region_array[_next_region].start_address)) {
+    _next_region++;
+  }
+
+  if (_next_region >= region_array_size)
+    return NULL;
+
+  fprintf(stderr, "[PLACEMENT] Region: %d\n", _next_region);
+
+  region_start_addr = region_array[_next_region].start_address;
+  _next_region++;
+
+  return region_start_addr;
+}
+
+char *h2_get_first_object(char *addr) {
+  return region_of(addr)->first_allocated_start;
+}
+
+int h2_get_num_of_continuous_regions(char *addr) {
+  struct region *r = &region_array[region_index(addr)];
+
+  if (region_is_empty(r))
+    return 0;
+
+  // Regions covered from the first object, rounded up
+  uint64_t bytes = r->last_allocated_end - r->first_allocated_start;
+  return (bytes + region_size - 1) / region_size;
+}
+
+/*
+ * Get object 'groupId' (RDD Id). Each object is allocated based on a tera_group Id
+ * and the partition Id that locates in teraflag.
+ *
+ * @obj: address of the object
+ *
+ * Return: the object rdd id
+ */
+uint64_t h2_get_obj_group_id(char *obj) {
+  return region_of(obj)->rdd_id;
+}
+
+/*
+ * Get object 'groupId'. Each object is allocated based on a tera_group Id
+ * and the partition Id that locates in teraflag.
+ *
+ * obj: address of the object
+ *
+ * returns: the object partition Id
+ */
+uint64_t h2_get_obj_part_id(char *obj) {
+  return region_of(obj)->part_id;
+}
+
+/* The allocation top of the last non-empty region (of region 0 if all are empty) */
+char* top_in_last_region() {
+  char *top = region_array[0].last_allocated_end;
+
+  for (int32_t i = 1; i < region_array_size; i++) {
+    if (!region_is_empty(&region_array[i]))
+      top = region_array[i].last_allocated_end;
+  }
+
+  return top;
+}
+
+uint64_t h2_region_containing_addr(char *addr) {
+  return region_index(addr);
+}
+
+int h2_is_used(uint64_t region) {
+  return region_array[region].used;
+}
+
+bool h2_object_starts_from_region(char *obj) {
+  struct region *r = region_of(obj);
+  return r->first_allocated_start == r->start_address;
 }

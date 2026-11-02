@@ -27,6 +27,8 @@
 
 #include "gc/parallel/objectStartArray.hpp"
 
+#include "oops/oop.inline.hpp"
+
 // Optimized for finding the first object that crosses into
 // a given block. The blocks contain the offset of the last
 // object in that block. Scroll backwards by one, and the first

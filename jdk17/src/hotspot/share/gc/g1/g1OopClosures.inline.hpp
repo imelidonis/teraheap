@@ -43,6 +43,13 @@
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/align.hpp"
 
+#ifdef TERA_CONC_MARKING
+inline uint64_t G1CMOopClosure::get_cur_obj_label() {
+  assert(_h2_flag && obj_container != NULL, "tera traversal is not enabled for that obj");
+  return obj_container->get_obj_label();
+}
+#endif
+
 template <class T>
 inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
    

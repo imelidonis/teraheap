@@ -249,10 +249,7 @@ public:
   bool is_h2_flag_set() { return _h2_flag && !metadata_traversal_1 && !metadata_traversal_2; }
 
   // Get the label of the saved current object
-  uint64_t get_cur_obj_label(void) {
-    assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
-    return obj_container->get_obj_label();
-  }
+  inline uint64_t get_cur_obj_label();
   
   virtual void do_klass(Klass* k){
     if (EnableTeraHeap) {

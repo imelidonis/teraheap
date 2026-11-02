@@ -111,7 +111,8 @@ static int32_t get_cont_regions(int32_t cont_regions) {
 
     // Find region
     if (((j - 1) % (int32_t) region_array_size) == ((i % (int32_t) region_array_size) + cont_regions -1 )) {
-      index = i;
+      // The search wraps around the end of the array: keep the indexes in it
+      index = i % (int32_t) region_array_size;
       i = j % (int32_t) region_array_size;
       return index;
     } else {
@@ -119,6 +120,7 @@ static int32_t get_cont_regions(int32_t cont_regions) {
     }
   }
 
+  i %= (int32_t) region_array_size;
   return -1;
 }
 

@@ -974,10 +974,11 @@ const intx ObjectAlignmentInBytes = 8;
           range(8, 256)                                                     \
                                                                             \
   product(bool, TeraH2GroupByGCThread, true,                                \
-          "Group the H2 regions by the GC thread that moves the objects "  \
-          "instead of by the object label, so that each H2 region has "    \
-          "one allocating GC thread. The Full GC promotion buffers need " \
-          "it to see contiguous addresses")                                \
+          "In young and mixed GCs, group the objects moved to H2 by the "  \
+          "GC thread that moves them (labels mixed in a region) instead "  \
+          "of by their label (one region per label, shared by the GC "     \
+          "threads). For applications that do not label their objects. "   \
+          "Full GCs always group by label and GC thread")                  \
                                                                             \
   product(bool, TeraH2Shadow, false,                                        \
           "Mixed GCs copy objects to H2 into DRAM chunks mapped at their "  \
@@ -1042,9 +1043,6 @@ const intx ObjectAlignmentInBytes = 8;
                                                                             \
   product(ccstr, AllocateH2At, NULL,					                    \
           "Path to the directory where the H2 file will be created")	    \
-                                                                            \
-  product(uintx, H2MaxPartitions, 256,                                      \
-          "H2 Maximum partitions per RDD, affects  id array size")          \
                                                                             \
   /* JVMTI heap profiling */                                                \
                                                                             \

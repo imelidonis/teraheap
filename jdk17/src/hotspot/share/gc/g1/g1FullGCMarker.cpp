@@ -60,7 +60,6 @@ void G1FullGCMarker::set_h2_candidate_flags(oop obj) {
                       && !Universe::teraHeap()->is_metadata(obj)
                       && obj->is_marked_move_h2()) ? true : false;
   _h2_label = (_is_h2_candidate) ? obj->get_obj_label() : 0;
-  _h2_sublabel = (_is_h2_candidate) ? obj->get_obj_sublabel() : 0;
 }
 
 void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
@@ -87,7 +86,6 @@ void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
   // label of the last object followed here
   _is_h2_candidate = false;
   _h2_label = 0;
-  _h2_sublabel = 0;
 }
 
 void G1FullGCMarker::flush_mark_stats_cache() {

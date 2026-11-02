@@ -249,15 +249,9 @@ public:
   bool is_h2_flag_set() { return _h2_flag && !metadata_traversal_1 && !metadata_traversal_2; }
 
   // Get the label of the saved current object
-  long int get_cur_obj_label(void) {
+  uint64_t get_cur_obj_label(void) {
     assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
     return obj_container->get_obj_label();
-  }
-
-  // Get the sublabel of the saved current object
-  long int get_cur_obj_sublabel(void) {
-    assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
-    return obj_container->get_obj_sublabel();
   }
   
   virtual void do_klass(Klass* k){
@@ -297,7 +291,6 @@ private:
 #ifdef TERA_CONC_MARKING
   bool _is_tera_enabled;
   uint64_t _label;
-  uint64_t _sublabel;
 #endif
 
 public:
@@ -308,10 +301,9 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
 #ifdef TERA_CONC_MARKING
-  void set_parent_tera(bool is_tera_enabled, uint64_t label, uint64_t sublabel) {  
-    _is_tera_enabled = is_tera_enabled; 
+  void set_parent_tera(bool is_tera_enabled, uint64_t label) {
+    _is_tera_enabled = is_tera_enabled;
     _label = label;
-    _sublabel = sublabel;
   }
 #endif
 };

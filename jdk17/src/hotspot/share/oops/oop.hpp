@@ -66,8 +66,7 @@ class oopDesc {
   // Without compressed class pointers: 64 bits at offset 16, after the
   // klass. The object header is 24 bytes.
   //+-------+----------------------------------------------------------------+
-  //| 63-48 | Sublabel                                                       |
-  //| 47-32 | Label                                                          |
+  //| 63-32 | Label                                                          |
   //| 31-0  | State of the object                                            |
   //+-------+----------------------------------------------------------------+
   //
@@ -75,8 +74,7 @@ class oopDesc {
   // The object header is 16 bytes, as in stock HotSpot. The state keeps
   // only the low 8 bits of the state constants (see sharedDefines.h).
   //+-------+----------------------------------------------------------------+
-  //| 31-20 | Sublabel                                                       |
-  //| 19-8  | Label                                                          |
+  //| 31-8  | Label                                                          |
   //| 7-0   | State of the object                                            |
   //+-------+----------------------------------------------------------------+
 #endif // TERA_FLAG
@@ -88,10 +86,10 @@ class oopDesc {
 
 
 #ifdef TERA_FLAG
-  // Mark an object to be moved to H2 with this label and sublabel. The
-  // H2 allocator places objects with the same label and sublabel in the
-  // same region. The label is defined by the application.
-  inline void mark_move_h2(uint64_t label, uint64_t sublabel);
+  // Mark an object to be moved to H2 with this label, defined by the
+  // application. The H2 allocator groups the objects of a label in regions.
+  // Only the low 24 bits (32 without compressed class pointers) are kept.
+  inline void mark_move_h2(uint64_t label);
 
   // Check if an object is marked to be moved in H2
   inline bool is_marked_move_h2();
@@ -106,10 +104,7 @@ class oopDesc {
   inline void init_obj_state();
 
   // Get the object label
-  inline int get_obj_label();
-
-  // Get the object sublabel
-  inline uint64_t get_obj_sublabel();
+  inline uint64_t get_obj_label();
 
   inline bool is_live();
 
@@ -125,7 +120,7 @@ class oopDesc {
   inline volatile uint32_t* tera_flag32_addr() const;
   inline volatile uint64_t* tera_flag64_addr() const;
   // Write the whole TeraFlag word with one store
-  inline void set_tera_flag(uint64_t state, uint64_t label, uint64_t sublabel);
+  inline void set_tera_flag(uint64_t state, uint64_t label);
 
  public:
 #endif // TERA_FLAG

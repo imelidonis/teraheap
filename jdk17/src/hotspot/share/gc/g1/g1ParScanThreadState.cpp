@@ -668,7 +668,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
   if (TeraHeap::h2_cost_timers()) {
     Ticks start = Ticks::now();
 
-    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id);
+    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id, false);
 
     Tickspan time = Ticks::now() - start;
     h2_alloc_s = time.seconds();
@@ -676,7 +676,7 @@ oop G1ParScanThreadState::do_copy_to_h2_space(G1HeapRegionAttr const region_attr
     Universe::teraHeap()->get_tera_stats()->thr_add_time_alloc_h2(_worker_id, time.seconds());
   #endif
   } else {
-    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id);
+    h2_obj_addr = (HeapWord*) Universe::teraHeap()->h2_add_object(obj, word_sz, _worker_id, false);
   }
 
   assert(h2_obj_addr != NULL, "when we get here, allocation should have succeeded");

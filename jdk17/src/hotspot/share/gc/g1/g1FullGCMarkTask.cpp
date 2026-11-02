@@ -66,8 +66,7 @@ void G1FullGCMarkTask::work(uint worker_id) {
 
         // Label the object to transfer it to H2, mark it as live and add
         // it to the stack
-        marker->h2_mark_back_ref_target(obj, th->h2_get_region_label(obj),
-                                        th->h2_get_region_sublabel(obj));
+        marker->h2_mark_back_ref_target(obj, th->h2_get_region_label(obj));
 
         obj = th->h2_pop_back_ref_to_mark(s);
       }

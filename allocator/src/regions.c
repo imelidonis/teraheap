@@ -1,4 +1,5 @@
-// The region array and allocation in regions (H2 objects go to the region of their (label, sublabel) id), and the region queries.
+// The region array and allocation in regions (H2 objects go to the region of their group key, see
+// enum h2_group), and the region queries.
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
@@ -12,7 +13,12 @@
 #include "sharedDefines.h"
 #include "shadow.h"
 
+// Mappings per label: one per GC thread (H2_GROUP_LABEL_THREAD) and one
+// shared by the GC threads (H2_GROUP_LABEL), the last one
 uint64_t max_sublabels;
+// All mappings: max_labels * max_sublabels, then one per GC thread
+// (H2_GROUP_THREAD)
+uint64_t n_map_ids;
 
 // Global lock to only allow one thread to request new
 // region and create a new mapping.
@@ -36,8 +42,8 @@ static void init_region(struct region *r, char *start) {
   r->last_allocated_start  = NULL;
   r->first_allocated_start = NULL;
   r->deps                  = NULL;
-  r->label                = max_sublabels - 1;
-  r->sublabel               = max_sublabels - 1;
+  r->label                 = 0;
+  r->map_id                = 0;
 
   r->pr_buffer = malloc(sizeof(struct pr_buffer));
   check_allocation_failure(r->pr_buffer, "[ERROR] -- Failed to allocate memory for pr_buffer\n");
@@ -51,8 +57,9 @@ static void init_region(struct region *r, char *start) {
 /*
  * Initialize region array, tera_group array and their fields
  */
-void init_regions(uint64_t sublabels) {
-  max_sublabels = sublabels;
+void init_regions(uint64_t n_threads) {
+  max_sublabels = n_threads + 1;
+  n_map_ids = max_labels * max_sublabels + n_threads;
 
   // Cache-line aligned, so that each region (exactly one cache line, see
   // struct region) does not share a line with its neighbors: neighboring
@@ -61,8 +68,7 @@ void init_regions(uint64_t sublabels) {
   region_array = aligned_alloc(CACHE_LINE_SIZE, region_array_size * sizeof(struct region));
   check_allocation_failure(region_array, "[ERROR] -- Failed to allocate memory for region_array\n");
 
-  uint64_t n_ids = max_sublabels * max_labels;
-  id_mapping_array = malloc(n_ids * sizeof(struct id_to_reg_mapping));
+  id_mapping_array = malloc(n_map_ids * sizeof(struct id_to_reg_mapping));
   check_allocation_failure(
       id_mapping_array, "[ERROR] -- Failed to allocate memory for id_mapping_array\n");
 
@@ -74,10 +80,16 @@ void init_regions(uint64_t sublabels) {
   for (uint64_t i = 0; i < region_array_size; i++)
     init_region(&region_array[i], region_array_base + i * region_size);
 
-  for (uint64_t i = 0; i < n_ids; i++) {
+  // Adaptive: with H2_GROUP_LABEL all GC threads that copy objects of a
+  // label take its lock for a short time, so spin a little before sleeping
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ADAPTIVE_NP);
+  for (uint64_t i = 0; i < n_map_ids; i++) {
     id_mapping_array[i].mapped_region = NULL;
-    pthread_mutex_init(&id_mapping_array[i].mapping_lock, NULL);
+    pthread_mutex_init(&id_mapping_array[i].mapping_lock, &attr);
   }
+  pthread_mutexattr_destroy(&attr);
 
   pthread_mutex_init(&alloc_region_lock, NULL);
 }
@@ -150,17 +162,27 @@ static char* new_region(size_t size) {
   return region_array[cur_region].start_address;
 }
 
-uint64_t get_id(uint64_t label, uint64_t sublabel) {
-  return (label % max_labels) * max_sublabels + sublabel;
+uint64_t map_id_of(enum h2_group group, uint64_t label, uint64_t thread_id) {
+  switch (group) {
+    case H2_GROUP_LABEL:
+      return (label % max_labels) * max_sublabels + (max_sublabels - 1);
+    case H2_GROUP_THREAD:
+      return max_labels * max_sublabels + thread_id;
+    case H2_GROUP_LABEL_THREAD:
+    default:
+      return (label % max_labels) * max_sublabels + thread_id;
+  }
 }
 
 /*
  * Allocate `size` bytes at the start of new empty regions and, for an
  * object smaller than a region, make the region that holds its end the
- * active region of mapping `m`. Called with m->mapping_lock held.
+ * active region of mapping `m` (index map_id). Every region of the
+ * allocation gets the label and the mapping index. Called with
+ * m->mapping_lock held.
  */
 static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
-                                    uint64_t label, uint64_t sublabel) {
+                                    uint64_t label, uint64_t map_id) {
   pthread_mutex_lock(&alloc_region_lock);
   char *res = new_region(size);
   pthread_mutex_unlock(&alloc_region_lock);
@@ -170,26 +192,29 @@ static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
     exit(EXIT_FAILURE);
   }
 
-  // If the object spans more than one region, no other object goes after it
-  if (size < region_size) {
-    m->mapped_region = &region_array[region_index(res + size)];
-    m->mapped_region->label = label;
-    m->mapped_region->sublabel = sublabel;
+  // Also the regions of an object that spans several regions, so that
+  // h2_get_obj_label() gives the object's label in each of them
+  for (uint64_t i = region_index(res); i <= region_index(res + size - 1); i++) {
+    region_array[i].label = (uint32_t) label;
+    region_array[i].map_id = (uint32_t) map_id;
   }
+
+  // If the object spans more than one region, no other object goes after it
+  if (size < region_size)
+    m->mapped_region = &region_array[region_index(res + size)];
 
   return res;
 }
 
-char* allocate_to_region(size_t size, uint64_t label, uint64_t sublabel,
-                         uint64_t thread_id) {
-  struct id_to_reg_mapping *m = &id_mapping_array[get_id(label, sublabel)];
+char* allocate_to_region(size_t size, uint64_t label, uint64_t map_id) {
+  struct id_to_reg_mapping *m = &id_mapping_array[map_id];
   char *res;
 
   pthread_mutex_lock(&m->mapping_lock);
 
   struct region *r = m->mapped_region;
   if (r == NULL || r->last_allocated_end + size > r->start_address + region_size) {
-    res = allocate_in_new_region(m, size, label, sublabel);
+    res = allocate_in_new_region(m, size, label, map_id);
   } else {
     h2_mark_used(r->start_address);
     r->last_allocated_start = r->last_allocated_end;
@@ -201,7 +226,7 @@ char* allocate_to_region(size_t size, uint64_t label, uint64_t sublabel,
   // the mapping lock: every object reserved before this one in the region
   // ends at or before res, and no other GC thread can reserve space after
   // it until the lock is released, so a chunk at or above res is empty
-  shadow_ensure(res, size, thread_id);
+  shadow_ensure(res, size);
 
   pthread_mutex_unlock(&m->mapping_lock);
 
@@ -215,7 +240,7 @@ char* allocate_to_region(size_t size, uint64_t label, uint64_t sublabel,
 void region_info(char *addr, char **top, bool *active) {
   struct region *r = &region_array[region_index(addr)];
   *top = r->last_allocated_end;
-  *active = id_mapping_array[get_id(r->label, r->sublabel)].mapped_region == r;
+  *active = id_mapping_array[r->map_id].mapped_region == r;
 }
 
 int region_free_prot(char *addr) {
@@ -292,11 +317,6 @@ int h2_get_num_of_continuous_regions(char *addr) {
 // Label of the region that contains obj: the label it was allocated for
 uint64_t h2_get_obj_label(char *obj) {
   return region_of(obj)->label;
-}
-
-// Sublabel of the region that contains obj
-uint64_t h2_get_obj_sublabel(char *obj) {
-  return region_of(obj)->sublabel;
 }
 
 /* The allocation top of the last non-empty region (of region 0 if all are empty) */

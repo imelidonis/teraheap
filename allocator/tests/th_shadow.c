@@ -19,8 +19,12 @@
 *
 * Usage: th_shadow.bin [H2 dir (default /mnt/fmap/)] [cycles (default 40)]
 *                      [thread|label (default thread)]
-* With "label" the regions are grouped by label and all GC threads allocate
-* with the same label, so they share regions and attach chunks in them.
+* The mixed GCs group the objects by GC thread (H2_GROUP_THREAD, labels
+* mixed in a region) or, with "label", by label (H2_GROUP_LABEL): then all GC
+* threads allocate in the regions of NLABELS labels in turn, so they share
+* regions and attach chunks in them. The Full GCs group by (label, GC
+* thread) (H2_GROUP_LABEL_THREAD), and place every 4th object in a mixed
+* GC region, as when H2 is full, so that OPEN chunks take Full GC writes.
 ***************************************************/
 #define _GNU_SOURCE
 #include <inttypes.h>
@@ -37,11 +41,11 @@
 #define MB (1024LU * 1024)
 #define GB (1024LU * MB)
 #define NTHREADS 4
-#define NPARTS 2
+#define NLABELS 2                    // labels of the objects
 #define POOL (64 * MB)               // small, so the fallback to the file is used too
 #define PER_PAUSE (24 * MB)          // bytes per GC thread per mixed GC
-#define PER_PAUSE_LABEL (12 * MB)     // with one shared label: 2 active regions, so
-                                     // less per pause keeps their top chunks in the pool
+#define PER_PAUSE_LABEL (12 * MB)    // grouped by label: NLABELS shared active regions,
+                                     // so less per pause keeps their top chunks in the pool
 #define MAX_OBJS (1 << 20)
 
 extern int fd;                       // mem_pool.c: the H2 file
@@ -55,10 +59,7 @@ struct obj {
   int live;
 };
 
-static int share_label;             // all GC threads use label 0 (regions grouped by label)
-
-// Label of GC thread t's objects
-static inline uint64_t label_of(int t) { return share_label ? 0 : (uint64_t) t; }
+static int share_label;             // mixed GCs group by label (H2_GROUP_LABEL)
 
 static struct obj *objs;
 static volatile long nobjs;
@@ -102,9 +103,10 @@ static void *gc_thread(void *a) {
   struct gc_arg *g = a;
   uint64_t s = 0x1234567ULL * (g->t + 1) + g->gen;
   size_t per_pause = share_label ? PER_PAUSE_LABEL : PER_PAUSE;
+  enum h2_group group = share_label ? H2_GROUP_LABEL : H2_GROUP_THREAD;
   for (size_t done = 0; done < per_pause;) {
     size_t w = obj_words(&s);
-    char *p = h2_allocate(w, label_of(g->t), rnd(&s) % NPARTS, g->t);
+    char *p = h2_allocate(w, rnd(&s) % NLABELS, g->t, group);
     uint64_t *q = (uint64_t *) p;
     for (size_t i = 0; i < w; i++) q[i] = pattern(p + i * 8, g->gen);
     add_obj(p, w, g->gen);
@@ -228,7 +230,13 @@ static void full_gc_writes(uint64_t gen, int mode) {
   for (int k = 0; k < 64; k++) {
     int t = rnd(&s) % NTHREADS;
     size_t w = 2 + rnd(&s) % 4096;
-    char *p = h2_allocate(w, label_of(t), rnd(&s) % NPARTS, t);
+    // A Full GC groups by (label, GC thread), in regions without chunks.
+    // When H2 is full it can place objects in the regions of the mixed GCs
+    // (allocate_in_other_region()), where OPEN chunks take the writes:
+    // every 4th object goes there
+    enum h2_group group = k % 4 == 3 ? (share_label ? H2_GROUP_LABEL : H2_GROUP_THREAD)
+                                     : H2_GROUP_LABEL_THREAD;
+    char *p = h2_allocate(w, rnd(&s) % NLABELS, t, group);
     for (size_t i = 0; i < w; i++) src[i] = pattern(p + i * 8, gen);
     switch (mode) {
       case 0: h2_buffer_insert((char *) src, p, w); break;   // copies src into the buffer
@@ -281,8 +289,8 @@ int main(int argc, char **argv) {
   share_label = argc > 3 && strcmp(argv[3], "label") == 0;
   objs = calloc(MAX_OBJS, sizeof *objs);
 
-  h2_init(SHADOW_CHUNK, dir, 8 * GB, 256 * MB, NPARTS, NTHREADS, !share_label);
-  printf("regions grouped by %s\n", share_label ? "label (all GC threads share label 0)" : "GC thread");
+  h2_init(SHADOW_CHUNK, dir, 8 * GB, 256 * MB, NTHREADS);
+  printf("mixed GCs group by %s\n", share_label ? "label (all GC threads share the label regions)" : "GC thread");
   if (h2_shadow_init(POOL, 3)) { fprintf(stderr, "FAIL: shadow_init\n"); return 1; }
 
   pthread_t wt, mt;
@@ -336,18 +344,18 @@ int main(int argc, char **argv) {
   struct h2_shadow_stats st;
 
   // A region retired with pre-attached chunks it never used: they must
-  // return to the pool at pause end. Thread 0, sublabel 1.
+  // return to the pool at pause end. Label 0, thread 0, as in a Full GC.
   long empty_before; h2_shadow_get_stats(&st); empty_before = st.empty_detached;
   while (h2_shadow_switch(0, -1) == 0 && st.free_chunks < 8) { usleep(2000); h2_shadow_get_stats(&st); }
   {
-    char *p = h2_allocate(2, 0, 1, 0);
+    char *p = h2_allocate(2, 0, 0, H2_GROUP_LABEL_THREAD);
     ((uint64_t *) p)[0] = pattern(p, 7777); ((uint64_t *) p)[1] = pattern(p + 8, 7777);
     add_obj(p, 2, 7777);
     char *top = p + 16;
     char *rend = h2_start_addr_mem_pool() + ((top - h2_start_addr_mem_pool()) / h2_region_size() + 1) * h2_region_size();
     int pre = shadow_preattach(top, 6 * MB);
     size_t w = (rend - top) / 8 + 1;   // does not fit: the region retires
-    char *q = h2_allocate(w, 0, 1, 0);
+    char *q = h2_allocate(w, 0, 0, H2_GROUP_LABEL_THREAD);
     for (size_t i = 0; i < w; i++) ((uint64_t *) q)[i] = pattern(q + i * 8, 7777);
     add_obj(q, w, 7777);
     h2_update_allocator_global_state();

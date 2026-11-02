@@ -31,51 +31,51 @@ int main() {
 
   // Init allocator
   // One GC thread per label (thread_id = label): the regions are the same
-  // whether the allocator groups by GC thread or by label
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4, 4, false);
+  // whether the objects are grouped by label or by GC thread
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4);
 
   //obj1 should be in region 0
-  obj1 = h2_allocate(1, 0, 0, 0);
+  obj1 = h2_allocate(1, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj1);
   CHECK((obj1 - h2_start_addr_mem_pool()) == 0, "Object start position");
 
   //obj2 should be in region 1 
-  obj2 = h2_allocate(200, 1, 0, 1);
+  obj2 = h2_allocate(200, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj2);
   CHECK((obj2 - obj1)/8 == 33554432, "Object start position %zu", (obj2 - obj1) / 8); 
 
   //obj3 should be in region 0
-  obj3 = h2_allocate(12020, 0, 0, 0);
+  obj3 = h2_allocate(12020, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj3);
   CHECK((obj3 - obj1)/8 == 1, "Object start position");
 
   //obj4 should be in region 2 
-  obj4 = h2_allocate(262140, 2, 0, 2);
+  obj4 = h2_allocate(262140, 2, 2, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj4);
   CHECK((obj4 - obj2)/8 == 33554432, "Object start position %zu", (obj4 - obj2) / 8);
 
   //obj5 should be in region 1
-  obj5 = h2_allocate(4, 1, 0, 1);
+  obj5 = h2_allocate(4, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj5);
   CHECK((obj5 - obj2)/8 == 200, "Object start position");
 
   //obj6 should be in region 0 
-  obj6 = h2_allocate(200, 0, 0, 0);
+  obj6 = h2_allocate(200, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj6);
   CHECK((obj6 - obj3)/8 == 12020, "Object start position");
 
   //obj7 should be in region 3 
-  obj7 = h2_allocate(262140, 1, 0, 1);
+  obj7 = h2_allocate(262140, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj7);
   CHECK((obj7 - obj5)/8 == 4, "Object start position %zu", (obj7 - obj5) / 8);
 
   //obj8 should be in region 4 
-  obj8 = h2_allocate(500, 3, 0, 3);
+  obj8 = h2_allocate(500, 3, 3, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj8);
   CHECK((obj8 - obj4)/8 == 33554432, "Object start position");
 
   //obj9 should be in region 5 
-  obj9 = h2_allocate(500, 2, 0, 2);
+  obj9 = h2_allocate(500, 2, 2, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj9);
   CHECK((obj9 - obj4)/8 == 262140, "Object start position");
 

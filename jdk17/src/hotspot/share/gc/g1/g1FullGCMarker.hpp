@@ -73,7 +73,6 @@ class G1FullGCMarker : public CHeapObj<mtGC> {
   // Teraheap
   bool                  _is_h2_candidate = false;
   uint64_t              _h2_label = 0;
-  uint64_t              _h2_sublabel = 0;
 
   inline bool is_empty();
   inline bool pop_object(oop& obj);
@@ -106,7 +105,7 @@ public:
 
   // TeraHeap: label the H1 object of backward reference *p for H2 (unless
   // it is labeled or metadata), mark it live and count its H2 live words
-  inline void h2_mark_back_ref_target(oop* p, uint64_t label, uint64_t sublabel);
+  inline void h2_mark_back_ref_target(oop* p, uint64_t label);
   inline void follow_klass(Klass* k);
   inline void follow_cld(ClassLoaderData* cld);
 

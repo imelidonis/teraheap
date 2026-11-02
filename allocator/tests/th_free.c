@@ -39,43 +39,43 @@ int main() {
   char *obj9;
   // Init allocator
   // One GC thread per label (thread_id = label): the regions are the same
-  // whether the allocator groups by GC thread or by label
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4, 4, false);
+  // whether the objects are grouped by label or by GC thread
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4);
 
   //obj1 should be in region 0
-  obj1 = h2_allocate(1, 0, 0, 0);
+  obj1 = h2_allocate(1, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj1);
 
   //obj2 should be in region 1 
-  obj2 = h2_allocate(200, 1, 0, 1);
+  obj2 = h2_allocate(200, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj2);
 
   //obj3 should be in region 0
-  obj3 = h2_allocate(12020, 0, 0, 0);
+  obj3 = h2_allocate(12020, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj3);
 
   //obj4 should be in region 2 
-  obj4 = h2_allocate(262140, 2, 0, 2);
+  obj4 = h2_allocate(262140, 2, 2, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj4);
 
   //obj5 should be in region 1
-  obj5 = h2_allocate(4, 1, 0, 1);
+  obj5 = h2_allocate(4, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj5);
 
   //obj6 should be in region 0 
-  obj6 = h2_allocate(200, 0, 0, 0);
+  obj6 = h2_allocate(200, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj6);
 
   //obj7 should be in region 3 
-  obj7 = h2_allocate(262140, 1, 0, 1);
+  obj7 = h2_allocate(262140, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj7);
 
   //obj8 should be in region 4 
-  obj8 = h2_allocate(500, 3, 0, 3);
+  obj8 = h2_allocate(500, 3, 3, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj8);
 
   //obj9 should be in region 5 
-  obj9 = h2_allocate(500, 2, 0, 2);
+  obj9 = h2_allocate(500, 2, 2, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj9);
 
   //region 0 and region 1 grouped

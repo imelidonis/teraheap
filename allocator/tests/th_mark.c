@@ -53,7 +53,7 @@ static void *mark_chain_part(void *arg) {
 }
 
 int main() {
-  // One partition: each label (rdd id) gets its own region
+  // One sublabel: each label gets its own region
   h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 1, 1, false);
 
   for (int i = 0; i < NOBJ; i++)

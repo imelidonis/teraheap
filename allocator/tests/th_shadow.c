@@ -336,7 +336,7 @@ int main(int argc, char **argv) {
   struct h2_shadow_stats st;
 
   // A region retired with pre-attached chunks it never used: they must
-  // return to the pool at pause end. Thread 0, partition 1.
+  // return to the pool at pause end. Thread 0, sublabel 1.
   long empty_before; h2_shadow_get_stats(&st); empty_before = st.empty_detached;
   while (h2_shadow_switch(0, -1) == 0 && st.free_chunks < 8) { usleep(2000); h2_shadow_get_stats(&st); }
   {

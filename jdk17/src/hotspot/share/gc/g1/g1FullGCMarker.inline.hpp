@@ -91,14 +91,14 @@ inline bool G1FullGCMarker::mark_object(oop obj) {
   return true;
 }
 
-inline void G1FullGCMarker::h2_mark_back_ref_target(oop* p, uint64_t group_id, uint64_t part_id) {
+inline void G1FullGCMarker::h2_mark_back_ref_target(oop* p, uint64_t label, uint64_t sublabel) {
   oop obj = RawAccess<>::oop_load(p);
   assert(obj != NULL && !Universe::teraHeap()->is_in_h2(obj), "backward reference to H1 expected");
 
   // Label the object for H2, unless it is labeled or metadata
   bool labeled = false;
   if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
-    obj->mark_move_h2(group_id, part_id);
+    obj->mark_move_h2(label, sublabel);
     labeled = true;
   }
 
@@ -125,7 +125,7 @@ template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
     if (_is_h2_candidate) {
       // Object is an H2 candidate
       if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
-        obj->mark_move_h2(_h2_group_id, _h2_part_id);
+        obj->mark_move_h2(_h2_label, _h2_sublabel);
         labeled = true;
       }
 #ifdef TERA_DBG_PHASES

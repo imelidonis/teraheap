@@ -44,11 +44,11 @@ struct region {
 
     struct pr_buffer *pr_buffer;
     int8_t used;
-    uint32_t rdd_id;
-    uint32_t part_id;
+    uint32_t label;
+    uint32_t sublabel;
 } __attribute__((aligned(CACHE_LINE_SIZE)));   // one region per cache line (see init_regions())
 
-// Mapping of rdd_id to the corresponding region.
+// Mapping of label to the corresponding region.
 // Locking the Mapping prevents multiple threads from
 // allocating to the same same region.
 //
@@ -60,7 +60,7 @@ struct id_to_reg_mapping {
 };
 
 /* Defined in regions.c */
-extern uint64_t _MAX_PARTITIONS;
+extern uint64_t max_sublabels;
 extern struct region *region_array;
 // Start address of region 0 (the start of H2), used to compute region
 // indices. A copy of region_array[0].start_address that is never written

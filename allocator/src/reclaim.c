@@ -21,8 +21,8 @@ static void make_region_inaccessible(char *region_start) {
 }
 
 /*
- * Free region r: drop its dependencies, its shadow chunks and its (rdd,
- * partition) mapping, then report it to cb and protect it if it held
+ * Free region r: drop its dependencies, its shadow chunks and its (label,
+ * sublabel) mapping, then report it to cb and protect it if it held
  * objects.
  */
 static void free_region(struct region *r, h2_region_free_cb cb, void *ctx) {
@@ -38,12 +38,12 @@ static void free_region(struct region *r, h2_region_free_cb cb, void *ctx) {
   r->last_allocated_start = NULL;
   r->first_allocated_start = NULL;
 
-  struct id_to_reg_mapping *m = &id_mapping_array[get_id(r->rdd_id, r->part_id)];
+  struct id_to_reg_mapping *m = &id_mapping_array[get_id(r->label, r->sublabel)];
   if (m->mapped_region == r)
     m->mapped_region = NULL;
 
-  r->rdd_id = _MAX_PARTITIONS - 1;
-  r->part_id = _MAX_PARTITIONS - 1;
+  r->label = max_sublabels - 1;
+  r->sublabel = max_sublabels - 1;
 
   // Its shadow chunks are dead: detach them without writing
   shadow_free_range(r->start_address, region_size);

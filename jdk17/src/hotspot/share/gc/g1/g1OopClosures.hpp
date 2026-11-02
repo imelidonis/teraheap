@@ -248,16 +248,16 @@ public:
   // we dont enable the tera flag of the metadata objs
   bool is_h2_flag_set() { return _h2_flag && !metadata_traversal_1 && !metadata_traversal_2; }
 
-  // Get the saved current object group id 
-  long int get_cur_obj_group_id(void) {
+  // Get the label of the saved current object
+  long int get_cur_obj_label(void) {
     assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
-    return obj_container->get_obj_group_id();
+    return obj_container->get_obj_label();
   }
 
-  // Get the saved current object partition id 
-  long int get_cur_obj_part_id(void) {
+  // Get the sublabel of the saved current object
+  long int get_cur_obj_sublabel(void) {
     assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
-    return obj_container->get_obj_part_id();
+    return obj_container->get_obj_sublabel();
   }
   
   virtual void do_klass(Klass* k){
@@ -296,8 +296,8 @@ private:
 
 #ifdef TERA_CONC_MARKING
   bool _is_tera_enabled;
-  uint64_t _rdd_id;
-  uint64_t _part_id;
+  uint64_t _label;
+  uint64_t _sublabel;
 #endif
 
 public:
@@ -308,10 +308,10 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
 #ifdef TERA_CONC_MARKING
-  void set_parent_tera(bool is_tera_enabled, uint64_t rdd_id, uint64_t part_id) {  
+  void set_parent_tera(bool is_tera_enabled, uint64_t label, uint64_t sublabel) {  
     _is_tera_enabled = is_tera_enabled; 
-    _rdd_id = rdd_id;
-    _part_id = part_id;
+    _label = label;
+    _sublabel = sublabel;
   }
 #endif
 };

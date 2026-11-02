@@ -30,8 +30,8 @@ int main() {
   char *obj1, *obj2, *obj3, *obj4, *obj5, *obj6, *obj7, *obj8, *obj9;
 
   // Init allocator
-  // One GC thread per group (thread_id = rdd_id): the regions are the same
-  // whether the allocator groups by GC thread or by rdd
+  // One GC thread per label (thread_id = label): the regions are the same
+  // whether the allocator groups by GC thread or by label
   h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4, 4, false);
 
   //obj1 should be in region 0

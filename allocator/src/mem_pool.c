@@ -22,14 +22,14 @@ static char dev[150] = { '\0' };   // H2 file path (create_file)
 
 uint64_t dev_size = 0;
 uint64_t region_array_size = 0;
-uint64_t max_rdd_id = 0;
+uint64_t max_labels = 0;
 
 volatile struct _mem_pool th_mem_pool;
 int fd;
 
 static int n_gc_threads = 0;
 
-// Group regions by GC thread (thread_id) instead of by rdd (h2_init())
+// Group regions by GC thread (thread_id) instead of by label (h2_init())
 static bool group_by_gc_thread = false;
 
 // Per-Thread state
@@ -104,7 +104,7 @@ static void init_failed(const char *msg, uint64_t value) {
 
 // Initialize allocator
 void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, uint64_t region_bytes,
-             uint64_t partitions, int total_gc_threads, bool group_by_thread) {
+             uint64_t sublabels, int total_gc_threads, bool group_by_thread) {
   // A power of two, so that region_index() is a shift; a multiple of the
   // alignment and of a shadow chunk, so that a chunk never crosses regions
   if (region_bytes == 0 || (region_bytes & (region_bytes - 1)) != 0)
@@ -148,8 +148,8 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
   // region size); the JVM checks the same count at startup
   region_array_size = (uint64_t) (th_mem_pool.stop_address - th_mem_pool.start_address) / region_size;
 
-  if (region_array_size < partitions)
-    init_failed("H2 has fewer regions than partitions; use a bigger H2 file or smaller regions",
+  if (region_array_size < sublabels)
+    init_failed("H2 has fewer regions than sublabels; use a bigger H2 file or smaller regions",
                 region_array_size);
 
   n_gc_threads = total_gc_threads;
@@ -157,9 +157,9 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
   group_by_gc_thread = group_by_thread;
   if (group_by_gc_thread) {
     fprintf(stderr, "[INFO] custom grouping enabled: using thread id for groups\n");
-    max_rdd_id = n_gc_threads;
+    max_labels = n_gc_threads;
   } else {
-    max_rdd_id = region_array_size / partitions;
+    max_labels = region_array_size / sublabels;
   }
 
   fprintf(stderr, "[INFO] Lockfree enabled\n");
@@ -168,7 +168,7 @@ void h2_init(uint64_t align, const char *h2_file_path, uint64_t h2_file_size, ui
 
   reset_per_thread_state();
 
-  init_regions(partitions);
+  init_regions(sublabels);
   req_init();
 }
 
@@ -194,17 +194,17 @@ size_t h2_mem_pool_size() {
   return dev_size;
 }
 
-char* h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id) {
+char* h2_allocate(size_t size, uint64_t label, uint64_t sublabel, uint64_t thread_id) {
   assert(thread_id < n_gc_threads);
 
   char* alloc_ptr = NULL;
 
   if (group_by_gc_thread)
-    rdd_id = thread_id;
+    label = thread_id;
 
   assertf(size > 0, "Object should be > 0");
 
-  alloc_ptr = allocate_to_region(size * HeapWordSize, rdd_id, partition_id, thread_id);
+  alloc_ptr = allocate_to_region(size * HeapWordSize, label, sublabel, thread_id);
 
   if (alloc_ptr == NULL) {
     perror("[Error] - H2 Allocator is full");

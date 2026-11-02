@@ -33,14 +33,14 @@ extern "C" {
  * `region_size`: bytes per region; a power of two, at least
  * H2_SHADOW_CHUNK and a multiple of `alignment` (the process exits
  * otherwise).
- * `partitions`: maximum partitions per group (sizes the id mapping array).
+ * `sublabels`: maximum sublabels per label (sizes the id mapping array).
  * `total_gc_threads`: number of GC threads that call h2_allocate().
  * `group_by_gc_thread`: group regions by the allocating GC thread
- * (h2_allocate()'s thread_id) instead of by rdd_id; then each region has
+ * (h2_allocate()'s thread_id) instead of by label; then each region has
  * one allocating thread.
  */
 H2_API void h2_init(uint64_t alignment, const char *h2_file_path, uint64_t h2_file_size,
-             uint64_t region_size, uint64_t partitions, int total_gc_threads,
+             uint64_t region_size, uint64_t sublabels, int total_gc_threads,
              bool group_by_gc_thread);
 
 /* Start (aligned) and end of the H2 address range */
@@ -70,11 +70,11 @@ H2_API int h2_verify_top(void);
 /* ------------------------------------------------------------------ */
 
 /*
- * Allocate `size` HeapWords for an object of group `rdd_id` and partition
- * `partition_id`, called by GC thread `thread_id` (< total_gc_threads).
+ * Allocate `size` HeapWords for an object of label `label` and sublabel
+ * `sublabel`, called by GC thread `thread_id` (< total_gc_threads).
  * Returns the address; exits if H2 is full.
  */
-H2_API char *h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id);
+H2_API char *h2_allocate(size_t size, uint64_t label, uint64_t sublabel, uint64_t thread_id);
 
 /* After a GC: fold the per-thread allocation counters into the pool state */
 H2_API void h2_update_allocator_global_state(void);
@@ -170,9 +170,9 @@ H2_API bool h2_object_starts_from_region(char *obj);
 /* Number of contiguous regions of the allocation that starts in addr's region */
 H2_API int h2_get_num_of_continuous_regions(char *addr);
 
-/* Group (rdd) and partition id of the region that contains obj */
-H2_API uint64_t h2_get_obj_group_id(char *obj);
-H2_API uint64_t h2_get_obj_part_id(char *obj);
+/* Label and sublabel of the region that contains obj */
+H2_API uint64_t h2_get_obj_label(char *obj);
+H2_API uint64_t h2_get_obj_sublabel(char *obj);
 
 /* Index of the region that contains addr */
 H2_API uint64_t h2_region_containing_addr(char *addr);

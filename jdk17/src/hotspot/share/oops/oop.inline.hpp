@@ -64,31 +64,31 @@ volatile uint64_t* oopDesc::tera_flag64_addr() const {
   return (volatile uint64_t*)((address)this + teraflag_offset_in_bytes());
 }
 
-void oopDesc::set_tera_flag(uint64_t state, uint64_t group_id, uint64_t part_id) {
+void oopDesc::set_tera_flag(uint64_t state, uint64_t label, uint64_t sublabel) {
   if (UseCompressedClassPointers) {
-    assert(group_id <= TF32_ID_MASK, "group id " UINT64_FORMAT " does not fit in 12 bits", group_id);
-    assert(part_id <= TF32_ID_MASK, "partition id " UINT64_FORMAT " does not fit in 12 bits", part_id);
-    *tera_flag32_addr() = (uint32_t)(((part_id & TF32_ID_MASK) << TF32_PART_SHIFT) |
-                                     ((group_id & TF32_ID_MASK) << TF32_GROUP_SHIFT) |
+    assert(label <= TF32_ID_MASK, "label " UINT64_FORMAT " does not fit in 12 bits", label);
+    assert(sublabel <= TF32_ID_MASK, "sublabel " UINT64_FORMAT " does not fit in 12 bits", sublabel);
+    *tera_flag32_addr() = (uint32_t)(((sublabel & TF32_ID_MASK) << TF32_SUBLABEL_SHIFT) |
+                                     ((label & TF32_ID_MASK) << TF32_LABEL_SHIFT) |
                                      (state & TF32_STATE_MASK));
   } else {
-    *tera_flag64_addr() = (part_id << 48) | (group_id << 32) | state;
+    *tera_flag64_addr() = (sublabel << 48) | (label << 32) | state;
   }
 }
 
-// Mark an object with 'id' to be moved in H2. H2 allocator uses the
-// 'id' to locate objects with the same 'id' by to the same region.
-// 'id' is defined by the application.
-void oopDesc::mark_move_h2(uint64_t rdd_id, uint64_t part_id) {
+// Mark an object to be moved to H2 with this label and sublabel. The
+// H2 allocator places objects with the same label and sublabel in the
+// same region. The label is defined by the application.
+void oopDesc::mark_move_h2(uint64_t label, uint64_t sublabel) {
 #ifdef TERA_DBG_PHASES
   {
     stdprint << "### Phase 1 marking for H2 obj " << this <<
-                 " (" << rdd_id << "-" << part_id << ")" << "\n";
+                 " (" << label << "-" << sublabel << ")" << "\n";
     stdprint << this->klass()->internal_name() << "\n";
   }
 #endif // DEBUG
 
-  set_tera_flag(MOVE_TO_TERA, rdd_id, part_id);
+  set_tera_flag(MOVE_TO_TERA, label, sublabel);
 }
 
 // Check if an object is marked to be moved in H2
@@ -103,7 +103,7 @@ bool oopDesc::is_marked_move_h2() {
 
 // Mark this object that is located in TeraHeap
 void oopDesc::set_in_h2() {
-  set_tera_flag(IN_TERA_CACHE, get_obj_group_id(), get_obj_part_id());
+  set_tera_flag(IN_TERA_CACHE, get_obj_label(), get_obj_sublabel());
 }
 
 // Get the state of the object
@@ -124,17 +124,17 @@ void oopDesc::init_obj_state() {
   set_tera_flag(INIT_TF, 0, 0);
 }
 
-// Get the object group id
-int oopDesc::get_obj_group_id() {
+// Get the object label
+int oopDesc::get_obj_label() {
   if (UseCompressedClassPointers)
-    return (*tera_flag32_addr() >> TF32_GROUP_SHIFT) & TF32_ID_MASK;
+    return (*tera_flag32_addr() >> TF32_LABEL_SHIFT) & TF32_ID_MASK;
   return (*tera_flag64_addr() >> 32) & 0xffff;
 }
 
-// Get object partition Id
-uint64_t oopDesc::get_obj_part_id() {
+// Get the object sublabel
+uint64_t oopDesc::get_obj_sublabel() {
   if (UseCompressedClassPointers)
-    return (*tera_flag32_addr() >> TF32_PART_SHIFT) & TF32_ID_MASK;
+    return (*tera_flag32_addr() >> TF32_SUBLABEL_SHIFT) & TF32_ID_MASK;
   return *tera_flag64_addr() >> 48;
 }
 
@@ -150,11 +150,11 @@ void oopDesc::reset_live() {
 }
 
 void oopDesc::set_live() {
-  set_tera_flag(LIVE_TERA_OBJ, get_obj_group_id(), get_obj_part_id());
+  set_tera_flag(LIVE_TERA_OBJ, get_obj_label(), get_obj_sublabel());
 }
 
 void oopDesc::set_visited() {
-  set_tera_flag(VISITED_TERA_OBJ, get_obj_group_id(), get_obj_part_id());
+  set_tera_flag(VISITED_TERA_OBJ, get_obj_label(), get_obj_sublabel());
 }
 
 bool oopDesc::is_visited() {

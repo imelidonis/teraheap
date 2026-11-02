@@ -286,22 +286,17 @@ public:
     ::h2_references((char *) obj1, (char *) obj2);
   }
 
-  // Get the group Id of the objects that belongs to this region. We
-  // locate the objects of the same group to the same region. We use the
-  // field 'p' of the object to identify in which region the object
-  // belongs to.
-  uint64_t h2_get_region_groupId(void *p) {
+  // Label of the H2 region that contains address p: the label of the
+  // objects allocated in it
+  uint64_t h2_get_region_label(void *p) {
     assert(p != NULL, "Sanity check");
-    return ::h2_get_obj_group_id((char *) p);
+    return ::h2_get_obj_label((char *) p);
   }
 
-  // Get the partition Id of the objects that belongs to this region. We
-  // locate the objects of the same group to the same region. We use the
-  // field 'p' of the object to identify in which region the object
-  // belongs to.
-  uint64_t h2_get_region_partId(void *p) {
+  // Sublabel of the H2 region that contains address p
+  uint64_t h2_get_region_sublabel(void *p) {
     assert(p != NULL, "Sanity check");
-    return ::h2_get_obj_part_id((char *) p);
+    return ::h2_get_obj_sublabel((char *) p);
   }
 
   // Check if the object `obj` is an instance of the following

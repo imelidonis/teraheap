@@ -1,4 +1,4 @@
-// The region array and allocation in regions (H2 objects go to the region of their (rdd, partition) id), and the region queries.
+// The region array and allocation in regions (H2 objects go to the region of their (label, sublabel) id), and the region queries.
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
@@ -12,7 +12,7 @@
 #include "sharedDefines.h"
 #include "shadow.h"
 
-uint64_t _MAX_PARTITIONS;
+uint64_t max_sublabels;
 
 // Global lock to only allow one thread to request new
 // region and create a new mapping.
@@ -36,8 +36,8 @@ static void init_region(struct region *r, char *start) {
   r->last_allocated_start  = NULL;
   r->first_allocated_start = NULL;
   r->deps                  = NULL;
-  r->rdd_id                = _MAX_PARTITIONS - 1;
-  r->part_id               = _MAX_PARTITIONS - 1;
+  r->label                = max_sublabels - 1;
+  r->sublabel               = max_sublabels - 1;
 
   r->pr_buffer = malloc(sizeof(struct pr_buffer));
   check_allocation_failure(r->pr_buffer, "[ERROR] -- Failed to allocate memory for pr_buffer\n");
@@ -51,8 +51,8 @@ static void init_region(struct region *r, char *start) {
 /*
  * Initialize region array, tera_group array and their fields
  */
-void init_regions(uint64_t partitions) {
-  _MAX_PARTITIONS = partitions;
+void init_regions(uint64_t sublabels) {
+  max_sublabels = sublabels;
 
   // Cache-line aligned, so that each region (exactly one cache line, see
   // struct region) does not share a line with its neighbors: neighboring
@@ -61,7 +61,7 @@ void init_regions(uint64_t partitions) {
   region_array = aligned_alloc(CACHE_LINE_SIZE, region_array_size * sizeof(struct region));
   check_allocation_failure(region_array, "[ERROR] -- Failed to allocate memory for region_array\n");
 
-  uint64_t n_ids = _MAX_PARTITIONS * max_rdd_id;
+  uint64_t n_ids = max_sublabels * max_labels;
   id_mapping_array = malloc(n_ids * sizeof(struct id_to_reg_mapping));
   check_allocation_failure(
       id_mapping_array, "[ERROR] -- Failed to allocate memory for id_mapping_array\n");
@@ -150,8 +150,8 @@ static char* new_region(size_t size) {
   return region_array[cur_region].start_address;
 }
 
-uint64_t get_id(uint64_t rdd_id, uint64_t partition_id) {
-  return (rdd_id % max_rdd_id) * _MAX_PARTITIONS + partition_id;
+uint64_t get_id(uint64_t label, uint64_t sublabel) {
+  return (label % max_labels) * max_sublabels + sublabel;
 }
 
 /*
@@ -160,7 +160,7 @@ uint64_t get_id(uint64_t rdd_id, uint64_t partition_id) {
  * active region of mapping `m`. Called with m->mapping_lock held.
  */
 static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
-                                    uint64_t rdd_id, uint64_t partition_id) {
+                                    uint64_t label, uint64_t sublabel) {
   pthread_mutex_lock(&alloc_region_lock);
   char *res = new_region(size);
   pthread_mutex_unlock(&alloc_region_lock);
@@ -173,23 +173,23 @@ static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
   // If the object spans more than one region, no other object goes after it
   if (size < region_size) {
     m->mapped_region = &region_array[region_index(res + size)];
-    m->mapped_region->rdd_id = rdd_id;
-    m->mapped_region->part_id = partition_id;
+    m->mapped_region->label = label;
+    m->mapped_region->sublabel = sublabel;
   }
 
   return res;
 }
 
-char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id,
+char* allocate_to_region(size_t size, uint64_t label, uint64_t sublabel,
                          uint64_t thread_id) {
-  struct id_to_reg_mapping *m = &id_mapping_array[get_id(rdd_id, partition_id)];
+  struct id_to_reg_mapping *m = &id_mapping_array[get_id(label, sublabel)];
   char *res;
 
   pthread_mutex_lock(&m->mapping_lock);
 
   struct region *r = m->mapped_region;
   if (r == NULL || r->last_allocated_end + size > r->start_address + region_size) {
-    res = allocate_in_new_region(m, size, rdd_id, partition_id);
+    res = allocate_in_new_region(m, size, label, sublabel);
   } else {
     h2_mark_used(r->start_address);
     r->last_allocated_start = r->last_allocated_end;
@@ -215,7 +215,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id,
 void region_info(char *addr, char **top, bool *active) {
   struct region *r = &region_array[region_index(addr)];
   *top = r->last_allocated_end;
-  *active = id_mapping_array[get_id(r->rdd_id, r->part_id)].mapped_region == r;
+  *active = id_mapping_array[get_id(r->label, r->sublabel)].mapped_region == r;
 }
 
 int region_free_prot(char *addr) {
@@ -289,28 +289,14 @@ int h2_get_num_of_continuous_regions(char *addr) {
   return (bytes + region_size - 1) / region_size;
 }
 
-/*
- * Get object 'groupId' (RDD Id). Each object is allocated based on a tera_group Id
- * and the partition Id that locates in teraflag.
- *
- * @obj: address of the object
- *
- * Return: the object rdd id
- */
-uint64_t h2_get_obj_group_id(char *obj) {
-  return region_of(obj)->rdd_id;
+// Label of the region that contains obj: the label it was allocated for
+uint64_t h2_get_obj_label(char *obj) {
+  return region_of(obj)->label;
 }
 
-/*
- * Get object 'groupId'. Each object is allocated based on a tera_group Id
- * and the partition Id that locates in teraflag.
- *
- * obj: address of the object
- *
- * returns: the object partition Id
- */
-uint64_t h2_get_obj_part_id(char *obj) {
-  return region_of(obj)->part_id;
+// Sublabel of the region that contains obj
+uint64_t h2_get_obj_sublabel(char *obj) {
+  return region_of(obj)->sublabel;
 }
 
 /* The allocation top of the last non-empty region (of region 0 if all are empty) */

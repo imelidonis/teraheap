@@ -61,7 +61,7 @@ extern "C" {
 // message on stderr (the allocator then works as before).
 // The region queries come from the region code (regions.c):
 //  - region_info(addr, &top, &active): the allocation top of the region that
-//    contains addr, and whether a (thread, partition) id still allocates in it;
+//    contains addr, and whether a (label, sublabel) id still allocates in it;
 //  - region_free_prot(addr): the protection to map a chunk of a freed region
 //    with.
 int  shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,

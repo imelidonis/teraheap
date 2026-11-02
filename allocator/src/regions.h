@@ -21,7 +21,7 @@ extern "C" {
 
 /* Defined in mem_pool.c */
 extern uint64_t region_array_size;
-extern uint64_t max_rdd_id; //< Total different rdds
+extern uint64_t max_labels; //< Number of label slots in the id mapping array
 
 /* Defined in regions.c, set by h2_init(): region size (a power of two) and
  * its log2 */
@@ -36,23 +36,23 @@ struct dep_set;
 /*
  * Initialize region array, tera_group array and their fields
  */
-void init_regions(uint64_t partitions);
+void init_regions(uint64_t sublabels);
 
 /*
  * Returns the address of the allocated object
  * Arguments:
  * - size: the size of the object in Bytes
- * - rdd_id: The id of the rdd which the object belongs
- * - part_id: The id of the partition that the object belongs
+ * - label: The label of the object (from the application)
+ * - sublabel: The sublabel of the object
  */
-char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id,
+char* allocate_to_region(size_t size, uint64_t label, uint64_t sublabel,
                          uint64_t thread_id);
 
-uint64_t get_id(uint64_t rdd_id, uint64_t partition_id);
+uint64_t get_id(uint64_t label, uint64_t sublabel);
 
 /*
  * For the shadow chunks (shadow.c, through shadow_init()): the allocation
- * top of the region that contains addr, and whether a (thread, partition) id
+ * top of the region that contains addr, and whether a (label, sublabel) id
  * still allocates in it.
  */
 void region_info(char *addr, char **top, bool *active);

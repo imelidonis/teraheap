@@ -48,6 +48,12 @@ void init_regions(uint64_t n_threads);
  */
 char* allocate_to_region(size_t size, uint64_t label, uint64_t map_id);
 
+/* At a safepoint, after regions were freed: new_region() searches again */
+void regions_freed(void);
+
+/* Objects placed in another mapping's region because H2 was full */
+uint64_t fallback_alloc_count(void);
+
 /* Index in the mapping array of the region key of `group` */
 uint64_t map_id_of(enum h2_group group, uint64_t label, uint64_t thread_id);
 

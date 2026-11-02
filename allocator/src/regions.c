@@ -34,6 +34,15 @@ struct id_to_reg_mapping *id_mapping_array;
 
 static int32_t _next_region;
 
+// H2 has no empty region (new_region() failed for one region), so do not
+// search the region array again until h2_free_regions() frees regions.
+// Written under alloc_region_lock, or at a safepoint (regions_freed())
+static bool no_free_region;
+
+// Objects placed in another mapping's region because H2 had no empty
+// region (h2_alloc_stats.fallback_allocs)
+static uint64_t fallback_allocs;
+
 /* An empty region that starts at `start`, with an empty promotion buffer */
 static void init_region(struct region *r, char *start) {
   r->start_address         = start;
@@ -176,23 +185,89 @@ uint64_t map_id_of(enum h2_group group, uint64_t label, uint64_t thread_id) {
   }
 }
 
+void regions_freed(void) {
+  no_free_region = false;
+}
+
+uint64_t fallback_alloc_count(void) {
+  return __atomic_load_n(&fallback_allocs, __ATOMIC_RELAXED);
+}
+
+/* Allocate `size` bytes after the last object of region r, which has room
+ * for them. Called with the lock of the mapping that allocates in r held. */
+static char *bump_in_region(struct region *r, size_t size) {
+  h2_mark_used(r->start_address);
+  r->last_allocated_start = r->last_allocated_end;
+  r->last_allocated_end = r->last_allocated_start + size;
+
+  // Back new SH space with shadow chunks during mixed GCs (shadow.h). Under
+  // the mapping lock: every object reserved before this one in the region
+  // ends at or before it, and no other GC thread can reserve space after
+  // it until the lock is released, so a chunk at or above it is empty
+  shadow_ensure(r->last_allocated_start, size);
+  return r->last_allocated_start;
+}
+
+/*
+ * H2 has no empty region: allocate `size` bytes (less than a region) in the
+ * active region of another mapping of the same label slot (with
+ * H2_GROUP_THREAD, of another GC thread). Called without the lock of
+ * mapping `own` (its region does not change); takes one other mapping's
+ * lock at a time, so it cannot deadlock with another thread in the
+ * fallback. Returns NULL if none has room.
+ */
+static char *allocate_in_other_region(uint64_t own, size_t size) {
+  if (size >= region_size)
+    return NULL;
+
+  const uint64_t label_ids = max_labels * max_sublabels;
+  uint64_t first, n;
+  if (own >= label_ids) {          // H2_GROUP_THREAD
+    first = label_ids;
+    n = n_map_ids - label_ids;
+  } else {                         // the mappings of own's label slot
+    first = (own / max_sublabels) * max_sublabels;
+    n = max_sublabels;
+  }
+
+  // Start after own, so that the threads of a label spread over its regions
+  for (uint64_t k = 1; k < n; k++) {
+    struct id_to_reg_mapping *o = &id_mapping_array[first + (own - first + k) % n];
+    pthread_mutex_lock(&o->mapping_lock);
+    struct region *r = o->mapped_region;
+    if (r != NULL && r->last_allocated_end + size <= r->start_address + region_size) {
+      char *res = bump_in_region(r, size);
+      pthread_mutex_unlock(&o->mapping_lock);
+      __atomic_fetch_add(&fallback_allocs, 1, __ATOMIC_RELAXED);
+      return res;
+    }
+    pthread_mutex_unlock(&o->mapping_lock);
+  }
+  return NULL;
+}
+
 /*
  * Allocate `size` bytes at the start of new empty regions and, for an
  * object smaller than a region, make the region that holds its end the
  * active region of mapping `m` (index map_id). Every region of the
- * allocation gets the label and the mapping index. Called with
- * m->mapping_lock held.
+ * allocation gets the label and the mapping index. Returns NULL if H2 has
+ * no empty region. Called with m->mapping_lock held.
  */
 static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
                                     uint64_t label, uint64_t map_id) {
+  char *res = NULL;
   pthread_mutex_lock(&alloc_region_lock);
-  char *res = new_region(size);
+  if (!no_free_region) {
+    res = new_region(size);
+    // An object of several regions may fail only for lack of contiguous
+    // regions, while single regions are left
+    if (res == NULL && size <= region_size)
+      no_free_region = true;
+  }
   pthread_mutex_unlock(&alloc_region_lock);
 
-  if (res == NULL) {
-    perror("[Error] - H2 Allocator is full");
-    exit(EXIT_FAILURE);
-  }
+  if (res == NULL)
+    return NULL;
 
   // Also the regions of an object that spans several regions, so that
   // h2_get_obj_label() gives the object's label in each of them
@@ -205,6 +280,8 @@ static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
   if (size < region_size)
     m->mapped_region = &region_array[region_index(res + size)];
 
+  // See bump_in_region()
+  shadow_ensure(res, size);
   return res;
 }
 
@@ -215,22 +292,21 @@ char* allocate_to_region(size_t size, uint64_t label, uint64_t map_id) {
   pthread_mutex_lock(&m->mapping_lock);
 
   struct region *r = m->mapped_region;
-  if (r == NULL || r->last_allocated_end + size > r->start_address + region_size) {
+  if (r == NULL || r->last_allocated_end + size > r->start_address + region_size)
     res = allocate_in_new_region(m, size, label, map_id);
-  } else {
-    h2_mark_used(r->start_address);
-    r->last_allocated_start = r->last_allocated_end;
-    r->last_allocated_end = r->last_allocated_start + size;
-    res = r->last_allocated_start;
-  }
-
-  // Back new SH space with shadow chunks during mixed GCs (shadow.h). Under
-  // the mapping lock: every object reserved before this one in the region
-  // ends at or before res, and no other GC thread can reserve space after
-  // it until the lock is released, so a chunk at or above res is empty
-  shadow_ensure(res, size);
+  else
+    res = bump_in_region(r, size);
 
   pthread_mutex_unlock(&m->mapping_lock);
+
+  // No empty region: use the region of another mapping of the label (m
+  // keeps its region for when regions are freed)
+  if (res == NULL)
+    res = allocate_in_other_region(map_id, size);
+  if (res == NULL) {
+    fprintf(stderr, "[Error] - H2 Allocator is full\n");
+    exit(EXIT_FAILURE);
+  }
 
 #if DEBUG_PRINT
   printf("Allocating from region %lu until region %lu\n", region_index(res), region_index(res + size));

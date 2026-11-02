@@ -369,6 +369,8 @@ void TeraHeap::print_h2_alloc_stats(const char *tag) {
                 tag, deps_avg, s.dep_max, s.regions_with_deps, s.regions_allocated);
   out->print_cr("[%s] | H2_ALLOC SPAN_LINKS %lu (objects larger than a region: %lu)",
                 tag, s.span_links, s.span_objects);
+  out->print_cr("[%s] | H2_ALLOC FALLBACK_ALLOCS %lu (total, objects placed in another region because H2 had no empty region)",
+                tag, s.fallback_allocs);
   out->flush();
 
   _as_last_allocated = s.regions_allocated;

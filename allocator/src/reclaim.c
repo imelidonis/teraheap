@@ -70,6 +70,8 @@ void h2_free_regions(h2_region_free_cb cb, void *ctx) {
       reclaimed_regions_count++;
     }
   }
+  if (reclaimed_regions_count > 0)
+    regions_freed();
 }
 
 /* Returns the number of regions that were reclaimed (i.e., released back

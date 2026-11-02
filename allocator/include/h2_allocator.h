@@ -155,6 +155,8 @@ struct h2_alloc_stats {
   uint64_t regions_with_deps;  // allocated regions with at least one dependency
   uint64_t span_links;         // links from an object's first region to the others
   uint64_t span_objects;       // objects larger than a region
+  uint64_t fallback_allocs;    // objects placed in another thread's or group's
+                               // region because H2 had no empty region (total)
 };
 
 /* At a safepoint: fill `s` with a scan of the region array */

@@ -232,8 +232,8 @@ static void full_gc_writes(uint64_t gen, int mode) {
     size_t w = 2 + rnd(&s) % 4096;
     // A Full GC groups by (label, GC thread), in regions without chunks.
     // When H2 is full it can place objects in the regions of the mixed GCs
-    // (allocate_in_other_region()), where OPEN chunks take the writes:
-    // every 4th object goes there
+    // (allocate_in_other_region()), where attached chunks take the writes:
+    // every 4th object goes there (see also the check at the end)
     enum h2_group group = k % 4 == 3 ? (share_label ? H2_GROUP_LABEL : H2_GROUP_THREAD)
                                      : H2_GROUP_LABEL_THREAD;
     char *p = h2_allocate(w, rnd(&s) % NLABELS, t, group);
@@ -372,6 +372,47 @@ int main(int argc, char **argv) {
     for (char *c = first; c < top + 6 * MB && c < rend; c += SHADOW_CHUNK) if (h2_shadow_is_attached(c)) still++;
     if (pre == 0 || still || st.empty_detached - empty_before < pre) { fprintf(stderr, "FAIL: unused chunks of a retired region not returned (%d still attached)\n", still); return 1; }
   }
+  // A Full GC write into a region of the mixed GCs, in chunks attached
+  // after its top: the bytes go into the chunks (shadow_split_write()). The
+  // Full GC objects above land in such chunks only by chance
+  bool redirect_ok = false;
+  {
+    enum h2_group mixed = share_label ? H2_GROUP_LABEL : H2_GROUP_THREAD;
+    h2_shadow_get_stats(&st);
+    while (h2_shadow_switch(0, -1) == 0 && st.free_chunks < 8) { usleep(2000); h2_shadow_get_stats(&st); }
+    for (int tries = 0; tries < 3 && !redirect_ok; tries++) {
+      char *p = h2_allocate(2, 1, 1, mixed);
+      ((uint64_t *) p)[0] = pattern(p, 8888); ((uint64_t *) p)[1] = pattern(p + 8, 8888);
+      add_obj(p, 2, 8888);
+      char *top = p + 16;
+      char *rend = h2_start_addr_mem_pool() + ((top - h2_start_addr_mem_pool()) / h2_region_size() + 1) * h2_region_size();
+      char *first = h2_start_addr_mem_pool() + ((top - h2_start_addr_mem_pool() + SHADOW_CHUNK - 1) / SHADOW_CHUNK) * SHADOW_CHUNK;
+      // 4 KB into the first chunk above top, if the region has room for it
+      size_t w = (first + 4096 - top) / 8;
+      if (first + 4096 > rend || shadow_preattach(top, first + 4096 - top) == 0) {
+        size_t fill = (rend - top) / 8 + 1;   // retire the region, try the next one
+        char *q = h2_allocate(fill, 1, 1, mixed);
+        for (size_t i = 0; i < fill; i++) ((uint64_t *) q)[i] = pattern(q + i * 8, 8888);
+        add_obj(q, fill, 8888);
+        continue;
+      }
+      h2_shadow_get_stats(&st);
+      uint64_t before = st.redirected_bytes;
+      char *q = h2_allocate(w, 1, 1, mixed);
+      uint64_t *src = malloc(w * 8);
+      for (size_t i = 0; i < w; i++) src[i] = pattern(q + i * 8, 8888);
+      h2_write((char *) src, q, w);
+      free(src);
+      add_obj(q, w, 8888);
+      h2_shadow_get_stats(&st);
+      redirect_ok = q == top && st.redirected_bytes - before >= 4096;
+      printf("full gc write into attached chunks: %" PRIu64 " bytes redirected\n", st.redirected_bytes - before);
+    }
+    h2_update_allocator_global_state();
+    h2_shadow_pause_end();
+    if (!redirect_ok) { fprintf(stderr, "FAIL: a Full GC write into attached chunks was not redirected\n"); return 1; }
+  }
+
   double t0 = now_ms();
   for (;;) {
     h2_shadow_get_stats(&st);
@@ -396,7 +437,7 @@ int main(int argc, char **argv) {
          fulls, frees, dropped, sw_ms / cycles, st.n_open, preattached);
   printf("dead chunks by state when freed: open %" PRIu64 " full %" PRIu64 " writing %" PRIu64 " ready %" PRIu64 " (in flight %" PRIu64 ")\n",
          st.dead_by_state[1], st.dead_by_state[2], st.dead_by_state[3], st.dead_by_state[4], st.dead_in_flight);
-  int ok = bad == 0 && checked_file > 0 && st.dead > 0 && st.redirected_bytes > 0 && st.switched > 0;
+  int ok = bad == 0 && checked_file > 0 && st.dead > 0 && redirect_ok && st.switched > 0;
   printf("%s (%ld mismatches)\n", ok ? "PASS" : "FAIL", bad);
   return ok ? 0 : 1;
 }

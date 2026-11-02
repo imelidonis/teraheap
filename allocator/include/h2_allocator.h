@@ -211,6 +211,9 @@ H2_API char *h2_get_next_region(void);
 /*
  * Copy the object `obj` of `size` HeapWords that moves to `new_adr` into the
  * promotion buffer of new_adr's region. Big objects are written directly.
+ * The H2 space of all objects must be allocated before they are inserted
+ * (as in a Full GC): after the object that ends at its region's allocation
+ * top, the region's buffer is written and freed.
  */
 H2_API void h2_buffer_insert(char *obj, char *new_adr, size_t size);
 

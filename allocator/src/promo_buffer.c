@@ -30,6 +30,17 @@ static void flush_buffer(struct pr_buffer *buf) {
 }
 
 /*
+ * Write the objects in the promotion buffer `buf` to H2 and free its memory
+ * (h2_awrite() copies the data). Called with buf->buffer_lock held.
+ */
+static void release_buffer(struct pr_buffer *buf) {
+	flush_buffer(buf);
+	free(buf->buffer);
+	buf->buffer = NULL;
+	buf->alloc_ptr = NULL;
+}
+
+/*
  * Add an obect to the promotion buffer. We use promotion buffer to avoid write
  * system calls for small sized objects.
  *
@@ -39,14 +50,24 @@ static void flush_buffer(struct pr_buffer *buf) {
  * size: Size of the object (in words)
  */
 void h2_buffer_insert(char* obj, char* new_adr, size_t size) {
-	struct pr_buffer *buf = region_of(new_adr)->pr_buffer;
+	struct region *r = region_of(new_adr);
+	struct pr_buffer *buf = r->pr_buffer;
 	size_t bytes = size * HeapWordSize;
+	// A Full GC allocates all its H2 objects before it writes them, and a
+	// region has one allocating GC thread (H2_GROUP_LABEL_THREAD), which
+	// writes its objects in allocation order: after the object that ends at
+	// the region's allocation top, no more come in this Full GC, so the
+	// buffer is written and freed. If another thread's objects come later
+	// (H2 was full), they get a new buffer, freed by h2_free_all_buffers()
+	const bool last = new_adr + bytes == r->last_allocated_end;
 
 	pthread_mutex_lock(&buf->buffer_lock);
 
 	if (bytes > THRESHOLD) {
 		// Big objects are written directly
 		h2_awrite(obj, new_adr, size);
+		if (last && buf->buffer != NULL)
+			release_buffer(buf);
 		pthread_mutex_unlock(&buf->buffer_lock);
 		return;
 	}
@@ -75,6 +96,9 @@ void h2_buffer_insert(char* obj, char* new_adr, size_t size) {
 	buf->alloc_ptr += bytes;
 	buf->size += bytes;
 
+	if (last)
+		release_buffer(buf);
+
 	pthread_mutex_unlock(&buf->buffer_lock);
 }
 
@@ -91,16 +115,8 @@ void h2_free_all_buffers() {
 
     pthread_mutex_lock(&buf->buffer_lock);
 
-		flush_buffer(buf);
-
-		/* If the buffer is already flushed, just free bufffer's memory */
-		if (buf->buffer != NULL) {
-			free(buf->buffer);
-			buf->buffer = NULL;
-			buf->alloc_ptr = NULL;
-			buf->first_obj_addr = NULL;
-			buf->size = 0;
-		}
+		if (buf->buffer != NULL)
+			release_buffer(buf);
 
     pthread_mutex_unlock(&buf->buffer_lock);
 	}

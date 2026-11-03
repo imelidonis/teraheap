@@ -43,6 +43,29 @@ cd jdk8u345
 cd -
 ```
 
+### Hint API (JDK 17)
+Applications mark the roots of the data structures to move to H2 with the
+class `jdk.teraheap.TeraHeap` (module `jdk.teraheap`). The garbage collector
+moves each root and the objects reachable from it to H2, and places the
+objects of the same label together.
+```java
+import jdk.teraheap.TeraHeap;
+
+TeraHeap.h2TagAndMoveRoot(cachedData, datasetId); // mark a root with a label
+TeraHeap.isInH2(cachedData);         // is the object in H2?
+TeraHeap.isMarkedMoveH2(cachedData); // is the object marked to move to H2?
+TeraHeap.isEnabled();                // does the JVM run with -XX:+EnableTeraHeap?
+```
+- Without `-XX:+EnableTeraHeap` the methods do nothing and the queries
+  return `false`, so the same application runs in both modes.
+- A `null` object is ignored. Class mirrors, `Reference` objects, class
+  loaders and arrays of them stay in H1.
+- Applications on the class path see the module with no extra option. A
+  run-time image built with `jlink` must add it:
+  `jlink --add-modules jdk.teraheap,...`.
+- `sun.misc.Unsafe` keeps its hints (`h2TagAndMoveRoot`, `h2TagRoot`,
+  `h2Move`, `is_in_h2`, `is_marked_move_h2`).
+
 ## Benchmarks
 To run benchmarks please clone the repository
 [tera_applications](https://github.com/jackkolokasis/tera_applications)

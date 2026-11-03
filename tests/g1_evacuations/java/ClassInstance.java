@@ -2,21 +2,9 @@ import java.util.*;
 import java.lang.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 class ClassInstance {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void main(String[] args) {
     Laptop[] arrayLaptop = new Laptop[1000];
 
@@ -28,10 +16,10 @@ class ClassInstance {
 
     GC.gc();
 
-    _UNSAFE.h2TagAndMoveRoot(arrayLaptop[0], 0, 0);
+    TeraHeap.h2TagAndMoveRoot(arrayLaptop[0], 0);
 
     Object obj = arrayLaptop[0].getClass();
-    _UNSAFE.h2TagAndMoveRoot(obj, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(obj, 0);
 
     GC.gc();
     arrayLaptop[0].add_new_element();
@@ -42,7 +30,7 @@ class ClassInstance {
 
     GC.gc();
 
-    _UNSAFE.h2TagAndMoveRoot(arrayLaptop[10], 1, 0);
+    TeraHeap.h2TagAndMoveRoot(arrayLaptop[10], 1);
 
     GC.gc();
 
@@ -55,7 +43,7 @@ class ClassInstance {
 
     GC.gc();
 
-    _UNSAFE.h2TagAndMoveRoot(arrayLaptop[20], 2, 0);
+    TeraHeap.h2TagAndMoveRoot(arrayLaptop[20], 2);
 
     for (int i=500; i < 1000; i++)
       arrayLaptop[i].add_new_element();

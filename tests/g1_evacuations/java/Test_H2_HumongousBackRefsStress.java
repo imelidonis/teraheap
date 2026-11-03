@@ -1,9 +1,9 @@
-import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import jdk.teraheap.TeraHeap;
 
 /**
  * Stress test for: humongous objects that are ONLY reachable via backward references
@@ -18,8 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *      GC.cm_start(); GC.wait_cm();
  *      GC.young_gc(); GC.gc();
  *      GC.move_to_old();
- *  - Your fork provides Unsafe.h2TagAndMoveRoot(Object[] obj, int tag, int flags)
- *    (or equivalent) to place the container in H2.
+ *  - jdk.teraheap.TeraHeap.h2TagAndMoveRoot(Object o, long label)
+ *    to place the container in H2.
  *
  * Suggested runs:
  *  - Use multiple cycles.
@@ -27,18 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *  - Enable your H2 card-segment skipping optimization in the VM flags.
  */
 public class Test_H2_HumongousBackRefsStress {
-
-  private static final sun.misc.Unsafe U;
-  static {
-    try {
-      Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      f.setAccessible(true);
-      U = (sun.misc.Unsafe) f.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   // Allocate something big enough to likely be humongous.
   // Keep this "obviously used" to avoid dead-code elimination.
   static byte[] newHumongous(int mb, int seed) {
@@ -86,7 +74,7 @@ public class Test_H2_HumongousBackRefsStress {
 
     // H2 container (the ONLY long-lived reference to humongous objects we create).
     Object[] h2 = new Object[H2_SIZE];
-    U.h2TagAndMoveRoot(h2, 13, 0);
+    TeraHeap.h2TagAndMoveRoot(h2, 13);
 
     // Baseline fill so many cards appear "old-only" prior to creating new edges during CM.
     Object baseline = new Object();

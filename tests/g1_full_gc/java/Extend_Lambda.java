@@ -4,8 +4,7 @@ import java.util.Scanner;
 import java.util.LinkedList;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
-
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 // Java program to demonstrate lambda expressions 
 // to implement a user defined functional interface. 
@@ -26,18 +25,6 @@ interface FuncInterface
 
 class Extend_Lambda
 { 
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str)
   {
     System.out.println("=========================================");
@@ -79,7 +66,7 @@ class Extend_Lambda
 
     fobj.abstractFun(5); 
 
-    _UNSAFE.h2TagAndMoveRoot(linkedList, 1, 0);
+    TeraHeap.h2TagAndMoveRoot(linkedList, 1);
 
     gc();
 
@@ -97,7 +84,7 @@ class Extend_Lambda
     linkedList = null;
 
     LinkedList<Integer> linkedList2 = new LinkedList<Integer>(); 
-    _UNSAFE.h2TagAndMoveRoot(linkedList2, 2, 0);
+    TeraHeap.h2TagAndMoveRoot(linkedList2, 2);
 
     for (int i = 0; i < num_elements; i++)
       linkedList2.add(new Integer(i));

@@ -5,22 +5,10 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
+import jdk.teraheap.TeraHeap;
 
-import java.lang.reflect.Field;
 
 public class HashMap {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str)
   {
     System.out.println("=========================================");
@@ -50,7 +38,7 @@ public class HashMap {
     System.out.println(Runtime.getRuntime().maxMemory());
 
     ConcurrentHashMap<String, String> h_map = new ConcurrentHashMap<String, String>();
-    _UNSAFE.h2TagAndMoveRoot(h_map, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(h_map, 0);
 
     for (int i = 0; i < num_elements/2; i++){
       h_map.put("Bangalore" + i, "22");

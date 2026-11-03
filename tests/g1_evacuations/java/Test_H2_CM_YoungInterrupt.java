@@ -1,21 +1,9 @@
-import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import jdk.teraheap.TeraHeap;
 
 public class Test_H2_CM_YoungInterrupt {
-
-  private static final sun.misc.Unsafe U;
-  static {
-    try {
-      Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      f.setAccessible(true);
-      U = (sun.misc.Unsafe) f.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   // Allocate something big enough to be humongous.
   // Humongous threshold is region-based; 8–32MB is usually humongous on typical region sizes.
   static byte[] newHumongous(int mb, int seed) {
@@ -44,7 +32,7 @@ public class Test_H2_CM_YoungInterrupt {
 
     // H2 container that will hold backward references.
     Object[] h2 = new Object[H2_SIZE];
-    U.h2TagAndMoveRoot(h2, 13, 0);
+    TeraHeap.h2TagAndMoveRoot(h2, 13);
 
     // Baseline: fill with something old-ish so many cards look old-only.
     Object baseline = new Object();

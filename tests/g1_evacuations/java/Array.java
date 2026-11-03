@@ -5,22 +5,9 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
-
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 public class Array {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str) {
     System.out.println("=========================================");
     System.out.println(str + "\n");
@@ -36,10 +23,10 @@ public class Array {
     long sum;
 
     int[] array1 = new int[2000000];
-    _UNSAFE.h2TagAndMoveRoot(array1, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(array1, 0);
 
     int[] array2 = new int[2000000];
-    _UNSAFE.h2TagAndMoveRoot(array2, 1, 0);
+    TeraHeap.h2TagAndMoveRoot(array2, 1);
 
     GC.move_to_old();
 

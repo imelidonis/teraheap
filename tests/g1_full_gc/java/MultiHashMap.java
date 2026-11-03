@@ -6,22 +6,12 @@ import java.lang.management.MemoryPoolMXBean;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
 import java.util.HashMap;
+import jdk.teraheap.TeraHeap;
 
-import java.lang.reflect.Field;
 
 public class MultiHashMap {
   static long num = 0;
-  private static final sun.misc.Unsafe _UNSAFE;
 
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
 
   public static void mem_info(String str)
   {
@@ -49,12 +39,12 @@ public class MultiHashMap {
     int sub_elem = 5000;
 
     HashMap<String, ArrayList<Integer>> h_map = new HashMap<String, ArrayList<Integer>>();
-    _UNSAFE.h2TagAndMoveRoot(h_map, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(h_map, 0);
 
     for (int i = 0; i < num_elements/2; i++)
     {
       String str = new String("Iacovos Kolokasis " + i);
-      _UNSAFE.h2TagAndMoveRoot(str, 1, 0);
+      TeraHeap.h2TagAndMoveRoot(str, 1);
 
       ArrayList<Integer> array = new ArrayList<Integer>();
       for (int j = 0; j < sub_elem; j++) {

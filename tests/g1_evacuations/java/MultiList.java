@@ -6,22 +6,10 @@ import java.util.Scanner;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.LinkedList;
+import jdk.teraheap.TeraHeap;
 
-import java.lang.reflect.Field;
 
 public class MultiList {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str) {
     System.out.println("=========================================");
     System.out.println(str + "\n");
@@ -60,9 +48,9 @@ public class MultiList {
     LinkedList<String> list2 = new LinkedList<String>(); 
     LinkedList<Integer> list3 = new LinkedList<Integer>(); 
 
-    _UNSAFE.h2TagAndMoveRoot(list, 0, 0);
-    _UNSAFE.h2TagAndMoveRoot(list2, 1, 0);
-    _UNSAFE.h2TagAndMoveRoot(list3, 2, 0);
+    TeraHeap.h2TagAndMoveRoot(list, 0);
+    TeraHeap.h2TagAndMoveRoot(list2, 1);
+    TeraHeap.h2TagAndMoveRoot(list3, 2);
 
     for (int i = 0; i < num_elements; i++)
       list.add(i);

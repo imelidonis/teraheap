@@ -1,22 +1,9 @@
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
-
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 public class Test_Reference {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static class Bean {
 
     String name;
@@ -36,7 +23,7 @@ public class Test_Reference {
     Bean bean = new Bean("songli", 67);
 
     Bean[] referent = new Bean[20000]; 
-    _UNSAFE.h2TagAndMoveRoot(referent, 1, 0);
+    TeraHeap.h2TagAndMoveRoot(referent, 1);
 
     for (int i=0; i < referent.length; i++)
       referent[i] = new Bean("mybean:" + i, 100);// Throw Exception 
@@ -51,7 +38,7 @@ public class Test_Reference {
       soft_referent[i] = new SoftReference<Bean>(new Bean("mybean:" + i, 100)); 
 
     WeakReference<Bean>[] weakReference = new WeakReference[2000];
-    _UNSAFE.h2TagAndMoveRoot(weakReference, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(weakReference, 0);
 
     GC.move_to_old();
     GC.gc();

@@ -66,8 +66,7 @@ class oopDesc {
   // Without compressed class pointers: 64 bits at offset 16, after the
   // klass. The object header is 24 bytes.
   //+-------+----------------------------------------------------------------+
-  //| 63-48 | Partition id                                                   |
-  //| 47-32 | Group id                                                       |
+  //| 63-32 | Label                                                          |
   //| 31-0  | State of the object                                            |
   //+-------+----------------------------------------------------------------+
   //
@@ -75,8 +74,7 @@ class oopDesc {
   // The object header is 16 bytes, as in stock HotSpot. The state keeps
   // only the low 8 bits of the state constants (see sharedDefines.h).
   //+-------+----------------------------------------------------------------+
-  //| 31-20 | Partition id                                                   |
-  //| 19-8  | Group id                                                       |
+  //| 31-8  | Label                                                          |
   //| 7-0   | State of the object                                            |
   //+-------+----------------------------------------------------------------+
 #endif // TERA_FLAG
@@ -88,10 +86,10 @@ class oopDesc {
 
 
 #ifdef TERA_FLAG
-  // Mark an object with 'id' to be moved in H2. H2 allocator uses the
-  // 'id' to locate objects with the same 'id' by to the same region.
-  // 'id' is defined by the application.
-  inline void mark_move_h2(uint64_t rdd_id, uint64_t part_id);
+  // Mark an object to be moved to H2 with this label, defined by the
+  // application. The H2 allocator groups the objects of a label in regions.
+  // Only the low 24 bits (32 without compressed class pointers) are kept.
+  inline void mark_move_h2(uint64_t label);
 
   // Check if an object is marked to be moved in H2
   inline bool is_marked_move_h2();
@@ -105,11 +103,8 @@ class oopDesc {
   // Init the object state 
   inline void init_obj_state();
 
-  // Get the object group id
-  inline int get_obj_group_id();
-
-  // Get object partition Id
-  inline uint64_t get_obj_part_id();
+  // Get the object label
+  inline uint64_t get_obj_label();
 
   inline bool is_live();
 
@@ -125,7 +120,7 @@ class oopDesc {
   inline volatile uint32_t* tera_flag32_addr() const;
   inline volatile uint64_t* tera_flag64_addr() const;
   // Write the whole TeraFlag word with one store
-  inline void set_tera_flag(uint64_t state, uint64_t group_id, uint64_t part_id);
+  inline void set_tera_flag(uint64_t state, uint64_t label);
 
  public:
 #endif // TERA_FLAG

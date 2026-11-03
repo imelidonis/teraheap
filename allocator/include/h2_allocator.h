@@ -33,15 +33,11 @@ extern "C" {
  * `region_size`: bytes per region; a power of two, at least
  * H2_SHADOW_CHUNK and a multiple of `alignment` (the process exits
  * otherwise).
- * `partitions`: maximum partitions per group (sizes the id mapping array).
- * `total_gc_threads`: number of GC threads that call h2_allocate().
- * `group_by_gc_thread`: group regions by the allocating GC thread
- * (h2_allocate()'s thread_id) instead of by rdd_id; then each region has
- * one allocating thread.
+ * `total_gc_threads`: number of GC threads that call h2_allocate(); H2 must
+ * have more regions than that.
  */
 H2_API void h2_init(uint64_t alignment, const char *h2_file_path, uint64_t h2_file_size,
-             uint64_t region_size, uint64_t partitions, int total_gc_threads,
-             bool group_by_gc_thread);
+             uint64_t region_size, int total_gc_threads);
 
 /* Start (aligned) and end of the H2 address range */
 H2_API char *h2_start_addr_mem_pool(void);
@@ -70,11 +66,30 @@ H2_API int h2_verify_top(void);
 /* ------------------------------------------------------------------ */
 
 /*
- * Allocate `size` HeapWords for an object of group `rdd_id` and partition
- * `partition_id`, called by GC thread `thread_id` (< total_gc_threads).
+ * How h2_allocate() groups objects in regions. Each group key has one
+ * region that it allocates in at a time; the keys of different modes never
+ * share a region.
+ */
+enum h2_group {
+  /* Key: label. The GC threads share the region of a label (young and
+   * mixed GCs of applications that label their objects) */
+  H2_GROUP_LABEL,
+  /* Key: GC thread; the labels are mixed in its region (young and mixed
+   * GCs of applications that do not label their objects) */
+  H2_GROUP_THREAD,
+  /* Key: (label, GC thread): each region has one allocating thread (Full
+   * GCs: the promotion buffers of a region get its objects in order) */
+  H2_GROUP_LABEL_THREAD
+};
+
+/*
+ * Allocate `size` HeapWords for an object of label `label`, called by GC
+ * thread `thread_id` (< total_gc_threads), in the region of its `group`
+ * key. Labels that have the same remainder modulo the number of label slots
+ * (about regions / (total_gc_threads + 1)) share regions.
  * Returns the address; exits if H2 is full.
  */
-H2_API char *h2_allocate(size_t size, uint64_t rdd_id, uint64_t partition_id, uint64_t thread_id);
+H2_API char *h2_allocate(size_t size, uint64_t label, uint64_t thread_id, enum h2_group group);
 
 /* After a GC: fold the per-thread allocation counters into the pool state */
 H2_API void h2_update_allocator_global_state(void);
@@ -140,6 +155,8 @@ struct h2_alloc_stats {
   uint64_t regions_with_deps;  // allocated regions with at least one dependency
   uint64_t span_links;         // links from an object's first region to the others
   uint64_t span_objects;       // objects larger than a region
+  uint64_t fallback_allocs;    // objects placed in another thread's or group's
+                               // region because H2 had no empty region (total)
 };
 
 /* At a safepoint: fill `s` with a scan of the region array */
@@ -170,9 +187,9 @@ H2_API bool h2_object_starts_from_region(char *obj);
 /* Number of contiguous regions of the allocation that starts in addr's region */
 H2_API int h2_get_num_of_continuous_regions(char *addr);
 
-/* Group (rdd) and partition id of the region that contains obj */
-H2_API uint64_t h2_get_obj_group_id(char *obj);
-H2_API uint64_t h2_get_obj_part_id(char *obj);
+/* Label of the region that contains obj: the label of the first object
+ * allocated in the region (with H2_GROUP_THREAD, regions mix labels) */
+H2_API uint64_t h2_get_obj_label(char *obj);
 
 /* Index of the region that contains addr */
 H2_API uint64_t h2_region_containing_addr(char *addr);
@@ -194,6 +211,9 @@ H2_API char *h2_get_next_region(void);
 /*
  * Copy the object `obj` of `size` HeapWords that moves to `new_adr` into the
  * promotion buffer of new_adr's region. Big objects are written directly.
+ * The H2 space of all objects must be allocated before they are inserted
+ * (as in a Full GC): after the object that ends at its region's allocation
+ * top, the region's buffer is written and freed.
  */
 H2_API void h2_buffer_insert(char *obj, char *new_adr, size_t size);
 
@@ -260,8 +280,7 @@ struct h2_shadow_stats {
 /*
  * Enable shadow chunks for the H2 file mapping, with a pool of up to
  * pool_bytes and up to precopy_rounds pre-copy rounds per chunk.
- * Returns 0, or -1 if not available (the allocator then works as before),
- * also when h2_init() did not group regions by GC thread.
+ * Returns 0, or -1 if not available (the allocator then works as before).
  */
 H2_API int h2_shadow_init(size_t pool_bytes, int precopy_rounds);
 

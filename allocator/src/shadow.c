@@ -51,8 +51,9 @@ static char *s_slots;             // reserved, 2 MB aligned pool area
 static uint32_t s_pool_cap, s_pool_n, s_nfree;
 static uint32_t *s_free;          // free slot stack
 static struct rec *s_recs;        // per slot
-static int64_t *s_skip;           // per GC thread: last chunk left to the file
-static int s_nthreads;
+// Per region: the last chunk left to the file. Read and written under the
+// lock of the mapping that allocates in the region
+static int64_t *s_skip;
 static uint64_t s_seq;
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -200,11 +201,11 @@ static long rewrite_written(char *a, int rearm, long max_pages, bool *written) {
 // ---- API ----
 
 int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
-                uint64_t region_size, size_t pool_bytes, int precopy_rounds, int n_threads,
+                uint64_t region_size, size_t pool_bytes, int precopy_rounds,
                 void (*region_info)(char *addr, char **top, bool *active),
                 int (*region_free_prot)(char *addr)) {
   if (s_on) return 0;
-  if (((uintptr_t) h2_start % CHUNK) != 0 || pool_bytes < CHUNK || n_threads <= 0 ||
+  if (((uintptr_t) h2_start % CHUNK) != 0 || pool_bytes < CHUNK ||
       region_size < CHUNK || (region_size & (region_size - 1)) != 0) {
     fprintf(stderr, "[SHADOW] bad arguments (H2 start %p must be 2 MB aligned, region size %lu "
             "a power of two of at least 2 MB)\n", h2_start, (unsigned long) region_size);
@@ -234,9 +235,8 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
   s_pool_cap = pool_bytes / CHUNK;
   s_free = calloc(s_pool_cap, sizeof *s_free);
   s_recs = calloc(s_pool_cap, sizeof *s_recs);
-  s_nthreads = n_threads;
-  s_skip = malloc(n_threads * sizeof *s_skip);
-  for (int t = 0; t < n_threads; t++) s_skip[t] = -1;
+  s_skip = malloc(s_nregions * sizeof *s_skip);
+  if (s_skip) for (uint64_t g = 0; g < s_nregions; g++) s_skip[g] = -1;
   char *r = mmap(NULL, (uint64_t) (s_pool_cap + 1) * CHUNK, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   if (!s_state || !s_region_busy || !s_free || !s_recs || !s_skip || r == MAP_FAILED) {
     fprintf(stderr, "[SHADOW] out of memory\n");
@@ -251,25 +251,24 @@ int shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
 
 void h2_shadow_set_active(bool active) {
   if (!s_on) return;
-  if (active) for (int t = 0; t < s_nthreads; t++) s_skip[t] = -1;
+  if (active) for (uint64_t g = 0; g < s_nregions; g++) s_skip[g] = -1;
   s_active = active;
 }
 
-void shadow_ensure(char *pos, size_t bytes, uint64_t thread_id) {
+void shadow_ensure(char *pos, size_t bytes) {
   if (!s_active || pos < s_h2_start || pos >= s_h2_end || bytes == 0) return;
   uint64_t i0 = chunk_idx(pos), i1 = chunk_idx(pos + bytes - 1);
   if (i1 >= s_nchunks) i1 = s_nchunks - 1;
-  int64_t skip = s_skip[thread_id];
   uint64_t i;
   for (i = i0; i <= i1; i++)
-    if (get_state(i) == CS_FILE && (int64_t) i != skip) break;
+    if (get_state(i) == CS_FILE && (int64_t) i != s_skip[region_of(i)]) break;
   if (i > i1) return;   // fast path: all attached or known to stay in the file
 
   pthread_mutex_lock(&s_lock);
   for (i = i0; i <= i1; i++) {
     if (get_state(i) != CS_FILE) continue;
     // Empty only if nothing was allocated in it before this object
-    if (chunk_addr(i) < pos || !attach_locked(i)) s_skip[thread_id] = (int64_t) i;
+    if (chunk_addr(i) < pos || !attach_locked(i)) s_skip[region_of(i)] = (int64_t) i;
   }
   pthread_mutex_unlock(&s_lock);
 }

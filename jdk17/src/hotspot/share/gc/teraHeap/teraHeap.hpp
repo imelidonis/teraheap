@@ -87,6 +87,10 @@ private:
   };
   H2FullGCWriteMode _fgc_write_mode;
 
+  // How young and mixed GCs group the objects they move to H2
+  // (TeraH2GroupByGCThread)
+  enum h2_group _evac_group;
+
   // Parse TeraH2FullGCWriteMode; exits on an unknown value
   static H2FullGCWriteMode parse_fgc_write_mode(const char* mode);
 
@@ -200,8 +204,10 @@ public:
   // Retrurn the start address of the first object of the secific region
   HeapWord *get_first_object_in_region(HeapWord *addr);
 
-  // Add new object in the region
-  char *h2_add_object(oop obj, size_t size, size_t worker_id);
+  // Allocate H2 space for obj (size in words) for GC thread worker_id.
+  // Full GCs (is_in_fgc) group the objects by label and GC thread, young
+  // and mixed GCs by label or, with TeraH2GroupByGCThread, by GC thread
+  char *h2_add_object(oop obj, size_t size, size_t worker_id, bool is_in_fgc);
 
   // Pop a backward reference from mark stack `stack_id`, or NULL if it is
   // empty. The H1 object it points to must be kept alive.
@@ -286,22 +292,11 @@ public:
     ::h2_references((char *) obj1, (char *) obj2);
   }
 
-  // Get the group Id of the objects that belongs to this region. We
-  // locate the objects of the same group to the same region. We use the
-  // field 'p' of the object to identify in which region the object
-  // belongs to.
-  uint64_t h2_get_region_groupId(void *p) {
+  // Label of the H2 region that contains address p: the label of the
+  // first object allocated in it
+  uint64_t h2_get_region_label(void *p) {
     assert(p != NULL, "Sanity check");
-    return ::h2_get_obj_group_id((char *) p);
-  }
-
-  // Get the partition Id of the objects that belongs to this region. We
-  // locate the objects of the same group to the same region. We use the
-  // field 'p' of the object to identify in which region the object
-  // belongs to.
-  uint64_t h2_get_region_partId(void *p) {
-    assert(p != NULL, "Sanity check");
-    return ::h2_get_obj_part_id((char *) p);
+    return ::h2_get_obj_label((char *) p);
   }
 
   // Check if the object `obj` is an instance of the following

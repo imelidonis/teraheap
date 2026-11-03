@@ -53,11 +53,11 @@ static void *mark_chain_part(void *arg) {
 }
 
 int main() {
-  // One partition: each label (rdd id) gets its own region
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 1, 1, false);
+  // Each label gets its own region (512 regions: 256 label slots)
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 128 * MB, 1);
 
   for (int i = 0; i < NOBJ; i++)
-    obj[i] = h2_allocate(1, i, 0, 0);
+    obj[i] = h2_allocate(1, i, 0, H2_GROUP_LABEL);
 
   for (int i = 1; i < NOBJ; i++)
     CHECK(h2_region_containing_addr(obj[i]) != h2_region_containing_addr(obj[i - 1]),

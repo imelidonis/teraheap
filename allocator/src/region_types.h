@@ -44,11 +44,13 @@ struct region {
 
     struct pr_buffer *pr_buffer;
     int8_t used;
-    uint32_t rdd_id;
-    uint32_t part_id;
+    // Label of the first object allocated in the region (h2_get_obj_label())
+    uint32_t label;
+    // Index of the mapping (id_mapping_array) that allocates in the region
+    uint32_t map_id;
 } __attribute__((aligned(CACHE_LINE_SIZE)));   // one region per cache line (see init_regions())
 
-// Mapping of rdd_id to the corresponding region.
+// Mapping of a group (h2_group) key to the region it allocates in.
 // Locking the Mapping prevents multiple threads from
 // allocating to the same same region.
 //
@@ -60,7 +62,8 @@ struct id_to_reg_mapping {
 };
 
 /* Defined in regions.c */
-extern uint64_t _MAX_PARTITIONS;
+extern uint64_t max_sublabels;
+extern uint64_t n_map_ids;
 extern struct region *region_array;
 // Start address of region 0 (the start of H2), used to compute region
 // indices. A copy of region_array[0].start_address that is never written

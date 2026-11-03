@@ -37,15 +37,16 @@ TeraHeap::TeraHeap() {
                                           "and a multiple of " UINT64_FORMAT " bytes",
                                           H2RegionSize, align));
   }
-  if (H2FileSize / H2RegionSize < H2MaxPartitions) {
-    vm_exit_during_initialization(err_msg("H2FileSize / H2RegionSize (" SIZE_FORMAT ") must be at "
-                                          "least H2MaxPartitions (" UINTX_FORMAT ")",
-                                          (size_t) (H2FileSize / H2RegionSize), H2MaxPartitions));
+  // The allocator needs a region per GC thread and one shared region
+  if (H2FileSize / H2RegionSize <= ParallelGCThreads) {
+    vm_exit_during_initialization(err_msg("H2FileSize / H2RegionSize (" SIZE_FORMAT ") must be more "
+                                          "than ParallelGCThreads (%u)",
+                                          (size_t) (H2FileSize / H2RegionSize), ParallelGCThreads));
   }
   _h2_stripe_cards = H2RegionSize >> CardTable::th_card_shift;
 
-  ::h2_init(align, AllocateH2At, H2FileSize, H2RegionSize, H2MaxPartitions, ParallelGCThreads,
-            TeraH2GroupByGCThread);
+  ::h2_init(align, AllocateH2At, H2FileSize, H2RegionSize, ParallelGCThreads);
+  _evac_group = TeraH2GroupByGCThread ? H2_GROUP_THREAD : H2_GROUP_LABEL;
   ::h2_protect_regions_on_free(ProtectH2RegionsOnFree ? 1 : 0);
 
   _start_addr = ::h2_start_addr_mem_pool();
@@ -368,6 +369,8 @@ void TeraHeap::print_h2_alloc_stats(const char *tag) {
                 tag, deps_avg, s.dep_max, s.regions_with_deps, s.regions_allocated);
   out->print_cr("[%s] | H2_ALLOC SPAN_LINKS %lu (objects larger than a region: %lu)",
                 tag, s.span_links, s.span_objects);
+  out->print_cr("[%s] | H2_ALLOC FALLBACK_ALLOCS %lu (total, objects placed in another region because H2 had no empty region)",
+                tag, s.fallback_allocs);
   out->flush();
 
   _as_last_allocated = s.regions_allocated;
@@ -391,14 +394,17 @@ HeapRegion *TeraHeap::verify_next_humongous() {
 
 // Allocate new object 'obj' with 'size' in words in TeraHeap.
 // Return the allocated 'pos' position of the object
-char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id) {
+char* TeraHeap::h2_add_object(oop obj, size_t size, size_t worker_id, bool is_in_fgc) {
 #ifdef ENABLE_SINGLE_THREAD_ALLOCATION
   MutexLocker x(tera_heap_lock);
 #endif // ENABLE_SINGLE_THREAD_ALLOCATION
 
   char *pos;  // Allocation position
 
-  pos = ::h2_allocate(size, (uint64_t)obj->get_obj_group_id(), (uint64_t)obj->get_obj_part_id(), worker_id);
+  // Full GC: one allocating thread per region, so that the promotion
+  // buffer of a region gets its objects in order
+  pos = ::h2_allocate(size, obj->get_obj_label(), worker_id,
+                      is_in_fgc ? H2_GROUP_LABEL_THREAD : _evac_group);
 
   // `size` is in words: the object must end at or before the end of H2
   assert((HeapWord *) pos + size <= (HeapWord*) _stop_addr, "H2 is Out of Memory\n");

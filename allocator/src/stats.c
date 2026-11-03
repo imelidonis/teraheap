@@ -12,7 +12,8 @@ static inline bool continues_object(const struct region *r) {
 }
 
 void h2_get_alloc_stats(struct h2_alloc_stats *s) {
-  *s = (struct h2_alloc_stats) { .regions_total = region_array_size };
+  *s = (struct h2_alloc_stats) { .regions_total = region_array_size,
+                                 .fallback_allocs = fallback_alloc_count() };
 
   for (uint64_t i = 0; i < region_array_size; i++) {
     const struct region *r = &region_array[i];

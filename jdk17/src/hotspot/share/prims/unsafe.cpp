@@ -891,7 +891,8 @@ UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject 
     return;
 
   // Initialize object's teraflag
-  o->mark_move_h2(label, 0);
+  // partId is not used: the H2 allocator groups by label (and GC thread)
+  o->mark_move_h2((uint64_t) label);
 
 } UNSAFE_END
 

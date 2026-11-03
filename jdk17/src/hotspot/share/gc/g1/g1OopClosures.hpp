@@ -248,17 +248,8 @@ public:
   // we dont enable the tera flag of the metadata objs
   bool is_h2_flag_set() { return _h2_flag && !metadata_traversal_1 && !metadata_traversal_2; }
 
-  // Get the saved current object group id 
-  long int get_cur_obj_group_id(void) {
-    assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
-    return obj_container->get_obj_group_id();
-  }
-
-  // Get the saved current object partition id 
-  long int get_cur_obj_part_id(void) {
-    assert( _h2_flag == true && obj_container!=NULL, "tera traversal is not enabled for that obj" );
-    return obj_container->get_obj_part_id();
-  }
+  // Get the label of the saved current object
+  inline uint64_t get_cur_obj_label();
   
   virtual void do_klass(Klass* k){
     if (EnableTeraHeap) {
@@ -296,8 +287,7 @@ private:
 
 #ifdef TERA_CONC_MARKING
   bool _is_tera_enabled;
-  uint64_t _rdd_id;
-  uint64_t _part_id;
+  uint64_t _label;
 #endif
 
 public:
@@ -308,10 +298,9 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
 #ifdef TERA_CONC_MARKING
-  void set_parent_tera(bool is_tera_enabled, uint64_t rdd_id, uint64_t part_id) {  
-    _is_tera_enabled = is_tera_enabled; 
-    _rdd_id = rdd_id;
-    _part_id = part_id;
+  void set_parent_tera(bool is_tera_enabled, uint64_t label) {
+    _is_tera_enabled = is_tera_enabled;
+    _label = label;
   }
 #endif
 };

@@ -61,18 +61,19 @@ extern "C" {
 // message on stderr (the allocator then works as before).
 // The region queries come from the region code (regions.c):
 //  - region_info(addr, &top, &active): the allocation top of the region that
-//    contains addr, and whether a (thread, partition) id still allocates in it;
+//    contains addr, and whether a mapping still allocates in it;
 //  - region_free_prot(addr): the protection to map a chunk of a freed region
 //    with.
 int  shadow_init(int fd, char *map_start, size_t map_size, char *h2_start,
-                 uint64_t region_size, size_t pool_bytes, int precopy_rounds, int n_threads,
+                 uint64_t region_size, size_t pool_bytes, int precopy_rounds,
                  void (*region_info)(char *addr, char **top, bool *active),
                  int (*region_free_prot)(char *addr));
 
 // Called by allocate_to_region(), with the region's mapping lock held, for
-// the object [pos, pos + bytes) of GC thread `thread_id`: attaches the empty
-// chunks it covers. Cheap when nothing to do.
-void shadow_ensure(char *pos, size_t bytes, uint64_t thread_id);
+// the object [pos, pos + bytes): attaches the empty chunks it covers. Cheap
+// when nothing to do: a chunk that could not be attached is remembered per
+// region, also when a GC thread allocates in several regions in turn.
+void shadow_ensure(char *pos, size_t bytes);
 
 // Tests only: attach the empty chunks of [top, top + bytes) ahead of a
 // region's top, up to the region's end, outside pauses (no GC thread

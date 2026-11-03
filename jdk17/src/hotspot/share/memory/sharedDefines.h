@@ -102,9 +102,11 @@
 // different: MOVE_TO_TERA 0xff, IN_TERA_CACHE 0xa9, INIT_TF 0xf3,
 // LIVE_TERA_OBJ 0xca, VISITED_TERA_OBJ 0xcb.
 #define TF32_STATE_MASK   0xffU     //< State bits 7-0
-#define TF32_GROUP_SHIFT  8         //< Group id bits 19-8
-#define TF32_PART_SHIFT   20        //< Partition id bits 31-20
-#define TF32_ID_MASK      0xfffU    //< Group and partition ids: 12 bits
+#define TF32_LABEL_SHIFT  8           //< Label bits 31-8
+#define TF32_LABEL_MASK   0xffffffU     //< Label: 24 bits
+// Without compressed class pointers the TeraFlag word is 64 bits
+#define TF64_LABEL_SHIFT  32            //< Label bits 63-32
+#define TF64_LABEL_MASK   0xffffffffULL //< Label: 32 bits
 #define INIT_TF32         (INIT_TF & TF32_STATE_MASK) //< Initial 32-bit word
 
 #define TWO_FACTOR_COST_MODEL_IN_CSET // Use cost model with different cost per byte metrics for h1 and h2 bytes, or not

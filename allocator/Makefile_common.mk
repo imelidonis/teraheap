@@ -32,7 +32,7 @@ TEST_OBJS = $(TEST_SRCS:.c=.o)
 TEST_BINS = $(patsubst $(TESTDIR)/%.c,$(BINDIR)/%.bin,$(TEST_SRCS))
 ## White-box tests call internal (hidden) functions: they link the objects
 ## instead of the library
-WHITEBOX_BINS = $(BINDIR)/th_free.bin $(BINDIR)/th_shadow.bin
+WHITEBOX_BINS = $(BINDIR)/th_free.bin $(BINDIR)/th_shadow.bin $(BINDIR)/th_promo_buffer.bin
 
 ## Directory where the tests create the H2 file (passed as the first argument)
 TEST_H2_DIR ?= /mnt/fmap/

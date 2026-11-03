@@ -43,6 +43,13 @@
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/align.hpp"
 
+#ifdef TERA_CONC_MARKING
+inline uint64_t G1CMOopClosure::get_cur_obj_label() {
+  assert(_h2_flag && obj_container != NULL, "tera traversal is not enabled for that obj");
+  return obj_container->get_obj_label();
+}
+#endif
+
 template <class T>
 inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
    
@@ -220,7 +227,7 @@ inline void G1RootRegionScanClosure::do_oop_work(T* p) {
   // if parent object has tera flag enabled
   // enable tera flag at child too
   if (EnableTeraHeap && _is_tera_enabled && !Universe::teraHeap()->is_metadata(obj)) 
-    obj->mark_move_h2( _rdd_id, _part_id);
+    obj->mark_move_h2(_label);
 #endif
 
   _cm->mark_in_next_bitmap(_worker_id, obj); // mark only the objs that are bellow TAMPs
@@ -404,8 +411,7 @@ void H2ToH1Closure::mark_object(oop obj) {
 void H2ToH1Closure::enable_tera_flag(void *p, oop obj){
    // enable its tera flag
   if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {   
-    obj->mark_move_h2(Universe::teraHeap()->h2_get_region_groupId(p),
-                      Universe::teraHeap()->h2_get_region_partId(p));
+    obj->mark_move_h2(Universe::teraHeap()->h2_get_region_label(p));
   }
 }
 #endif

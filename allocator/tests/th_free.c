@@ -10,6 +10,7 @@
 * Test to verify:
 *       - allocator initialization
 *       - object allocation in the correct positions
+*       - the search for an empty region wraps around the end of H2
 ***************************************************/
 
 #include <stdint.h>
@@ -38,44 +39,44 @@ int main() {
   char *obj8;
   char *obj9;
   // Init allocator
-  // One GC thread per group (thread_id = rdd_id): the regions are the same
-  // whether the allocator groups by GC thread or by rdd
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4, 4, false);
+  // One GC thread per label (thread_id = label): the regions are the same
+  // whether the objects are grouped by label or by GC thread
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4);
 
   //obj1 should be in region 0
-  obj1 = h2_allocate(1, 0, 0, 0);
+  obj1 = h2_allocate(1, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj1);
 
   //obj2 should be in region 1 
-  obj2 = h2_allocate(200, 1, 0, 1);
+  obj2 = h2_allocate(200, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj2);
 
   //obj3 should be in region 0
-  obj3 = h2_allocate(12020, 0, 0, 0);
+  obj3 = h2_allocate(12020, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj3);
 
   //obj4 should be in region 2 
-  obj4 = h2_allocate(262140, 2, 0, 2);
+  obj4 = h2_allocate(262140, 2, 2, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj4);
 
   //obj5 should be in region 1
-  obj5 = h2_allocate(4, 1, 0, 1);
+  obj5 = h2_allocate(4, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj5);
 
   //obj6 should be in region 0 
-  obj6 = h2_allocate(200, 0, 0, 0);
+  obj6 = h2_allocate(200, 0, 0, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj6);
 
   //obj7 should be in region 3 
-  obj7 = h2_allocate(262140, 1, 0, 1);
+  obj7 = h2_allocate(262140, 1, 1, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj7);
 
   //obj8 should be in region 4 
-  obj8 = h2_allocate(500, 3, 0, 3);
+  obj8 = h2_allocate(500, 3, 3, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj8);
 
   //obj9 should be in region 5 
-  obj9 = h2_allocate(500, 2, 0, 2);
+  obj9 = h2_allocate(500, 2, 2, H2_GROUP_LABEL);
   fprintf(stderr, "Allocate: %p\n", obj9);
 
   //region 0 and region 1 grouped
@@ -127,6 +128,36 @@ int main() {
           "Number of allocated regions is incorrect");
   print_regions();
   h2_print_groups();
+
+  // Fill H2 with objects of one region each: the search for empty regions
+  // starts after the last region allocated above and wraps around the end
+  uint64_t n = region_array_size;
+  char **objs = malloc(n * sizeof(char *));
+  char *seen = calloc(n, 1);
+  for (uint64_t k = 0; k < n; k++) {
+    objs[k] = h2_allocate(256 * MB / 8, k % 4, k % 4, H2_GROUP_LABEL);
+    uint64_t r = h2_region_containing_addr(objs[k]);
+    CHECK(r < n, "object %lu in region %lu, H2 has %lu regions", k, r, n);
+    CHECK(!seen[r], "objects in region %lu twice", r);
+    seen[r] = 1;
+  }
+  CHECK(total_allocated_regions() == n, "%lu regions allocated, expected %lu",
+        total_allocated_regions(), n);
+
+  // Free the first 10 regions: the next objects wrap around again to them
+  h2_reset_used();
+  for (uint64_t k = 0; k < n; k++)
+    if (h2_region_containing_addr(objs[k]) >= 10)
+      h2_mark_used(objs[k]);
+  h2_free_regions(NULL, NULL);
+  CHECK(total_allocated_regions() == n - 10, "%lu regions allocated after the free, expected %lu",
+        total_allocated_regions(), n - 10);
+  for (uint64_t k = 0; k < 10; k++) {
+    uint64_t r = h2_region_containing_addr(h2_allocate(256 * MB / 8, 0, 0, H2_GROUP_LABEL));
+    CHECK(r < 10, "object in region %lu, expected one of the freed regions 0-9", r);
+  }
+  free(objs);
+  free(seen);
 
   printf("--------------------------------------\n");
   printf("TH_Free:\t\t\t\033[1;32m[PASS]\033[0m\n");

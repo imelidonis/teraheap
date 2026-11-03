@@ -864,9 +864,9 @@ void G1ConcurrentMark::scan_root_region(const MemRegion* region, uint worker_id)
 #ifdef TERA_CONC_MARKING
     if (EnableTeraHeap) {
       if (obj->is_marked_move_h2()) {
-        cl.set_parent_tera(true, obj->get_obj_group_id(), obj->get_obj_part_id());
+        cl.set_parent_tera(true, obj->get_obj_label());
       } else {
-        cl.set_parent_tera(false,0,0);
+        cl.set_parent_tera(false, 0);
       }
     }
 #endif

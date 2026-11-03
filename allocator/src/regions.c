@@ -1,4 +1,5 @@
-// The region array and allocation in regions (H2 objects go to the region of their (rdd, partition) id), and the region queries.
+// The region array and allocation in regions (H2 objects go to the region of their group key, see
+// enum h2_group), and the region queries.
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
@@ -12,7 +13,12 @@
 #include "sharedDefines.h"
 #include "shadow.h"
 
-uint64_t _MAX_PARTITIONS;
+// Mappings per label: one per GC thread (H2_GROUP_LABEL_THREAD) and one
+// shared by the GC threads (H2_GROUP_LABEL), the last one
+uint64_t max_sublabels;
+// All mappings: max_labels * max_sublabels, then one per GC thread
+// (H2_GROUP_THREAD)
+uint64_t n_map_ids;
 
 // Global lock to only allow one thread to request new
 // region and create a new mapping.
@@ -28,6 +34,15 @@ struct id_to_reg_mapping *id_mapping_array;
 
 static int32_t _next_region;
 
+// H2 has no empty region (new_region() failed for one region), so do not
+// search the region array again until h2_free_regions() frees regions.
+// Written under alloc_region_lock, or at a safepoint (regions_freed())
+static bool no_free_region;
+
+// Objects placed in another mapping's region because H2 had no empty
+// region (h2_alloc_stats.fallback_allocs)
+static uint64_t fallback_allocs;
+
 /* An empty region that starts at `start`, with an empty promotion buffer */
 static void init_region(struct region *r, char *start) {
   r->start_address         = start;
@@ -36,8 +51,8 @@ static void init_region(struct region *r, char *start) {
   r->last_allocated_start  = NULL;
   r->first_allocated_start = NULL;
   r->deps                  = NULL;
-  r->rdd_id                = _MAX_PARTITIONS - 1;
-  r->part_id               = _MAX_PARTITIONS - 1;
+  r->label                 = 0;
+  r->map_id                = 0;
 
   r->pr_buffer = malloc(sizeof(struct pr_buffer));
   check_allocation_failure(r->pr_buffer, "[ERROR] -- Failed to allocate memory for pr_buffer\n");
@@ -51,8 +66,9 @@ static void init_region(struct region *r, char *start) {
 /*
  * Initialize region array, tera_group array and their fields
  */
-void init_regions(uint64_t partitions) {
-  _MAX_PARTITIONS = partitions;
+void init_regions(uint64_t n_threads) {
+  max_sublabels = n_threads + 1;
+  n_map_ids = max_labels * max_sublabels + n_threads;
 
   // Cache-line aligned, so that each region (exactly one cache line, see
   // struct region) does not share a line with its neighbors: neighboring
@@ -61,8 +77,7 @@ void init_regions(uint64_t partitions) {
   region_array = aligned_alloc(CACHE_LINE_SIZE, region_array_size * sizeof(struct region));
   check_allocation_failure(region_array, "[ERROR] -- Failed to allocate memory for region_array\n");
 
-  uint64_t n_ids = _MAX_PARTITIONS * max_rdd_id;
-  id_mapping_array = malloc(n_ids * sizeof(struct id_to_reg_mapping));
+  id_mapping_array = malloc(n_map_ids * sizeof(struct id_to_reg_mapping));
   check_allocation_failure(
       id_mapping_array, "[ERROR] -- Failed to allocate memory for id_mapping_array\n");
 
@@ -74,10 +89,16 @@ void init_regions(uint64_t partitions) {
   for (uint64_t i = 0; i < region_array_size; i++)
     init_region(&region_array[i], region_array_base + i * region_size);
 
-  for (uint64_t i = 0; i < n_ids; i++) {
+  // Adaptive: with H2_GROUP_LABEL all GC threads that copy objects of a
+  // label take its lock for a short time, so spin a little before sleeping
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ADAPTIVE_NP);
+  for (uint64_t i = 0; i < n_map_ids; i++) {
     id_mapping_array[i].mapped_region = NULL;
-    pthread_mutex_init(&id_mapping_array[i].mapping_lock, NULL);
+    pthread_mutex_init(&id_mapping_array[i].mapping_lock, &attr);
   }
+  pthread_mutexattr_destroy(&attr);
 
   pthread_mutex_init(&alloc_region_lock, NULL);
 }
@@ -99,7 +120,8 @@ static int32_t get_cont_regions(int32_t cont_regions) {
 
     // Find region
     if (((j - 1) % (int32_t) region_array_size) == ((i % (int32_t) region_array_size) + cont_regions -1 )) {
-      index = i;
+      // The search wraps around the end of the array: keep the indexes in it
+      index = i % (int32_t) region_array_size;
       i = j % (int32_t) region_array_size;
       return index;
     } else {
@@ -107,6 +129,7 @@ static int32_t get_cont_regions(int32_t cont_regions) {
     }
   }
 
+  i %= (int32_t) region_array_size;
   return -1;
 }
 
@@ -150,60 +173,140 @@ static char* new_region(size_t size) {
   return region_array[cur_region].start_address;
 }
 
-uint64_t get_id(uint64_t rdd_id, uint64_t partition_id) {
-  return (rdd_id % max_rdd_id) * _MAX_PARTITIONS + partition_id;
+uint64_t map_id_of(enum h2_group group, uint64_t label, uint64_t thread_id) {
+  switch (group) {
+    case H2_GROUP_LABEL:
+      return (label % max_labels) * max_sublabels + (max_sublabels - 1);
+    case H2_GROUP_THREAD:
+      return max_labels * max_sublabels + thread_id;
+    case H2_GROUP_LABEL_THREAD:
+    default:
+      return (label % max_labels) * max_sublabels + thread_id;
+  }
+}
+
+void regions_freed(void) {
+  no_free_region = false;
+}
+
+uint64_t fallback_alloc_count(void) {
+  return __atomic_load_n(&fallback_allocs, __ATOMIC_RELAXED);
+}
+
+/* Allocate `size` bytes after the last object of region r, which has room
+ * for them. Called with the lock of the mapping that allocates in r held. */
+static char *bump_in_region(struct region *r, size_t size) {
+  h2_mark_used(r->start_address);
+  r->last_allocated_start = r->last_allocated_end;
+  r->last_allocated_end = r->last_allocated_start + size;
+
+  // Back new SH space with shadow chunks during mixed GCs (shadow.h). Under
+  // the mapping lock: every object reserved before this one in the region
+  // ends at or before it, and no other GC thread can reserve space after
+  // it until the lock is released, so a chunk at or above it is empty
+  shadow_ensure(r->last_allocated_start, size);
+  return r->last_allocated_start;
+}
+
+/*
+ * H2 has no empty region: allocate `size` bytes (less than a region) in the
+ * active region of another mapping of the same label slot (with
+ * H2_GROUP_THREAD, of another GC thread). Called without the lock of
+ * mapping `own` (its region does not change); takes one other mapping's
+ * lock at a time, so it cannot deadlock with another thread in the
+ * fallback. Returns NULL if none has room.
+ */
+static char *allocate_in_other_region(uint64_t own, size_t size) {
+  if (size >= region_size)
+    return NULL;
+
+  const uint64_t label_ids = max_labels * max_sublabels;
+  uint64_t first, n;
+  if (own >= label_ids) {          // H2_GROUP_THREAD
+    first = label_ids;
+    n = n_map_ids - label_ids;
+  } else {                         // the mappings of own's label slot
+    first = (own / max_sublabels) * max_sublabels;
+    n = max_sublabels;
+  }
+
+  // Start after own, so that the threads of a label spread over its regions
+  for (uint64_t k = 1; k < n; k++) {
+    struct id_to_reg_mapping *o = &id_mapping_array[first + (own - first + k) % n];
+    pthread_mutex_lock(&o->mapping_lock);
+    struct region *r = o->mapped_region;
+    if (r != NULL && r->last_allocated_end + size <= r->start_address + region_size) {
+      char *res = bump_in_region(r, size);
+      pthread_mutex_unlock(&o->mapping_lock);
+      __atomic_fetch_add(&fallback_allocs, 1, __ATOMIC_RELAXED);
+      return res;
+    }
+    pthread_mutex_unlock(&o->mapping_lock);
+  }
+  return NULL;
 }
 
 /*
  * Allocate `size` bytes at the start of new empty regions and, for an
  * object smaller than a region, make the region that holds its end the
- * active region of mapping `m`. Called with m->mapping_lock held.
+ * active region of mapping `m` (index map_id). Every region of the
+ * allocation gets the label and the mapping index. Returns NULL if H2 has
+ * no empty region. Called with m->mapping_lock held.
  */
 static char *allocate_in_new_region(struct id_to_reg_mapping *m, size_t size,
-                                    uint64_t rdd_id, uint64_t partition_id) {
+                                    uint64_t label, uint64_t map_id) {
+  char *res = NULL;
   pthread_mutex_lock(&alloc_region_lock);
-  char *res = new_region(size);
+  if (!no_free_region) {
+    res = new_region(size);
+    // An object of several regions may fail only for lack of contiguous
+    // regions, while single regions are left
+    if (res == NULL && size <= region_size)
+      no_free_region = true;
+  }
   pthread_mutex_unlock(&alloc_region_lock);
 
-  if (res == NULL) {
-    perror("[Error] - H2 Allocator is full");
-    exit(EXIT_FAILURE);
+  if (res == NULL)
+    return NULL;
+
+  // Also the regions of an object that spans several regions, so that
+  // h2_get_obj_label() gives the object's label in each of them
+  for (uint64_t i = region_index(res); i <= region_index(res + size - 1); i++) {
+    region_array[i].label = (uint32_t) label;
+    region_array[i].map_id = (uint32_t) map_id;
   }
 
   // If the object spans more than one region, no other object goes after it
-  if (size < region_size) {
+  if (size < region_size)
     m->mapped_region = &region_array[region_index(res + size)];
-    m->mapped_region->rdd_id = rdd_id;
-    m->mapped_region->part_id = partition_id;
-  }
 
+  // See bump_in_region()
+  shadow_ensure(res, size);
   return res;
 }
 
-char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id,
-                         uint64_t thread_id) {
-  struct id_to_reg_mapping *m = &id_mapping_array[get_id(rdd_id, partition_id)];
+char* allocate_to_region(size_t size, uint64_t label, uint64_t map_id) {
+  struct id_to_reg_mapping *m = &id_mapping_array[map_id];
   char *res;
 
   pthread_mutex_lock(&m->mapping_lock);
 
   struct region *r = m->mapped_region;
-  if (r == NULL || r->last_allocated_end + size > r->start_address + region_size) {
-    res = allocate_in_new_region(m, size, rdd_id, partition_id);
-  } else {
-    h2_mark_used(r->start_address);
-    r->last_allocated_start = r->last_allocated_end;
-    r->last_allocated_end = r->last_allocated_start + size;
-    res = r->last_allocated_start;
-  }
-
-  // Back new SH space with shadow chunks during mixed GCs (shadow.h). Under
-  // the mapping lock: every object reserved before this one in the region
-  // ends at or before res, and no other GC thread can reserve space after
-  // it until the lock is released, so a chunk at or above res is empty
-  shadow_ensure(res, size, thread_id);
+  if (r == NULL || r->last_allocated_end + size > r->start_address + region_size)
+    res = allocate_in_new_region(m, size, label, map_id);
+  else
+    res = bump_in_region(r, size);
 
   pthread_mutex_unlock(&m->mapping_lock);
+
+  // No empty region: use the region of another mapping of the label (m
+  // keeps its region for when regions are freed)
+  if (res == NULL)
+    res = allocate_in_other_region(map_id, size);
+  if (res == NULL) {
+    fprintf(stderr, "[Error] - H2 Allocator is full\n");
+    exit(EXIT_FAILURE);
+  }
 
 #if DEBUG_PRINT
   printf("Allocating from region %lu until region %lu\n", region_index(res), region_index(res + size));
@@ -215,7 +318,7 @@ char* allocate_to_region(size_t size, uint64_t rdd_id, uint64_t partition_id,
 void region_info(char *addr, char **top, bool *active) {
   struct region *r = &region_array[region_index(addr)];
   *top = r->last_allocated_end;
-  *active = id_mapping_array[get_id(r->rdd_id, r->part_id)].mapped_region == r;
+  *active = id_mapping_array[r->map_id].mapped_region == r;
 }
 
 int region_free_prot(char *addr) {
@@ -289,28 +392,9 @@ int h2_get_num_of_continuous_regions(char *addr) {
   return (bytes + region_size - 1) / region_size;
 }
 
-/*
- * Get object 'groupId' (RDD Id). Each object is allocated based on a tera_group Id
- * and the partition Id that locates in teraflag.
- *
- * @obj: address of the object
- *
- * Return: the object rdd id
- */
-uint64_t h2_get_obj_group_id(char *obj) {
-  return region_of(obj)->rdd_id;
-}
-
-/*
- * Get object 'groupId'. Each object is allocated based on a tera_group Id
- * and the partition Id that locates in teraflag.
- *
- * obj: address of the object
- *
- * returns: the object partition Id
- */
-uint64_t h2_get_obj_part_id(char *obj) {
-  return region_of(obj)->part_id;
+// Label of the region that contains obj: the label it was allocated for
+uint64_t h2_get_obj_label(char *obj) {
+  return region_of(obj)->label;
 }
 
 /* The allocation top of the last non-empty region (of region 0 if all are empty) */

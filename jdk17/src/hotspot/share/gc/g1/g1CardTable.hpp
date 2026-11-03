@@ -25,8 +25,6 @@
 #ifndef SHARE_GC_G1_G1CARDTABLE_HPP
 #define SHARE_GC_G1_G1CARDTABLE_HPP
 
-#include "gc/g1/g1OopClosures.hpp"
-#include "gc/parallel/objectStartArray.inline.hpp"
 #include "gc/g1/g1RegionToSpaceMapper.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "oops/oopsHierarchy.hpp"

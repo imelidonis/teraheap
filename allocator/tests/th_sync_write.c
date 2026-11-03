@@ -41,7 +41,7 @@ int main() {
 	char *tmp, *tmp2, *tmp3, *tmp4;
 	
 	// Init allocator
-  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 4, 1, false);
+  h2_init(CARD_SIZE * PAGE_SIZE, "/mnt/fmap/", 64 * GB, 256 * MB, 1);
 
 	tmp = malloc(SIZE_80B * sizeof(char));
 	memset(tmp, '1', SIZE_80B);
@@ -59,19 +59,19 @@ int main() {
 	memset(tmp4, '4', SIZE_4M);
 	tmp4[SIZE_4M - 1] = '\0';
 	
-	obj1 = h2_allocate(SIZE_TO_WORD(SIZE_80B), 0, 0, 0);
+	obj1 = h2_allocate(SIZE_TO_WORD(SIZE_80B), 0, 0, H2_GROUP_LABEL);
 	h2_write(tmp, obj1, SIZE_TO_WORD(SIZE_80B));
 	CHECK(strlen(obj1) == SIZE_80B - 1, "Error in size %lu", strlen(obj1));
 	
-	obj2 = h2_allocate(SIZE_TO_WORD(SIZE_160B), 0, 0, 0);
+	obj2 = h2_allocate(SIZE_TO_WORD(SIZE_160B), 0, 0, H2_GROUP_LABEL);
 	h2_write(tmp2, obj2, SIZE_TO_WORD(SIZE_160B));
 	CHECK(strlen(obj2) == SIZE_160B - 1, "Error in size");
 	
-	obj3 = h2_allocate(SIZE_TO_WORD(SIZE_1M), 0, 0, 0);
+	obj3 = h2_allocate(SIZE_TO_WORD(SIZE_1M), 0, 0, H2_GROUP_LABEL);
 	h2_write(tmp3, obj3, SIZE_TO_WORD(SIZE_1M));
 	CHECK(strlen(obj3) == SIZE_1M - 1, "Error in size %lu", strlen(obj3));
 
-	obj4 = h2_allocate(SIZE_TO_WORD(SIZE_4M), 1, 0, 0);
+	obj4 = h2_allocate(SIZE_TO_WORD(SIZE_4M), 1, 0, H2_GROUP_LABEL);
 	h2_write(tmp4, obj4, SIZE_TO_WORD(SIZE_4M));
 	CHECK(strlen(obj4) == SIZE_4M - 1, "Error in size");
 	

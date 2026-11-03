@@ -59,8 +59,7 @@ void G1FullGCMarker::set_h2_candidate_flags(oop obj) {
   _is_h2_candidate = (EnableTeraHeap
                       && !Universe::teraHeap()->is_metadata(obj)
                       && obj->is_marked_move_h2()) ? true : false;
-  _h2_group_id = (_is_h2_candidate) ? obj->get_obj_group_id() : 0;
-  _h2_part_id  = (_is_h2_candidate) ? obj->get_obj_part_id() : 0;
+  _h2_label = (_is_h2_candidate) ? obj->get_obj_label() : 0;
 }
 
 void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
@@ -86,8 +85,7 @@ void G1FullGCMarker::complete_marking(OopQueueSet* oop_stacks,
   // Later marking (reference processing) must not label objects with the
   // label of the last object followed here
   _is_h2_candidate = false;
-  _h2_group_id = 0;
-  _h2_part_id = 0;
+  _h2_label = 0;
 }
 
 void G1FullGCMarker::flush_mark_stats_cache() {

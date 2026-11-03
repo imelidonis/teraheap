@@ -374,8 +374,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
     if (!obj->is_marked_move_h2() && !Universe::teraHeap()->is_metadata(obj)) {
       assert(!Universe::teraHeap()->is_metadata(obj), "Metadata should have been already filtered out");
 
-      obj->mark_move_h2(_cm_oop_closure->get_cur_obj_group_id(),
-                        _cm_oop_closure->get_cur_obj_part_id());
+      obj->mark_move_h2(_cm_oop_closure->get_cur_obj_label());
     }
   }
 #endif

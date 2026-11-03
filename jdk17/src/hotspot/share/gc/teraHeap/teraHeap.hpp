@@ -307,6 +307,11 @@ public:
   // If yes return true, otherwise false
   inline bool is_metadata(oop obj);
 
+  // Application hint (sun.misc.Unsafe, jdk.teraheap.TeraHeap): mark `obj`
+  // as a root to move to H2 with `label`. Does nothing if `obj` is already
+  // in H2 or is metadata (is_metadata())
+  inline void tag_root_for_h2(oop obj, uint64_t label);
+
   // Check if the object with `addr` span multiple regions
   int h2_continuous_regions(HeapWord *addr);
 

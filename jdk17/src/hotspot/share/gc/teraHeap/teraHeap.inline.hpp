@@ -134,4 +134,17 @@ inline bool TeraHeap::is_metadata(oop obj) {
   return false;
 }
 
+inline void TeraHeap::tag_root_for_h2(oop obj, uint64_t label) {
+  // If the object is already in H2 then do not mark its teraflag
+  if (is_in_h2(obj))
+    return;
+
+  // Class mirrors, Reference objects, class loaders (and arrays of them)
+  // stay in H1, as for the objects that the GCs mark for H2
+  if (is_metadata(obj))
+    return;
+
+  obj->mark_move_h2(label);
+}
+
 #endif // SHARE_GC_TERAHEAP_TERAHEAP_INLINE_HPP

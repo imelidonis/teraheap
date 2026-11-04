@@ -9,22 +9,9 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.LinkedList;
 import java.util.ArrayList;
-
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 public class Array_mine {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str) {
     System.out.println("=========================================");
     System.out.println(str + "\n");
@@ -54,7 +41,7 @@ public class Array_mine {
 
     // Create the array list
     ArrayList<String> arl = new ArrayList<String>();
-    _UNSAFE.h2TagAndMoveRoot(arl, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(arl, 0);
 
     for (int i = 0; i < num_elements; i++)
       arl.add(new String("Hello World for the first time " + i));

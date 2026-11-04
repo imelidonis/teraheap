@@ -2,29 +2,16 @@ import java.util.HashMap;
 import java.util.Iterator;  
 import java.util.Map;  
 import java.util.WeakHashMap;  
-
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 public class Test_WeakHashMap {  
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void main(String[] args) throws Exception {  
     String a = new String("a");  
     String b = new String("b");  
     Map weakmap = new WeakHashMap();  
 
     // Mark this weakmap to be moved in H2
-    _UNSAFE.h2TagAndMoveRoot(weakmap, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(weakmap, 0);
 
     Map map = new HashMap();  
     map.put(a, "aaa");  

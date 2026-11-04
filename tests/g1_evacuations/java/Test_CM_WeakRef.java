@@ -1,21 +1,9 @@
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 // TODO: verify this test works correctly and does what we
 // thing it does.
 public class Test_CM_WeakRef {  
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   private static class A {
     public String _str;
 
@@ -39,7 +27,7 @@ public class Test_CM_WeakRef {
       a = new A(str); // a --> str
 
       // Mark the string 
-      _UNSAFE.h2TagAndMoveRoot(str, 13, 0);
+      TeraHeap.h2TagAndMoveRoot(str, 13);
 
       // -------------------------------
       GC.move_to_old();
@@ -48,11 +36,11 @@ public class Test_CM_WeakRef {
       // -------------------------------
 
       System.out.println("After fgc:");
-      System.out.println("Str: " + str + " -- (in H2: " + _UNSAFE.is_in_h2(str) + ")");
-      System.out.println("A: " + a + " -- (in H2: " + _UNSAFE.is_in_h2(a) + ")");
+      System.out.println("Str: " + str + " -- (in H2: " + TeraHeap.isInH2(str) + ")");
+      System.out.println("A: " + a + " -- (in H2: " + TeraHeap.isInH2(a) + ")");
       if (weak != null) {
-        System.out.println("Weak: " + weak + " -- (in H2: " + _UNSAFE.is_in_h2(weak) + ")");
-        System.out.println(" L " + weak.get() + " -- (in H2: " + _UNSAFE.is_in_h2(weak.get()) + ")");
+        System.out.println("Weak: " + weak + " -- (in H2: " + TeraHeap.isInH2(weak) + ")");
+        System.out.println(" L " + weak.get() + " -- (in H2: " + TeraHeap.isInH2(weak.get()) + ")");
       } else {
         System.out.println("Weak: " + weak);
       }
@@ -70,13 +58,13 @@ public class Test_CM_WeakRef {
 
     System.out.println("Str: -");
     if (a != null) {
-      System.out.println("A: " + a + " -- (in H2: " + _UNSAFE.is_in_h2(a) + ")");
+      System.out.println("A: " + a + " -- (in H2: " + TeraHeap.isInH2(a) + ")");
     } else {
       System.out.println("A: " + a);
     }
     if (weak != null) {
-        System.out.println("Weak: " + weak + " -- (in H2: " + _UNSAFE.is_in_h2(weak) + ")");
-        System.out.println(" L " + weak.get() + " -- (in H2: " + _UNSAFE.is_in_h2(weak.get()) + ")");
+        System.out.println("Weak: " + weak + " -- (in H2: " + TeraHeap.isInH2(weak) + ")");
+        System.out.println(" L " + weak.get() + " -- (in H2: " + TeraHeap.isInH2(weak.get()) + ")");
     } else {
       System.out.println("Weak: " + weak);
     }
@@ -89,13 +77,13 @@ public class Test_CM_WeakRef {
 
     System.out.println("Str: -");
     if (a != null) {
-      System.out.println("A: " + a + " -- (in H2: " + _UNSAFE.is_in_h2(a) + ")");
+      System.out.println("A: " + a + " -- (in H2: " + TeraHeap.isInH2(a) + ")");
     } else {
       System.out.println("A: " + a);
     }
     if (weak != null) {
-        System.out.println("Weak: " + weak + " -- (in H2: " + _UNSAFE.is_in_h2(weak) + ")");
-        System.out.println(" L " + weak.get() + " -- (in H2: " + _UNSAFE.is_in_h2(weak.get()) + ")");
+        System.out.println("Weak: " + weak + " -- (in H2: " + TeraHeap.isInH2(weak) + ")");
+        System.out.println(" L " + weak.get() + " -- (in H2: " + TeraHeap.isInH2(weak.get()) + ")");
     } else {
       System.out.println("Weak: " + weak);
     }
@@ -103,7 +91,7 @@ public class Test_CM_WeakRef {
     Integer[] iarr = { 4, 8, 15, 16, 23, 42 };
 
     // Mark the string 
-    _UNSAFE.h2TagAndMoveRoot(iarr, 13, 0);
+    TeraHeap.h2TagAndMoveRoot(iarr, 13);
 
     // --------------------------
     GC.move_to_old();
@@ -115,13 +103,13 @@ public class Test_CM_WeakRef {
 
     System.out.println("Str: -");
     if (a != null) {
-      System.out.println("A: " + a + " -- (in H2: " + _UNSAFE.is_in_h2(a) + ")");
+      System.out.println("A: " + a + " -- (in H2: " + TeraHeap.isInH2(a) + ")");
     } else {
       System.out.println("A: " + a);
     }
     if (weak != null) {
-        System.out.println("Weak: " + weak + " -- (in H2: " + _UNSAFE.is_in_h2(weak) + ")");
-        System.out.println(" L " + weak.get() + " -- (in H2: " + _UNSAFE.is_in_h2(weak.get()) + ")");
+        System.out.println("Weak: " + weak + " -- (in H2: " + TeraHeap.isInH2(weak) + ")");
+        System.out.println(" L " + weak.get() + " -- (in H2: " + TeraHeap.isInH2(weak.get()) + ")");
     } else {
       System.out.println("Weak: " + weak);
     }

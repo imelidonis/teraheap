@@ -1,7 +1,7 @@
-import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import jdk.teraheap.TeraHeap;
 
 /**
  * Stress the race:
@@ -19,21 +19,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Notes:
  *   - This test is intentionally aggressive; tune defaults as needed.
- *   - It assumes your H2 region placement depends on (a2, a3) tags applied to roots.
+ *   - It assumes your H2 region placement depends on the label applied to roots.
  */
 public class Test_H2_DependencyList_Race {
-
-  private static final sun.misc.Unsafe U;
-  static {
-    try {
-      Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      f.setAccessible(true);
-      U = (sun.misc.Unsafe) f.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   // The object that resides in H2 and is used as the "source" (seg1).
   // We will constantly mutate ref to point to objects in other H2 regions (seg2).
   static final class Anchor {
@@ -87,9 +75,9 @@ public class Test_H2_DependencyList_Race {
   }
 
   // Fixed H2 "seg1" root: contains exactly one Anchor that never gets dropped.
-  private static Object[] makeAnchorRoot(int padKb, int segStripe, int segGroup) {
+  private static Object[] makeAnchorRoot(int padKb, int label) {
     Object[] root = new Object[1];
-    U.h2TagAndMoveRoot(root, segStripe, segGroup);
+    TeraHeap.h2TagAndMoveRoot(root, label);
     root[0] = new Anchor(padKb);
     return root;
   }
@@ -101,8 +89,7 @@ public class Test_H2_DependencyList_Race {
       Object[] r = new Object[rootLen];
 
       int a2 = i & 0xF;
-      int a3 = (i >>> 4) & 0xF;
-      U.h2TagAndMoveRoot(r, a2, a3);
+      TeraHeap.h2TagAndMoveRoot(r, a2);
 
       roots[i] = r;
     }
@@ -158,7 +145,7 @@ public class Test_H2_DependencyList_Race {
         " FULL_GC_EVERY=" + FULL_GC_EVERY);
 
     // Place anchor in a fixed H2 region (seg1).
-    Object[] anchorRoot = makeAnchorRoot(ANCHOR_PAD_KB, 0xE, 0xE);
+    Object[] anchorRoot = makeAnchorRoot(ANCHOR_PAD_KB, 0xE);
     Anchor anchor = (Anchor) anchorRoot[0];
 
     // Roots used to place targets in many other H2 regions (seg2 varies).

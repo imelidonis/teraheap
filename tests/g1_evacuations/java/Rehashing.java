@@ -4,22 +4,10 @@ import java.util.Scanner;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.HashMap;
+import jdk.teraheap.TeraHeap;
 
-import java.lang.reflect.Field;
 
 public class Rehashing {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str) {
     System.out.println("=========================================");
     System.out.println(str + "\n");
@@ -36,7 +24,7 @@ public class Rehashing {
     long sum;
 
     HashMap<String, Integer> people = new HashMap<String, Integer>(2, 0.75f);
-    _UNSAFE.h2TagAndMoveRoot(people, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(people, 0);
 
     for (int i = 0; i < num_elements/2; i++)
       people.put("Jack " + i, 100);

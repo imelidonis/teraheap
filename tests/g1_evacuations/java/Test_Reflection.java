@@ -5,6 +5,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 
 import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 // class whose object is to be created 
 class Test 
@@ -33,18 +34,6 @@ class Test
 
 class Test_Reflection
 { 
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str)
   {
     System.out.println("=========================================");
@@ -62,7 +51,7 @@ class Test_Reflection
   { 
     // Creating object whose property is to be checked 
     Test obj = new Test(); 
-    _UNSAFE.h2TagAndMoveRoot(obj, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(obj, 0);
 
     // Creating class object from the object using 
     // getclass method 

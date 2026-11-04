@@ -1,18 +1,6 @@
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 public class HumongousChain {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void gc()
 {
     System.out.println("=========================================");
@@ -61,7 +49,7 @@ public class HumongousChain {
      
     // Humongous 1
     Object[] child = new Object[total];
-    _UNSAFE.h2TagAndMoveRoot(child, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(child, 0);
 
     // Add reference to another humongous
     root[total - 1] = child;
@@ -108,8 +96,8 @@ public class HumongousChain {
     access_all_objects(root);
     // -------------
 
-    System.out.println(_UNSAFE.is_in_h2(root));
-    System.out.println(_UNSAFE.is_in_h2(child));
-    System.out.println(_UNSAFE.is_in_h2(gchild));
+    System.out.println(TeraHeap.isInH2(root));
+    System.out.println(TeraHeap.isInH2(child));
+    System.out.println(TeraHeap.isInH2(gchild));
   }
 }

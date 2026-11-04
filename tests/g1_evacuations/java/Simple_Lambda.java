@@ -9,7 +9,7 @@ import java.lang.*;
 import java.util.Scanner;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 interface FuncInterface 
 { 
@@ -25,18 +25,6 @@ interface FuncInterface
 
 class Simple_Lambda 
 { 
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str)
   {
     System.out.println("=========================================");
@@ -54,7 +42,7 @@ class Simple_Lambda
     // functional interface. This interface 
     // by default implements abstractFun() 
     FuncInterface fobj = (int x)->System.out.println(2*x); 
-    _UNSAFE.h2TagAndMoveRoot(fobj, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(fobj, 0);
 
     mem_info("Memory Before");
 

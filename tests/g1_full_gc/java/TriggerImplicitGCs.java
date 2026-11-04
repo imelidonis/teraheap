@@ -1,21 +1,9 @@
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.lang.Math;
+import jdk.teraheap.TeraHeap;
 
 
 public class TriggerImplicitGCs {
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   static Integer SmallNum = 1000;
   static Integer LargeNum = 100000;
 
@@ -51,7 +39,7 @@ public class TriggerImplicitGCs {
 
       others = new Point[SmallNum];
 
-      _UNSAFE.h2TagAndMoveRoot(others, 0, 0);
+      TeraHeap.h2TagAndMoveRoot(others, 0);
     }
 
     public void add(Point p) {
@@ -62,7 +50,7 @@ public class TriggerImplicitGCs {
       this.others = new Point[SmallNum];
       this.total = 0;
 
-      _UNSAFE.h2TagAndMoveRoot(this.others, 0, 0);
+      TeraHeap.h2TagAndMoveRoot(this.others, 0);
     }
 
     // Calculate new points from this and others and draw.
@@ -162,7 +150,7 @@ public class TriggerImplicitGCs {
 
             ((Object[]) new_p.a_field_without_usage)[0] = (Object) hum_array;
 
-            _UNSAFE.h2TagAndMoveRoot(new_p.a_field_without_usage, j % 5,0);
+            TeraHeap.h2TagAndMoveRoot(new_p.a_field_without_usage, j % 5);
           }
 
           points[i].add(new_p);
@@ -257,7 +245,7 @@ public class TriggerImplicitGCs {
         temp[LargeNum - 2] = i;
         temp[LargeNum - 1] = new Object[LargeNum];
         temp = (Object[]) temp[LargeNum - 1];
-        _UNSAFE.h2TagAndMoveRoot(temp, 0, 0);
+        TeraHeap.h2TagAndMoveRoot(temp, 0);
       }
 
       Integer times_to_call_mode1 = 7;

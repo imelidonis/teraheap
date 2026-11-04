@@ -1,14 +1,14 @@
-import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import jdk.teraheap.TeraHeap;
 
 /**
  * Stress test: H2 reclamation ("free path") during concurrent marking + young-GC storms,
  * with *explicit* verification that still-live H2 regions were not falsely reclaimed.
  *
  * Key stressors:
- *  1) Many H2 roots, placed across different H2 regions via Unsafe.h2TagAndMoveRoot(root, a2, a3).
+ *  1) Many H2 roots, placed across different H2 regions via TeraHeap.h2TagAndMoveRoot(root, label).
  *  2) Each H2 root contains many H2Payload objects (H2-resident).
  *  3) Some H2Payload objects point to humongous objects allocated in H1 (normal Java heap):
  *       H2 -> H1(humongous) edges.
@@ -27,21 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Assumes harness provides:
  *  - GC.cm_start(), GC.wait_cm(), GC.in_cm(), GC.young_gc(), GC.move_to_old(), GC.gc()
- *  - sun.misc.Unsafe.h2TagAndMoveRoot(Object root, int a2, int a3)
+ *  - jdk.teraheap.TeraHeap.h2TagAndMoveRoot(Object root, long label)
  */
 public class Test_H2_FreePath_CM_YoungStorm {
-
-  private static final sun.misc.Unsafe U;
-  static {
-    try {
-      Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      f.setAccessible(true);
-      U = (sun.misc.Unsafe) f.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   // H2-resident payload: has an internal blob (H2 memory) and optional reference to H1 humongous.
   static final class H2Payload {
     final int id;
@@ -203,7 +191,7 @@ public class Test_H2_FreePath_CM_YoungStorm {
   // We store both the H2Payload and (if present) its H1Humongous ref, so both are exercised.
   private static Object[] makeSentinelRoot(Object[][] roots, int sentinelCount, ThreadLocalRandom rnd) {
     Object[] sentinelRoot = new Object[sentinelCount * 2];
-    U.h2TagAndMoveRoot(sentinelRoot, 0xE, 0xE);
+    TeraHeap.h2TagAndMoveRoot(sentinelRoot, 0xE);
 
     int s = 0;
     int attempts = sentinelCount * 100;
@@ -301,9 +289,8 @@ public class Test_H2_FreePath_CM_YoungStorm {
       Object[] r = new Object[ROOT_LEN];
 
       // Vary H2 placement identifiers.
-      int a2 = i & 0xF;          // stripes
-      int a3 = (i >>> 4) & 0xF;  // groups
-      U.h2TagAndMoveRoot(r, a2, a3);
+      int a2 = i & 0xF;          // label
+      TeraHeap.h2TagAndMoveRoot(r, a2);
 
       for (int j = 0; j < ROOT_LEN; j++) {
         H2Payload p = new H2Payload((int) (id++), BLOB_KB);

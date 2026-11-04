@@ -9,22 +9,10 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.LinkedList;
 import java.util.ArrayList;
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 public class Groupping 
 { 
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str)
   {
     System.out.println("=========================================");
@@ -61,7 +49,7 @@ public class Groupping
     mem_info("Memory Before");
 
     LinkedList<Integer> list = new LinkedList<Integer>();
-    _UNSAFE.h2TagAndMoveRoot(list, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(list, 0);
 
     gc();
 
@@ -77,7 +65,7 @@ public class Groupping
 
     gc();
     LinkedList<String> list2 = new LinkedList<String>();
-    _UNSAFE.h2TagAndMoveRoot(list2, 1, 0);
+    TeraHeap.h2TagAndMoveRoot(list2, 1);
 
     for (int i = 0; i < num_elements_2; i++)
       list2.add(new String("Hello World " + i));

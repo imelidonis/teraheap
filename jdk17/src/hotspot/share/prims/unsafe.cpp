@@ -881,18 +881,8 @@ UNSAFE_ENTRY(void, Unsafe_h2TagAndMoveRoot(JNIEnv *env, jobject unsafe, jobject 
   
   oop o = JNIHandles::resolve_non_null(obj);
 
-  // If the object is already in TeraHeap then do not mark its teraflag
-  if (Universe::teraHeap()->is_in_h2(o))
-    return;
-
-  // Class mirrors, Reference objects, class loaders (and arrays of them)
-  // stay in H1, as for the objects that the GCs mark for H2
-  if (Universe::teraHeap()->is_metadata(o))
-    return;
-
-  // Initialize object's teraflag
   // partId is not used: the H2 allocator groups by label (and GC thread)
-  o->mark_move_h2((uint64_t) label);
+  Universe::teraHeap()->tag_root_for_h2(o, (uint64_t) label);
 
 } UNSAFE_END
 

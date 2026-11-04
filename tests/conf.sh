@@ -23,6 +23,7 @@ EXEC=(
   "MultiHashMap"
   "Test_WeakHashMap"
   "ClassInstance"
+  "Test_TeraHeap_API"
 )
 
 # These tests exist only in evac benchmark suite

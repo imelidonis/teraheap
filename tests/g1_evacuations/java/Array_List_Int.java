@@ -9,22 +9,9 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.util.LinkedList;
 import java.util.ArrayList;
-
-import java.lang.reflect.Field;
+import jdk.teraheap.TeraHeap;
 
 public class Array_List_Int { 
-  private static final sun.misc.Unsafe _UNSAFE;
-
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
-
   public static void mem_info(String str) {
     System.out.println("=========================================");
     System.out.println(str + "\n");
@@ -54,7 +41,7 @@ public class Array_List_Int {
     mem_info("Memory Before");
 
     ArrayList<Integer> arl = new ArrayList<Integer>();
-    _UNSAFE.h2TagAndMoveRoot(arl, 0, 0);
+    TeraHeap.h2TagAndMoveRoot(arl, 0);
 
     for (int i = 0; i < num_elements; i++)
       arl.add(new Integer(i));
@@ -74,7 +61,7 @@ public class Array_List_Int {
     GC.gc();
 
     ArrayList<Integer> arl2 = new ArrayList<Integer>();
-    _UNSAFE.h2TagAndMoveRoot(arl2, 1, 0); 
+    TeraHeap.h2TagAndMoveRoot(arl2, 1); 
 
     for (int i = 0; i < num_elements; i++)
       arl2.add(new Integer(i));

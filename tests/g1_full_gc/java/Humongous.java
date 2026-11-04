@@ -1,9 +1,8 @@
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import jdk.teraheap.TeraHeap;
 
 public class Humongous {
-  private static final sun.misc.Unsafe _UNSAFE;
   private static volatile A a = new A(0);
 
   static class A {
@@ -44,15 +43,6 @@ public class Humongous {
     }
   }
 
-  static {
-    try {
-      Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-      unsafeField.setAccessible(true);
-      _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("SimplePartition: Failed to " + "get unsafe", e);
-    }
-  }
 
   public static void gc()
   {
@@ -108,7 +98,7 @@ public class Humongous {
     // potentially trigger a gc.
     for (int i = 0; i < 5; i++) {
       RefToHumongousObject child = new RefToHumongousObject(size_in_mb * 2);
-      _UNSAFE.h2TagAndMoveRoot(child, 0, 0);
+      TeraHeap.h2TagAndMoveRoot(child, 0);
 
       // noise
       if (i % 2 == 0) {
